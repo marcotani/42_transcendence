@@ -1,0 +1,50 @@
+name: Create Issues from CSV
+
+on:
+  workflow_dispatch:
+    inputs:
+      csv_path:
+        description: 'Path to CSV file'
+        required: true
+        default: '42_transcendence_github_project.csv'
+
+jobs:
+  create_issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas
+
+      - name: Create issues from CSV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python <<EOF
+          import pandas as pd
+          import os
+          import subprocess
+
+          csv_file = '${{ github.event.inputs.csv_path }}'
+          df = pd.read_csv(csv_file)
+
+          for _, row in df.iterrows():
+              title = row['Title']
+              assignee = row['Assignee']
+              labels = row['Labels']
+              body = f"**Target Date**: {row['Target Date']}\n\n**Status**: {row['Status']}"
+              subprocess.run([
+                  'gh', 'issue', 'create',
+                  '--title', title,
+                  '--body', body,
+                  '--assignee', assignee,
+                  '--label', labels
+              ])
+          EOF
