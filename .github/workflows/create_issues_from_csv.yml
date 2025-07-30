@@ -15,16 +15,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: List files and show CSV contents
-        run: |
-          ls -l
-          cat ${{ github.event.inputs.csv_path }}
-
-      - name: Check gh CLI version and auth
-        run: |
-          gh --version
-          gh auth status
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -33,7 +23,12 @@ jobs:
       - name: Install dependencies
         run: pip install pandas
 
-      - name: Create issues from CSV with debug
+      - name: Authenticate gh CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GH_TOKEN" | gh auth login --with-token
+
+      - name: Create issues from CSV
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -44,21 +39,16 @@ jobs:
           csv_file = '${{ github.event.inputs.csv_path }}'
           df = pd.read_csv(csv_file)
 
-          for i, row in df.iterrows():
+          for _, row in df.iterrows():
               title = row['Title']
-              assignee = row['Assignee'] if pd.notna(row['Assignee']) else ""
-              labels = row['Labels'] if pd.notna(row['Labels']) else ""
+              assignee = row['Assignee']
+              labels = row['Labels']
               body = f"**Target Date**: {row['Target Date']}\n\n**Status**: {row['Status']}"
-              print(f"Creating issue #{i+1}: {title} assigned to '{assignee}' with labels '{labels}'")
-              cmd = [
+              subprocess.run([
                   'gh', 'issue', 'create',
                   '--title', title,
                   '--body', body,
-              ]
-              if assignee:
-                  cmd.extend(['--assignee', assignee])
-              if labels:
-                  cmd.extend(['--label', labels])
-              print("Running command:", " ".join(cmd))
-              subprocess.run(cmd)
+                  '--assignee', assignee,
+                  '--label', labels
+              ])
           EOF
