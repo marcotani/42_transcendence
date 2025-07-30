@@ -15,6 +15,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: List files and show CSV contents
+        run: |
+          ls -l
+          cat ${{ github.event.inputs.csv_path }}
+
+      - name: Check gh CLI version and auth
+        run: |
+          gh --version
+          gh auth status
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -23,28 +33,32 @@ jobs:
       - name: Install dependencies
         run: pip install pandas
 
-      - name: Create issues from CSV
+      - name: Create issues from CSV with debug
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python <<EOF
           import pandas as pd
-          import os
           import subprocess
 
           csv_file = '${{ github.event.inputs.csv_path }}'
           df = pd.read_csv(csv_file)
 
-          for _, row in df.iterrows():
+          for i, row in df.iterrows():
               title = row['Title']
-              assignee = row['Assignee']
-              labels = row['Labels']
+              assignee = row['Assignee'] if pd.notna(row['Assignee']) else ""
+              labels = row['Labels'] if pd.notna(row['Labels']) else ""
               body = f"**Target Date**: {row['Target Date']}\n\n**Status**: {row['Status']}"
-              subprocess.run([
+              print(f"Creating issue #{i+1}: {title} assigned to '{assignee}' with labels '{labels}'")
+              cmd = [
                   'gh', 'issue', 'create',
                   '--title', title,
                   '--body', body,
-                  '--assignee', assignee,
-                  '--label', labels
-              ])
+              ]
+              if assignee:
+                  cmd.extend(['--assignee', assignee])
+              if labels:
+                  cmd.extend(['--label', labels])
+              print("Running command:", " ".join(cmd))
+              subprocess.run(cmd)
           EOF
