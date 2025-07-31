@@ -1,0 +1,8 @@
+implementare plugin Fastify
+
+es.
+
+src/plugins/
+├── jwt.ts         → gestione autenticazione JWT
+├── db.ts          → plugin per connessione al DB
+├── cors.ts        → setup CORS per frontend

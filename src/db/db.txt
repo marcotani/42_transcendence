@@ -1,0 +1,7 @@
+implementare connessione al database
+
+es.
+
+src/db/
+├── index.ts        → crea connessione DB (es. Prisma, knex, SQLite)
+├── migrations.sql  → definisce tabelle iniziali
