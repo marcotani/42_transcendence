@@ -18,7 +18,6 @@ async function buildServer() {
       app.log.error(err);
       process.exit(1);
     }
-    app.log.info(`Server listening at ${address}`);
   });
 }
 
