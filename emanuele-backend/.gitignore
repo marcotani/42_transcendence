@@ -1,0 +1,10 @@
+# Ignora le dipendenze
+node_modules/
+
+# Ignora output di build (opzionale se usi tsc)
+dist/
+
+# Ignora file temporanei di sistema
+.DS_Store
+.env
+*.Zone.Identifier
