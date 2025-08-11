@@ -3,7 +3,8 @@
 Starta Docker:
 
 ```
-docker-compose up --build
+sudo docker composer build
+sudo docker compose up
 ```
 
 Frontend disponibile a http://localhost:3000
