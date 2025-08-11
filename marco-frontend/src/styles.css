@@ -3,3 +3,17 @@
 @tailwind utilities;
 
 /* Custom styles for accessibility, responsiveness, etc. can be added here */
+
+/* Accessibility: High-contrast mode and focus ring */
+.high-contrast {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+.high-contrast button {
+  background-color: #fff !important;
+  color: #000 !important;
+  border: 2px solid #000 !important;
+}
+.text-large {
+  font-size: 1.5rem !important;
+}

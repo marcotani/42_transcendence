@@ -73,6 +73,12 @@ function langSwitcherUI(currentLang) {
     </select>
   </div>`;
 }
+function accessibilityTogglesUI() {
+    return `<div class='absolute bottom-4 left-4 z-50 flex space-x-2'>
+    <button id='toggle-contrast' class='px-2 py-1 bg-black text-white rounded border border-white focus:outline-none focus:ring-2 focus:ring-white' aria-label='Toggle high contrast' tabindex='0'>🌓</button>
+    <button id='toggle-textsize' class='px-2 py-1 bg-black text-white rounded border border-white focus:outline-none focus:ring-2 focus:ring-white' aria-label='Toggle large text' tabindex='0'>A+</button>
+  </div>`;
+}
 // SPA navigation logic
 const routes = {
     'home': `<h1 class="text-4xl font-bold mb-4">Pong Game</h1>
@@ -85,7 +91,63 @@ const routes = {
     'start-game': `<h2 class="text-2xl font-bold mb-4">Start Game</h2><p>Game setup will go here.</p>`,
     'multiplayer': `<h2 class="text-2xl font-bold mb-4">Multiplayer</h2><p>Multiplayer options will go here.</p>`,
     'options': `<h2 class="text-2xl font-bold mb-4">Options</h2><p>Settings will go here.</p>`,
-    'leaderboard': `<h2 class="text-2xl font-bold mb-4">Leaderboard</h2><p>Leaderboard stats will go here.</p>`
+    'leaderboard': `<h2 class="text-2xl font-bold mb-4">Leaderboard</h2>
+      <div class='mt-6 w-full max-w-2xl mx-auto'>
+        <div class='mb-6'>
+          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Player Stats</h3>
+          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
+            <thead class='bg-gray-700'>
+              <tr>
+                <th class='px-4 py-2'>Player</th>
+                <th class='px-4 py-2'>Wins</th>
+                <th class='px-4 py-2'>Losses</th>
+                <th class='px-4 py-2'>Win Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class='px-4 py-2'>Alice</td>
+                <td class='px-4 py-2'>12</td>
+                <td class='px-4 py-2'>5</td>
+                <td class='px-4 py-2'>70%</td>
+              </tr>
+              <tr>
+                <td class='px-4 py-2'>Bob</td>
+                <td class='px-4 py-2'>8</td>
+                <td class='px-4 py-2'>10</td>
+                <td class='px-4 py-2'>44%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Match History</h3>
+          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
+            <thead class='bg-gray-700'>
+              <tr>
+                <th class='px-4 py-2'>Date</th>
+                <th class='px-4 py-2'>Players</th>
+                <th class='px-4 py-2'>Winner</th>
+                <th class='px-4 py-2'>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class='px-4 py-2'>2025-08-10</td>
+                <td class='px-4 py-2'>Alice vs Bob</td>
+                <td class='px-4 py-2'>Alice</td>
+                <td class='px-4 py-2'>11-7</td>
+              </tr>
+              <tr>
+                <td class='px-4 py-2'>2025-08-09</td>
+                <td class='px-4 py-2'>Bob vs Alice</td>
+                <td class='px-4 py-2'>Bob</td>
+                <td class='px-4 py-2'>11-9</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>`
 };
 function render(route) {
     const lang = getLang();
@@ -95,29 +157,86 @@ function render(route) {
         return;
     let content = '';
     if (route === 'start-game') {
-        content = `<h2 class='text-2xl font-bold mb-4'>${t.startGameTitle}</h2><p>${t.startGameDesc}</p>`;
+        content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.startGameTitle}'>${t.startGameTitle}</h2><p>${t.startGameDesc}</p>`;
     }
     else if (route === 'multiplayer') {
-        content = `<h2 class='text-2xl font-bold mb-4'>${t.multiplayerTitle}</h2><p>${t.multiplayerDesc}</p>`;
+        content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.multiplayerTitle}'>${t.multiplayerTitle}</h2><p>${t.multiplayerDesc}</p>`;
     }
     else if (route === 'options') {
-        content = `<h2 class='text-2xl font-bold mb-4'>${t.optionsTitle}</h2><p>${t.optionsDesc}</p>`;
+        content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.optionsTitle}'>${t.optionsTitle}</h2><p>${t.optionsDesc}</p>`;
     }
     else if (route === 'leaderboard') {
-        content = `<h2 class='text-2xl font-bold mb-4'>${t.leaderboardTitle}</h2><p>${t.leaderboardDesc}</p>`;
-    }
-    else {
-        content = `<h1 class='text-4xl font-bold mb-4'>${t.title}</h1>
-      <div class='flex flex-col items-center justify-center space-y-4 mt-8'>
-        <button class='w-48 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400' id='start-game'>${t.startGame}</button>
-        <button class='w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-yellow-400' id='multiplayer'>${t.multiplayer}</button>
-        <button class='w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-2 focus:ring-gray-400' id='options'>${t.options}</button>
-        <button class='w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-purple-400' id='leaderboard'>${t.leaderboard}</button>
+        content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.leaderboardTitle}'>${t.leaderboardTitle}</h2>
+      <div class='mt-6 w-full max-w-2xl mx-auto'>
+        <div class='mb-6'>
+          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Player Stats</h3>
+          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
+            <thead class='bg-gray-700'>
+              <tr>
+                <th class='px-4 py-2'>Player</th>
+                <th class='px-4 py-2'>Wins</th>
+                <th class='px-4 py-2'>Losses</th>
+                <th class='px-4 py-2'>Win Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class='px-4 py-2'>Alice</td>
+                <td class='px-4 py-2'>12</td>
+                <td class='px-4 py-2'>5</td>
+                <td class='px-4 py-2'>70%</td>
+              </tr>
+              <tr>
+                <td class='px-4 py-2'>Bob</td>
+                <td class='px-4 py-2'>8</td>
+                <td class='px-4 py-2'>10</td>
+                <td class='px-4 py-2'>44%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Match History</h3>
+          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
+            <thead class='bg-gray-700'>
+              <tr>
+                <th class='px-4 py-2'>Date</th>
+                <th class='px-4 py-2'>Players</th>
+                <th class='px-4 py-2'>Winner</th>
+                <th class='px-4 py-2'>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class='px-4 py-2'>2025-08-10</td>
+                <td class='px-4 py-2'>Alice vs Bob</td>
+                <td class='px-4 py-2'>Alice</td>
+                <td class='px-4 py-2'>11-7</td>
+              </tr>
+              <tr>
+                <td class='px-4 py-2'>2025-08-09</td>
+                <td class='px-4 py-2'>Bob vs Alice</td>
+                <td class='px-4 py-2'>Bob</td>
+                <td class='px-4 py-2'>11-9</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>`;
     }
-    app.innerHTML = langSwitcherUI(lang) + `<div class='fixed top-4 right-4 z-50'><button class='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-400' aria-label='Login'>${t.login}</button></div>` + content;
+    else {
+        content = `<h1 class='text-4xl font-bold mb-4' tabindex='0' aria-label='${t.title}'>${t.title}</h1>
+      <div class='flex flex-col items-center justify-center space-y-4 mt-8'>
+        <button class='w-48 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400' id='start-game' aria-label='${t.startGame}' tabindex='0'>${t.startGame}</button>
+        <button class='w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-yellow-400' id='multiplayer' aria-label='${t.multiplayer}' tabindex='0'>${t.multiplayer}</button>
+        <button class='w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400' id='options' aria-label='${t.options}' tabindex='0'>${t.options}</button>
+        <button class='w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-purple-400' id='leaderboard' aria-label='${t.leaderboard}' tabindex='0'>${t.leaderboard}</button>
+      </div>`;
+    }
+    app.innerHTML = langSwitcherUI(lang) + accessibilityTogglesUI() + `<div class='fixed top-4 right-4 z-50'><button class='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400' aria-label='${t.login}' tabindex='0'>${t.login}</button></div>` + content;
     attachMenuListeners();
     attachLangListener();
+    attachAccessibilityListeners();
 }
 function attachMenuListeners() {
     var _a, _b, _c, _d;
@@ -139,6 +258,15 @@ function attachLangListener() {
     (_a = document.getElementById('lang-select')) === null || _a === void 0 ? void 0 : _a.addEventListener('change', (e) => {
         const lang = e.target.value;
         setLang(lang);
+    });
+}
+function attachAccessibilityListeners() {
+    var _a, _b;
+    (_a = document.getElementById('toggle-contrast')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
+        document.body.classList.toggle('high-contrast');
+    });
+    (_b = document.getElementById('toggle-textsize')) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
+        document.body.classList.toggle('text-large');
     });
 }
 window.addEventListener('hashchange', () => {
