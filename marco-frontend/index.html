@@ -1,13 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <title>Pong Game</title>
+    <link href="./dist/styles.css" rel="stylesheet" />
   </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body class="bg-gray-900 text-white">
+    <div id="app" class="min-h-screen flex flex-col items-center justify-center">
+      <div class="fixed top-4 right-4 z-50">
+        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-400" aria-label="Login">Login</button>
+      </div>
+      <h1 class="text-4xl font-bold mb-4">Pong Game</h1>
+      <div class="flex flex-col items-center justify-center space-y-4 mt-8">
+        <button class="w-48 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400" aria-label="Start Game">Start Game</button>
+        <button class="w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-yellow-400" aria-label="Multiplayer">Multiplayer</button>
+        <button class="w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-2 focus:ring-gray-400" aria-label="Options">Options</button>
+        <button class="w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-purple-400" aria-label="Leaderboard">Leaderboard</button>
+      </div>
+      <!-- Main SPA content will be injected here -->
+    </div>
+    <script src="./dist/main.js"></script>
   </body>
 </html>

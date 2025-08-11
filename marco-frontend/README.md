@@ -1,69 +1,32 @@
-# React + TypeScript + Vite
+# Pong Frontend Skeleton
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the skeleton for the Pong frontend project. It uses TypeScript and Tailwind CSS only (no React or other frameworks). The app is a single-page application, responsive, accessible, multilingual, and includes stats dashboards and AI logic.
 
-Currently, two official plugins are available:
+## Structure
+- `index.html`: Main HTML file
+- `src/main.ts`: Entry point for TypeScript
+- `src/styles.css`: Tailwind CSS entry
+- `tailwind.config.js`: Tailwind configuration
+- `tsconfig.json`: TypeScript configuration
+- `package.json`: Project scripts and dependencies
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Setup
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Build CSS and TypeScript:
+   ```bash
+   npm run build
+   ```
+3. Start a local server (e.g. with `live-server` or similar) to view the SPA.
 
-## Expanding the ESLint configuration
+## Features
+- Responsive design
+- Multilingual support
+- Accessibility features
+- Stats dashboards
+- AI opponent
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+This README will be updated as features are implemented.

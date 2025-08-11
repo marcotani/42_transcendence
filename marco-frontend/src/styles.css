@@ -1,3 +1,5 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom styles for accessibility, responsiveness, etc. can be added here */
