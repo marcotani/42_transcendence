@@ -3,7 +3,7 @@
 Starta Docker:
 
 ```
-sudo docker composer build
+sudo docker compose build
 sudo docker compose up
 ```
 
