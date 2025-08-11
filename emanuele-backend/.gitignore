@@ -8,3 +8,5 @@ dist/
 .DS_Store
 .env
 *.Zone.Identifier
+/src/generated/prisma
+dev.db
