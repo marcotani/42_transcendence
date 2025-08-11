@@ -1,14 +1,10 @@
-## Frontend
+## Transcendence
 
-Versione di Node.js è v22.17.1. Dentro marco-frontend:
-
-```
-nvm install
-nvm use
-```
-
-Per far partise VISE:
+Starta Docker:
 
 ```
-npm run dev
+docker-compose up --build
 ```
+
+Frontend disponibile a http://localhost:3000
+Backend disponibile a http://localhost:8080

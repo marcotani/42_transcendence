@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  backend:
+    build: ./emanuele-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./emanuele-backend:/app
+    environment:
+      - DATABASE_URL=file:/app/dev.db
+    restart: unless-stopped
+  frontend:
+    build: ./marco-frontend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./marco-frontend:/app
+    depends_on:
+      - backend
+    restart: unless-stopped
+networks:
+  default:
+    driver: bridge
