@@ -6,11 +6,13 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
+    "@prisma/client": "^6.13.0",
     "fastify": "^5.4.0"
   },
   "devDependencies": {
     "@fastify/type-provider-typebox": "^5.2.0",
     "@types/node": "^18.19.121",
+    "prisma": "^6.13.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.8.3"
   }

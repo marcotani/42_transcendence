@@ -1,17 +1,20 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-//CORS significa Cross-Origin Resource Sharing
-//Serve a decidere se approvare o bloccare la chiamata alle API
-
-import dbPlugin from './plugins/db';
+import prismaPlugin from './plugins/prisma'; // Plugin Prisma
 import pingRoutes from './routes/ping';
 
 const app = Fastify({ logger: true });
 
 async function buildServer() {
   await app.register(cors);           // Plugin CORS
-  await app.register(dbPlugin);       // Plugin DB (mock)
+  await app.register(prismaPlugin);   // Plugin Prisma
   await app.register(pingRoutes);     // Rotte /ping
+
+  // Rotta per test DB
+  app.get('/health/db', async () => {
+    await app.prisma.$queryRaw`SELECT 1`;
+    return { ok: true };
+  });
 
   app.listen({ port: 3000 }, (err, address) => {
     if (err) {
