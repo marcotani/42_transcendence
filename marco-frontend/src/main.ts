@@ -74,6 +74,7 @@ function getLang(): 'en'|'it'|'fr' {
   if (lang === 'it' || lang === 'fr') return lang;
   return 'en';
 }
+
 function setLang(lang: 'en'|'it'|'fr') {
   localStorage.setItem('lang', lang);
   render(window.location.hash.replace('#', ''));
@@ -165,7 +166,27 @@ const routes: { [key: string]: string } = {
             </tbody>
           </table>
         </div>
-      </div>`
+      </div>`,
+  'login': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
+    <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Login / Register</h2>
+    <form id='auth-form' class='space-y-4'>
+      <div>
+        <label for='username' class='block mb-1'>Username</label>
+        <input type='text' id='username' name='username' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='username' />
+      </div>
+      <div>
+        <label for='password' class='block mb-1'>Password</label>
+        <input type='password' id='password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='current-password' />
+      </div>
+      <div class='flex items-center mb-2'>
+        <input type='checkbox' id='register-toggle' class='mr-2' />
+        <label for='register-toggle'>Register new account</label>
+      </div>
+      <button type='submit' class='w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400'>Continue</button>
+      <div id='auth-error' class='text-red-500 mt-2 hidden'></div>
+    </form>
+    <button id='back-home' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`
 };
 
 function render(route: string) {
@@ -174,7 +195,9 @@ function render(route: string) {
   const app = document.getElementById('app');
   if (!app) return;
   let content = '';
-  if (route === 'start-game') {
+  if (route === 'login') {
+    content = routes['login'];
+  } else if (route === 'start-game') {
     content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.startGameTitle}'>${t.startGameTitle}</h2><p>${t.startGameDesc}</p>`;
   } else if (route === 'multiplayer') {
     content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.multiplayerTitle}'>${t.multiplayerTitle}</h2><p>${t.multiplayerDesc}</p>`;
@@ -247,10 +270,11 @@ function render(route: string) {
         <button class='w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-purple-400' id='leaderboard' aria-label='${t.leaderboard}' tabindex='0'>${t.leaderboard}</button>
       </div>`;
   }
-  app.innerHTML = langSwitcherUI(lang) + accessibilityTogglesUI() + `<div class='fixed top-4 right-4 z-50'><button class='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400' aria-label='${t.login}' tabindex='0'>${t.login}</button></div>` + content;
+  app.innerHTML = langSwitcherUI(lang) + accessibilityTogglesUI() + `<div class='fixed top-4 right-4 z-50'><button class='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400' aria-label='${t.login}' tabindex='0' id='login-btn'>${t.login}</button></div>` + content;
   attachMenuListeners();
   attachLangListener();
   attachAccessibilityListeners();
+  attachLoginListeners();
 }
 
 function attachMenuListeners() {
@@ -282,6 +306,59 @@ function attachAccessibilityListeners() {
   document.getElementById('toggle-textsize')?.addEventListener('click', () => {
     document.body.classList.toggle('text-large');
   });
+}
+
+function attachLoginListeners() {
+  document.getElementById('login-btn')?.addEventListener('click', () => {
+    window.location.hash = '#login';
+  });
+  document.getElementById('back-home')?.addEventListener('click', () => {
+    window.location.hash = '';
+  });
+  const form = document.getElementById('auth-form') as HTMLFormElement | null;
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = (document.getElementById('username') as HTMLInputElement).value.trim();
+      const password = (document.getElementById('password') as HTMLInputElement).value;
+      const isRegister = (document.getElementById('register-toggle') as HTMLInputElement).checked;
+      const errorDiv = document.getElementById('auth-error');
+      if (!username || !password) {
+        if (errorDiv) {
+          errorDiv.textContent = 'Username and password required.';
+          errorDiv.classList.remove('hidden');
+        }
+        return;
+      }
+      if (errorDiv) errorDiv.classList.add('hidden');
+      // Send request to backend for login/register
+      try {
+        const endpoint = isRegister ? 'register' : 'login';
+        // Use backend service name for Docker Compose networking
+        const response = await fetch('http://emanuele-backend:4000/api/' + endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          if (errorDiv) {
+            errorDiv.textContent = data.message || 'Authentication failed.';
+            errorDiv.classList.remove('hidden');
+          }
+          return;
+        }
+        // Success: you can store token, redirect, etc.
+        alert((isRegister ? 'Registered' : 'Logged in') + ' as ' + username);
+        window.location.hash = '';
+      } catch (err) {
+        if (errorDiv) {
+          errorDiv.textContent = 'Network error.';
+          errorDiv.classList.remove('hidden');
+        }
+      }
+    });
+  }
 }
 
 window.addEventListener('hashchange', () => {

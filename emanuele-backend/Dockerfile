@@ -4,6 +4,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install
 COPY . .
-RUN npx prisma generate
+RUN npx prisma generate --schema=src/prisma/schema.prisma
 ENV DATABASE_URL="file:/app/dev.db"
 CMD ["npm", "run", "dev"]
