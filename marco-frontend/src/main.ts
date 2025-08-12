@@ -101,13 +101,12 @@ function accessibilityTogglesUI() {
 // SPA navigation logic
 const routes: { [key: string]: string } = {
   'home': `<h1 class="text-4xl font-bold mb-4">Pong Game</h1>
-    <div class="flex flex-col items-center justify-center space-y-4 mt-8">
-      <button class="w-48 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400" id="start-game">Start Game</button>
-      <button class="w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-yellow-400" id="multiplayer">Multiplayer</button>
-      <button class="w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-2 focus:ring-gray-400" id="options">Options</button>
-      <button class="w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-purple-400" id="leaderboard">Leaderboard</button>
-    </div>`,
-  'start-game': `<h2 class="text-2xl font-bold mb-4">Start Game</h2><p>Game setup will go here.</p>`,
+  <div class="flex flex-col items-center justify-center space-y-4 mt-8">
+    <button class="w-48 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400" id="start-game">Start Game</button>
+    <button class="w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-yellow-400" id="multiplayer">Multiplayer</button>
+    <button class="w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-2 focus:ring-gray-400" id="options">Options</button>
+    <button class="w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-purple-400" id="leaderboard">Leaderboard</button>
+  </div>`,
   'multiplayer': `<h2 class="text-2xl font-bold mb-4">Multiplayer</h2><p>Multiplayer options will go here.</p>`,
   'options': `<h2 class="text-2xl font-bold mb-4">Options</h2><p>Settings will go here.</p>`,
   'leaderboard': `<h2 class="text-2xl font-bold mb-4">Leaderboard</h2>
@@ -186,6 +185,15 @@ const routes: { [key: string]: string } = {
       <div id='auth-error' class='text-red-500 mt-2 hidden'></div>
     </form>
     <button id='back-home' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`,
+  'pong': `<div class='flex flex-col items-center justify-center min-h-screen'>
+    <h2 class='text-3xl font-bold mb-6'>Pong Game</h2>
+    <div class='bg-gray-800 rounded-lg shadow-lg p-4 flex flex-col items-center'>
+      <canvas id='pong-canvas' width='600' height='400' class='bg-black rounded mb-4'></canvas>
+      <button id='pong-start' class='px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 mb-2'>Start Game</button>
+      <div id='pong-status' class='text-white mt-2'></div>
+    </div>
+    <button id='back-home-pong' class='mt-8 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
   </div>`
 };
 
@@ -195,10 +203,10 @@ function render(route: string) {
   const app = document.getElementById('app');
   if (!app) return;
   let content = '';
-  if (route === 'login') {
+  if (route === 'pong') {
+    content = routes['pong'];
+  } else if (route === 'login') {
     content = routes['login'];
-  } else if (route === 'start-game') {
-    content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.startGameTitle}'>${t.startGameTitle}</h2><p>${t.startGameDesc}</p>`;
   } else if (route === 'multiplayer') {
     content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.multiplayerTitle}'>${t.multiplayerTitle}</h2><p>${t.multiplayerDesc}</p>`;
   } else if (route === 'options') {
@@ -275,11 +283,12 @@ function render(route: string) {
   attachLangListener();
   attachAccessibilityListeners();
   attachLoginListeners();
+  attachPongListeners();
 }
 
 function attachMenuListeners() {
   document.getElementById('start-game')?.addEventListener('click', () => {
-    window.location.hash = '#start-game';
+    window.location.hash = '#pong';
   });
   document.getElementById('multiplayer')?.addEventListener('click', () => {
     window.location.hash = '#multiplayer';
@@ -289,6 +298,9 @@ function attachMenuListeners() {
   });
   document.getElementById('leaderboard')?.addEventListener('click', () => {
     window.location.hash = '#leaderboard';
+  });
+  document.getElementById('pong')?.addEventListener('click', () => {
+    window.location.hash = '#pong';
   });
 }
 
@@ -357,6 +369,134 @@ function attachLoginListeners() {
           errorDiv.classList.remove('hidden');
         }
       }
+    });
+  }
+}
+
+function drawPongSkeleton(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Draw left paddle
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(20, canvas.height / 2 - 40, 10, 80);
+  // Draw right paddle
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(canvas.width - 30, canvas.height / 2 - 40, 10, 80);
+  // Draw ball
+  ctx.beginPath();
+  ctx.arc(canvas.width / 2, canvas.height / 2, 10, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.closePath();
+}
+
+// Basic Pong game logic
+function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | null) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  let ballX = canvas.width / 2;
+  let ballY = canvas.height / 2;
+  let ballVX = 3;
+  let ballVY = 2;
+  let leftPaddleY = canvas.height / 2 - 40;
+  let rightPaddleY = canvas.height / 2 - 40;
+  const paddleHeight = 80;
+  const paddleWidth = 10;
+  const paddleSpeed = 5;
+  let upPressed = false;
+  let downPressed = false;
+  let gameOver = false;
+
+  function draw() {
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(20, leftPaddleY, paddleWidth, paddleHeight);
+    ctx.fillRect(canvas.width - 30, rightPaddleY, paddleWidth, paddleHeight);
+    ctx.beginPath();
+    ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.closePath();
+  }
+
+  function update() {
+    if (upPressed && leftPaddleY > 0) leftPaddleY -= paddleSpeed;
+    if (downPressed && leftPaddleY < canvas.height - paddleHeight) leftPaddleY += paddleSpeed;
+    ballX += ballVX;
+    ballY += ballVY;
+    // Ball collision with top/bottom
+    if (ballY < 10 || ballY > canvas.height - 10) ballVY *= -1;
+    // Ball collision with left paddle
+    if (ballX - 10 < 30 && ballY > leftPaddleY && ballY < leftPaddleY + paddleHeight) ballVX *= -1;
+    // Ball collision with right paddle
+    if (ballX + 10 > canvas.width - 30 && ballY > rightPaddleY && ballY < rightPaddleY + paddleHeight) ballVX *= -1;
+    // Ball out of bounds
+    if (ballX < 0) {
+      gameOver = true;
+      if (statusDiv) statusDiv.textContent = 'Game Over! Right player wins.';
+    }
+    if (ballX > canvas.width) {
+      gameOver = true;
+      if (statusDiv) statusDiv.textContent = 'Game Over! Left player wins.';
+    }
+  }
+
+  function gameLoop() {
+    if (gameOver) return;
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Keyboard controls for left paddle
+  function keyDownHandler(e: KeyboardEvent) {
+    if (e.key === 'ArrowUp') upPressed = true;
+    if (e.key === 'ArrowDown') downPressed = true;
+  }
+  function keyUpHandler(e: KeyboardEvent) {
+    if (e.key === 'ArrowUp') upPressed = false;
+    if (e.key === 'ArrowDown') downPressed = false;
+  }
+  document.addEventListener('keydown', keyDownHandler);
+  document.addEventListener('keyup', keyUpHandler);
+
+  // Simple AI for right paddle
+  function aiMove() {
+    if (ballY < rightPaddleY + paddleHeight / 2 && rightPaddleY > 0) rightPaddleY -= paddleSpeed;
+    if (ballY > rightPaddleY + paddleHeight / 2 && rightPaddleY < canvas.height - paddleHeight) rightPaddleY += paddleSpeed;
+  }
+  function aiLoop() {
+    if (gameOver) return;
+    aiMove();
+    setTimeout(aiLoop, 20);
+  }
+  aiLoop();
+
+  if (statusDiv) statusDiv.textContent = 'Game started! Use Arrow Up/Down to move left paddle.';
+  gameLoop();
+
+  // Clean up listeners on game over or navigation
+  window.addEventListener('hashchange', () => {
+    document.removeEventListener('keydown', keyDownHandler);
+    document.removeEventListener('keyup', keyUpHandler);
+  }, { once: true });
+}
+
+function attachPongListeners() {
+  document.getElementById('pong')?.addEventListener('click', () => {
+    window.location.hash = '#pong';
+  });
+  document.getElementById('back-home-pong')?.addEventListener('click', () => {
+    window.location.hash = '';
+  });
+  const startBtn = document.getElementById('pong-start');
+  const canvas = document.getElementById('pong-canvas') as HTMLCanvasElement | null;
+  const statusDiv = document.getElementById('pong-status');
+  if (startBtn && canvas) {
+    startBtn.addEventListener('click', () => {
+      startBasicPongGame(canvas, statusDiv);
     });
   }
 }
