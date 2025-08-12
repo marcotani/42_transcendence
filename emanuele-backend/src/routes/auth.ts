@@ -5,19 +5,19 @@ export default async function authRoutes(app: FastifyInstance) {
   // POST /api/register
   app.post('/api/register', async (request, reply) => {
     const { username, password, email } = request.body as {
-      username: string; password: string; email?: string;
+      username: string; password: string; email?: string; //estrae le variabili dal body ricevuto
     };
 
     if (!username || !password) {
       return reply.code(400).send({ success: false, error: 'Username e password sono obbligatori' });
-    }
+    } //se mancano username e password restituisce errore 400
 
     try {
       const newUser = await app.prisma.user.create({
         data: {
           username,
           email: email ?? null,
-          password, // <-- per ora in chiaro, l’hashing lo farà un altro
+          password, //da eseguire ashing alla password
           profile: { create: { bio: '', avatarUrl: '' } },
           stats:   { create: { wins: 0, losses: 0, elo: 1000 } },
         },
@@ -43,7 +43,7 @@ export default async function authRoutes(app: FastifyInstance) {
       app.log.error(err);
       return reply.code(500).send({ success: false, error: 'Errore interno' });
     }
-  });
+  }); //errore nel caso lo username o la password esistano già
 
   // POST /api/login (senza hashing)
   app.post('/api/login', async (request, reply) => {
@@ -56,7 +56,7 @@ export default async function authRoutes(app: FastifyInstance) {
     const user = await app.prisma.user.findUnique({
       where: { username },
       select: { id: true, username: true, email: true, password: true, createdAt: true },
-    });
+    }); //cerca un utente nel database
 
     if (!user || user.password !== password) {
       return reply.code(401).send({ success: false, error: 'Credenziali non valide' });
@@ -72,5 +72,5 @@ export default async function authRoutes(app: FastifyInstance) {
       select: { id: true, username: true, email: true, createdAt: true },
       orderBy: { id: 'asc' },
     });
-  });
+  }); //restituisce tutti gli utenti in ordine alfabetico
 }
