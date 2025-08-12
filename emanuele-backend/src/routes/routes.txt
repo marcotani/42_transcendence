@@ -1,8 +1,0 @@
-implementare i file per le API Fastify
-
-es.
-
-src/routes/
-├── auth.ts       → /login, /register
-├── users.ts      → /users/:id
-├── pong.ts       → /pong/start, /pong/move

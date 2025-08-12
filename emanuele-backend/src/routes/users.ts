@@ -31,3 +31,4 @@ const usersRoute: FastifyPluginAsync = async (app) => {
 };
 
 export default usersRoute;
+
