@@ -8,7 +8,7 @@ const app = Fastify({ logger: true });
 
 async function buildServer() {
   await app.register(cors, {
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: ['http://localhost:8080', 'http://localhost:5173', 'http://127.0.0.1:5173'],
     credentials: true,
   });
 

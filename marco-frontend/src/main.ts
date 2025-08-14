@@ -106,6 +106,10 @@ const routes: { [key: string]: string } = {
     <button class="w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-yellow-400" id="multiplayer">Multiplayer</button>
     <button class="w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-2 focus:ring-gray-400" id="options">Options</button>
     <button class="w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-purple-400" id="leaderboard">Leaderboard</button>
+    <div class="flex space-x-4 mt-8">
+      <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400" id="login-btn">Login</button>
+      <button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400" id="register-btn">Register</button>
+    </div>
   </div>`,
   'multiplayer': `<h2 class="text-2xl font-bold mb-4">Multiplayer</h2><p>Multiplayer options will go here.</p>`,
   'options': `<h2 class="text-2xl font-bold mb-4">Options</h2><p>Settings will go here.</p>`,
@@ -167,24 +171,40 @@ const routes: { [key: string]: string } = {
         </div>
       </div>`,
   'login': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
-    <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Login / Register</h2>
-    <form id='auth-form' class='space-y-4'>
+    <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Login</h2>
+    <form id='login-form' class='space-y-4'>
       <div>
-        <label for='username' class='block mb-1'>Username</label>
-        <input type='text' id='username' name='username' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='username' />
+        <label for='login-username' class='block mb-1'>Username</label>
+        <input type='text' id='login-username' name='username' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='username' />
       </div>
       <div>
-        <label for='password' class='block mb-1'>Password</label>
-        <input type='password' id='password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='current-password' />
+        <label for='login-password' class='block mb-1'>Password</label>
+        <input type='password' id='login-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='current-password' />
       </div>
-      <div class='flex items-center mb-2'>
-        <input type='checkbox' id='register-toggle' class='mr-2' />
-        <label for='register-toggle'>Register new account</label>
-      </div>
-      <button type='submit' class='w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400'>Continue</button>
-      <div id='auth-error' class='text-red-500 mt-2 hidden'></div>
+      <button type='submit' class='w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400'>Login</button>
+      <div id='login-error' class='text-red-500 mt-2 hidden'></div>
     </form>
-    <button id='back-home' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+    <button id='back-home-login' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`,
+  'register': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
+    <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Register</h2>
+    <form id='register-form' class='space-y-4'>
+      <div>
+        <label for='register-username' class='block mb-1'>Username</label>
+        <input type='text' id='register-username' name='username' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required autocomplete='username' />
+      </div>
+      <div>
+        <label for='register-email' class='block mb-1'>Email</label>
+        <input type='email' id='register-email' name='email' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required autocomplete='email' />
+      </div>
+      <div>
+        <label for='register-password' class='block mb-1'>Password</label>
+        <input type='password' id='register-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required autocomplete='new-password' />
+      </div>
+      <button type='submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>Register</button>
+      <div id='register-error' class='text-red-500 mt-2 hidden'></div>
+    </form>
+    <button id='back-home-register' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
   </div>`,
   'pong': `<div class='flex flex-col items-center justify-center min-h-screen'>
     <h2 class='text-3xl font-bold mb-6'>Pong Game</h2>
@@ -197,6 +217,8 @@ const routes: { [key: string]: string } = {
   </div>`
 };
 
+let loggedInUser: string | null = null;
+
 function render(route: string) {
   const lang = getLang();
   const t = translations[lang];
@@ -207,6 +229,8 @@ function render(route: string) {
     content = routes['pong'];
   } else if (route === 'login') {
     content = routes['login'];
+  } else if (route === 'register') {
+    content = routes['register'];
   } else if (route === 'multiplayer') {
     content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.multiplayerTitle}'>${t.multiplayerTitle}</h2><p>${t.multiplayerDesc}</p>`;
   } else if (route === 'options') {
@@ -230,7 +254,7 @@ function render(route: string) {
                 <td class='px-4 py-2'>Alice</td>
                 <td class='px-4 py-2'>12</td>
                 <td class='px-4 py-2'>5</td>
-                <td class='px-4 py-2'>70%</td>
+                <td class='px-4 py-2'>70%</</td>
               </tr>
               <tr>
                 <td class='px-4 py-2'>Bob</td>
@@ -278,11 +302,24 @@ function render(route: string) {
         <button class='w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-purple-400' id='leaderboard' aria-label='${t.leaderboard}' tabindex='0'>${t.leaderboard}</button>
       </div>`;
   }
-  app.innerHTML = langSwitcherUI(lang) + accessibilityTogglesUI() + `<div class='fixed top-4 right-4 z-50'><button class='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400' aria-label='${t.login}' tabindex='0' id='login-btn'>${t.login}</button></div>` + content;
+  let topRightUI = '';
+  if (loggedInUser) {
+    topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center space-x-2'>
+      <span class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700'>${loggedInUser}</span>
+      <button id='logout-btn' class='px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-red-400'>Logout</button>
+    </div>`;
+  } else {
+    topRightUI = `<div class='fixed top-4 right-4 z-50 flex space-x-2'>
+      <button class='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400' aria-label='${t.login}' tabindex='0' id='login-btn'>${t.login}</button>
+      <button class='px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400' aria-label='Register' tabindex='0' id='register-btn'>Register</button>
+    </div>`;
+  }
+  app.innerHTML = langSwitcherUI(lang) + accessibilityTogglesUI() + topRightUI + content;
   attachMenuListeners();
   attachLangListener();
   attachAccessibilityListeners();
   attachLoginListeners();
+  attachLogoutListener();
   attachPongListeners();
 }
 
@@ -299,8 +336,11 @@ function attachMenuListeners() {
   document.getElementById('leaderboard')?.addEventListener('click', () => {
     window.location.hash = '#leaderboard';
   });
-  document.getElementById('pong')?.addEventListener('click', () => {
-    window.location.hash = '#pong';
+  document.getElementById('login-btn')?.addEventListener('click', () => {
+    window.location.hash = '#login';
+  });
+  document.getElementById('register-btn')?.addEventListener('click', () => {
+    window.location.hash = '#register';
   });
 }
 
@@ -321,20 +361,16 @@ function attachAccessibilityListeners() {
 }
 
 function attachLoginListeners() {
-  document.getElementById('login-btn')?.addEventListener('click', () => {
-    window.location.hash = '#login';
-  });
-  document.getElementById('back-home')?.addEventListener('click', () => {
+  document.getElementById('back-home-login')?.addEventListener('click', () => {
     window.location.hash = '';
   });
-  const form = document.getElementById('auth-form') as HTMLFormElement | null;
-  if (form) {
-    form.addEventListener('submit', async (e) => {
+  const loginForm = document.getElementById('login-form') as HTMLFormElement | null;
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const username = (document.getElementById('username') as HTMLInputElement).value.trim();
-      const password = (document.getElementById('password') as HTMLInputElement).value;
-      const isRegister = (document.getElementById('register-toggle') as HTMLInputElement).checked;
-      const errorDiv = document.getElementById('auth-error');
+      const username = (document.getElementById('login-username') as HTMLInputElement).value.trim();
+      const password = (document.getElementById('login-password') as HTMLInputElement).value;
+      const errorDiv = document.getElementById('login-error');
       if (!username || !password) {
         if (errorDiv) {
           errorDiv.textContent = 'Username and password required.';
@@ -343,11 +379,8 @@ function attachLoginListeners() {
         return;
       }
       if (errorDiv) errorDiv.classList.add('hidden');
-      // Send request to backend for login/register
       try {
-        const endpoint = isRegister ? 'register' : 'login';
-        // Use backend service name for Docker Compose networking
-        const response = await fetch('http://emanuele-backend:4000/api/' + endpoint, {
+        const response = await fetch('http://localhost:3000/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
@@ -355,13 +388,57 @@ function attachLoginListeners() {
         const data = await response.json();
         if (!response.ok) {
           if (errorDiv) {
-            errorDiv.textContent = data.message || 'Authentication failed.';
+            errorDiv.textContent = data.error || 'Authentication failed.';
             errorDiv.classList.remove('hidden');
           }
           return;
         }
-        // Success: you can store token, redirect, etc.
-        alert((isRegister ? 'Registered' : 'Logged in') + ' as ' + username);
+        loggedInUser = data.user.username;
+        alert('Logged in as ' + loggedInUser);
+        window.location.hash = '';
+        render('');
+      } catch (err) {
+        if (errorDiv) {
+          errorDiv.textContent = 'Network error.';
+          errorDiv.classList.remove('hidden');
+        }
+      }
+    });
+  }
+  document.getElementById('back-home-register')?.addEventListener('click', () => {
+    window.location.hash = '';
+  });
+  const registerForm = document.getElementById('register-form') as HTMLFormElement | null;
+  if (registerForm) {
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = (document.getElementById('register-username') as HTMLInputElement).value.trim();
+      const email = (document.getElementById('register-email') as HTMLInputElement).value.trim();
+      const password = (document.getElementById('register-password') as HTMLInputElement).value;
+      const errorDiv = document.getElementById('register-error');
+      if (!username || !email || !password) {
+        if (errorDiv) {
+          errorDiv.textContent = 'Username, email and password required.';
+          errorDiv.classList.remove('hidden');
+        }
+        return;
+      }
+      if (errorDiv) errorDiv.classList.add('hidden');
+      try {
+        const response = await fetch('http://localhost:3000/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          if (errorDiv) {
+            errorDiv.textContent = data.message || 'Registration failed.';
+            errorDiv.classList.remove('hidden');
+          }
+          return;
+        }
+        alert('Registered as ' + username);
         window.location.hash = '';
       } catch (err) {
         if (errorDiv) {
@@ -371,6 +448,13 @@ function attachLoginListeners() {
       }
     });
   }
+}
+
+function attachLogoutListener() {
+  document.getElementById('logout-btn')?.addEventListener('click', () => {
+    loggedInUser = null;
+    render(window.location.hash.replace('#', ''));
+  });
 }
 
 function drawPongSkeleton(canvas: HTMLCanvasElement) {
