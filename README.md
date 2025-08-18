@@ -6,6 +6,7 @@ Starta Docker:
 sudo docker compose build
 sudo docker compose up
 ```
+docker compose down
 
 Backend disponibile a http://localhost:3000
 Frontend disponibile a http://localhost:8080
