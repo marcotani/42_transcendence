@@ -6,7 +6,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=file:/app/dev.db
+      - DATABASE_URL=file:./dev.db
     volumes:
       - ./emanuele-backend/dev.db:/app/dev.db
     restart: unless-stopped
