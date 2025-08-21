@@ -25,6 +25,7 @@ model Profile {
   userId    Int    @unique
   bio       String @default("")
   avatarUrl String @default("")
+  alias     String ?
   user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

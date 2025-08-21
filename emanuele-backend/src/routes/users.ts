@@ -24,7 +24,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
           email: body.email,
           username: body.username,
           password: body.password ?? null,
-          profile: { create: {} },
+          profile: { create: { bio: '', avatarUrl: '', alias: '' } },
           stats: { create: {} }
         }
       });
@@ -40,6 +40,18 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.code(500).send({ error: 'Internal server error' });
     }
   });
+
+  app.get('/users/:username', async (req, reply) => {
+  const { username } = req.params as { username: string };
+  const user = await app.prisma.user.findUnique({
+    where: { username },
+    include: { profile: true },
+  });
+  if (!user) {
+    return reply.code(404).send({ error: 'User not found' });
+  }
+  return user;
+});
 
   // 📋 Lista utenti
   app.get('/users', async () => {
@@ -74,6 +86,31 @@ const usersRoute: FastifyPluginAsync = async (app) => {
 
     await app.prisma.user.delete({ where: { username } });
     return reply.send({ message: `User '${username}' deleted successfully` });
+  });
+
+  app.patch('/users/:username/alias', async (req, reply) => {
+    const { username } = req.params as { username: string };
+    const { alias } = req.body as { alias?: string };
+    
+    if (!alias || alias.trim() === '') {
+      return reply.code(400).send({ error: 'Alias is required' });
+    }
+
+    const user = await app.prisma.user.findUnique({
+    where: { username },
+    include: { profile: true }
+    });
+
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+
+    await app.prisma.profile.update({
+      where: { userId: user.id },
+      data: { alias }
+    });
+
+    return reply.send({ message: `Alias updated successfully for ${username}`, alias });
   });
 };
 
