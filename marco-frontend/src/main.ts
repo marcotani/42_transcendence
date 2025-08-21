@@ -491,6 +491,7 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
   let upPressed = false;
   let downPressed = false;
   let gameOver = false;
+  let paddleVY = 0;
 
   function draw() {
     if (!ctx) return;
@@ -506,16 +507,54 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
   }
 
   function update() {
+    let prevPaddleY = leftPaddleY;
     if (upPressed && leftPaddleY > 0) leftPaddleY -= paddleSpeed;
     if (downPressed && leftPaddleY < canvas.height - paddleHeight) leftPaddleY += paddleSpeed;
+    paddleVY = leftPaddleY - prevPaddleY;
     ballX += ballVX;
     ballY += ballVY;
     // Ball collision with top/bottom
     if (ballY < 10 || ballY > canvas.height - 10) ballVY *= -1;
     // Ball collision with left paddle
-    if (ballX - 10 < 30 && ballY > leftPaddleY && ballY < leftPaddleY + paddleHeight) ballVX *= -1;
+    if (
+      ballX - 10 < 30 &&
+      ballY + 10 > leftPaddleY &&
+      ballY - 10 < leftPaddleY + paddleHeight &&
+      ballVX < 0
+    ) {
+      ballX = 30 + 10;
+      const hitPos = ((ballY - leftPaddleY) / paddleHeight) * 2 - 1;
+      let speed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+      const angle = hitPos * Math.PI / 4;
+      ballVX = Math.abs(speed * Math.cos(angle));
+      ballVY = speed * Math.sin(angle);
+      // Add spin based on paddle movement
+      ballVY += paddleVY * 0.7; // spin factor
+      // Slightly increase speed for more dynamic play
+      const newSpeed = Math.min(Math.sqrt(ballVX * ballVX + ballVY * ballVY) * 1.05, 12);
+      const norm = newSpeed / Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+      ballVX *= norm;
+      ballVY *= norm;
+    }
     // Ball collision with right paddle
-    if (ballX + 10 > canvas.width - 30 && ballY > rightPaddleY && ballY < rightPaddleY + paddleHeight) ballVX *= -1;
+    if (
+      ballX + 10 > canvas.width - 30 &&
+      ballY + 10 > rightPaddleY &&
+      ballY - 10 < rightPaddleY + paddleHeight &&
+      ballVX > 0
+    ) {
+      ballX = canvas.width - 30 - 10;
+      const hitPos = ((ballY - rightPaddleY) / paddleHeight) * 2 - 1;
+      let speed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+      const angle = hitPos * Math.PI / 4;
+      ballVX = -Math.abs(speed * Math.cos(angle));
+      ballVY = speed * Math.sin(angle);
+      // Slightly increase speed for more dynamic play
+      const newSpeed = Math.min(Math.sqrt(ballVX * ballVX + ballVY * ballVY) * 1.05, 12);
+      const norm = newSpeed / Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+      ballVX *= norm;
+      ballVY *= norm;
+    }
     // Ball out of bounds
     if (ballX < 0) {
       gameOver = true;
