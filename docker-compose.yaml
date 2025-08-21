@@ -7,6 +7,8 @@ services:
       - "3000:3000"
     environment:
       - DATABASE_URL=file:/app/dev.db
+    volumes:
+      - ./emanuele-backend/dev.db:/app/dev.db
     restart: unless-stopped
   frontend:
     build: ./marco-frontend

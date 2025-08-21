@@ -493,6 +493,67 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
   let gameOver = false;
   let paddleVY = 0;
 
+  // AI simulated keyboard input
+  let aiUpPressed = false;
+  let aiDownPressed = false;
+
+  function aiDecideMove() {
+    // AI only sees the game state once per second
+    // Predict ball position and set aiUpPressed/aiDownPressed
+    const paddleCenter = rightPaddleY + paddleHeight / 2;
+    // Predict ball's future Y position (simulate bounces)
+    let predictedY = ballY;
+    let predictedVY = ballVY;
+    let predictedVX = ballVX;
+    let predictedX = ballX;
+    // Simulate ball movement until it reaches right paddle X
+    while (predictedVX > 0 && predictedX < canvas.width - 30) {
+      predictedX += predictedVX;
+      predictedY += predictedVY;
+      // Bounce off top/bottom
+      if (predictedY < 10) {
+        predictedY = 10 + (10 - predictedY);
+        predictedVY *= -1;
+      } else if (predictedY > canvas.height - 10) {
+        predictedY = (canvas.height - 10) - (predictedY - (canvas.height - 10));
+        predictedVY *= -1;
+      }
+    }
+    // Remove random error for more consistent prediction
+    // predictedY += (Math.random() - 0.5) * 5;
+    // Add a deadzone so AI doesn't constantly move
+    const deadzone = 30;
+    // Only move if paddle is far from predicted position
+    if (Math.abs(predictedY - paddleCenter) > deadzone) {
+      if (predictedY < paddleCenter) {
+        aiUpPressed = true;
+        aiDownPressed = false;
+      } else {
+        aiUpPressed = false;
+        aiDownPressed = true;
+      }
+    } else {
+      aiUpPressed = false;
+      aiDownPressed = false;
+    }
+  }
+
+  // Makes decision every second
+  let aiInterval: number;
+  function startAI() {
+    aiDecideMove();
+    aiInterval = window.setInterval(() => {
+      aiDecideMove();
+    }, 1000);
+  }
+  startAI();
+
+  function aiSimulateKey() {
+    // Simulate keyboard input for right paddle
+    if (aiUpPressed && rightPaddleY > 0) rightPaddleY -= paddleSpeed;
+    if (aiDownPressed && rightPaddleY < canvas.height - paddleHeight) rightPaddleY += paddleSpeed;
+  }
+
   function draw() {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -511,6 +572,8 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
     if (upPressed && leftPaddleY > 0) leftPaddleY -= paddleSpeed;
     if (downPressed && leftPaddleY < canvas.height - paddleHeight) leftPaddleY += paddleSpeed;
     paddleVY = leftPaddleY - prevPaddleY;
+    // Simulate AI keyboard input for right paddle
+    aiSimulateKey();
     ballX += ballVX;
     ballY += ballVY;
     // Ball collision with top/bottom
@@ -564,6 +627,9 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
       gameOver = true;
       if (statusDiv) statusDiv.textContent = 'Game Over! Left player wins.';
     }
+    if (gameOver) {
+      clearInterval(aiInterval);
+    }
   }
 
   function gameLoop() {
@@ -584,18 +650,6 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
   }
   document.addEventListener('keydown', keyDownHandler);
   document.addEventListener('keyup', keyUpHandler);
-
-  // Simple AI for right paddle
-  function aiMove() {
-    if (ballY < rightPaddleY + paddleHeight / 2 && rightPaddleY > 0) rightPaddleY -= paddleSpeed;
-    if (ballY > rightPaddleY + paddleHeight / 2 && rightPaddleY < canvas.height - paddleHeight) rightPaddleY += paddleSpeed;
-  }
-  function aiLoop() {
-    if (gameOver) return;
-    aiMove();
-    setTimeout(aiLoop, 20);
-  }
-  aiLoop();
 
   if (statusDiv) statusDiv.textContent = 'Game started! Use Arrow Up/Down to move left paddle.';
   gameLoop();
