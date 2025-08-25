@@ -69,6 +69,8 @@ const translations: Record<'en'|'it'|'fr', {
   }
 };
 
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'http://backend:3000';
+
 function getLang(): 'en'|'it'|'fr' {
   const lang = localStorage.getItem('lang');
   if (lang === 'it' || lang === 'fr') return lang;
@@ -214,10 +216,44 @@ const routes: { [key: string]: string } = {
       <div id='pong-status' class='text-white mt-2'></div>
     </div>
     <button id='back-home-pong' class='mt-8 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`,
+  'edit-profile': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
+    <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Edit Profile</h2>
+    <form id='edit-profile-form' class='space-y-4'>
+      <div>
+        <label for='edit-alias' class='block mb-1'>Alias (Display Name)</label>
+        <input type='text' id='edit-alias' name='alias' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
+      </div>
+      <div>
+        <label for='edit-username' class='block mb-1'>Username</label>
+        <input type='text' id='edit-username' name='username' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
+      </div>
+      <div>
+        <label for='edit-email' class='block mb-1'>Email</label>
+        <input type='email' id='edit-email' name='email' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
+      </div>
+      <div>
+        <label for='edit-password' class='block mb-1'>New Password</label>
+        <input type='password' id='edit-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' autocomplete='new-password' />
+      </div>
+      <button type='submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>Update Profile</button>
+      <div id='edit-profile-error' class='text-red-500 mt-2 hidden'></div>
+      <div id='edit-profile-success' class='text-green-500 mt-2 hidden'></div>
+    </form>
+    <button id='back-home-edit-profile' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
   </div>`
 };
 
-let loggedInUser: string | null = null;
+let loggedInUser: string | null = localStorage.getItem('loggedInUser');
+
+function setLoggedInUser(username: string | null) {
+  loggedInUser = username;
+  if (username) {
+    localStorage.setItem('loggedInUser', username);
+  } else {
+    localStorage.removeItem('loggedInUser');
+  }
+}
 
 function render(route: string) {
   const lang = getLang();
@@ -225,12 +261,12 @@ function render(route: string) {
   const app = document.getElementById('app');
   if (!app) return;
   let content = '';
-  if (route === 'pong') {
-    content = routes['pong'];
-  } else if (route === 'login') {
-    content = routes['login'];
-  } else if (route === 'register') {
-    content = routes['register'];
+  // Fix: ensure route is parsed correctly from hash
+  if (!route && window.location.hash) {
+    route = window.location.hash.replace('#', '');
+  }
+  if (routes[route]) {
+    content = routes[route];
   } else if (route === 'multiplayer') {
     content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.multiplayerTitle}'>${t.multiplayerTitle}</h2><p>${t.multiplayerDesc}</p>`;
   } else if (route === 'options') {
@@ -254,7 +290,7 @@ function render(route: string) {
                 <td class='px-4 py-2'>Alice</td>
                 <td class='px-4 py-2'>12</td>
                 <td class='px-4 py-2'>5</td>
-                <td class='px-4 py-2'>70%</</td>
+                <td class='px-4 py-2'>70%</td>
               </tr>
               <tr>
                 <td class='px-4 py-2'>Bob</td>
@@ -304,9 +340,12 @@ function render(route: string) {
   }
   let topRightUI = '';
   if (loggedInUser) {
-    topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center space-x-2'>
-      <span class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700'>${loggedInUser}</span>
-      <button id='logout-btn' class='px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-red-400'>Logout</button>
+    topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center'>
+      <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${loggedInUser}</button>
+      <div id='user-dropdown-menu' class='absolute right-0 mt-2 w-40 bg-gray-900 border border-gray-700 rounded shadow-lg hidden' role='menu' aria-label='User menu'>
+        <button id='dropdown-edit-profile' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>Edit Profile</button>
+        <button id='dropdown-logout' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>Logout</button>
+      </div>
     </div>`;
   } else {
     topRightUI = `<div class='fixed top-4 right-4 z-50 flex space-x-2'>
@@ -319,7 +358,7 @@ function render(route: string) {
   attachLangListener();
   attachAccessibilityListeners();
   attachLoginListeners();
-  attachLogoutListener();
+  attachUserDropdownListeners();
   attachPongListeners();
 }
 
@@ -341,6 +380,9 @@ function attachMenuListeners() {
   });
   document.getElementById('register-btn')?.addEventListener('click', () => {
     window.location.hash = '#register';
+  });
+  document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
+    window.location.hash = '#edit-profile';
   });
 }
 
@@ -380,7 +422,7 @@ function attachLoginListeners() {
       }
       if (errorDiv) errorDiv.classList.add('hidden');
       try {
-        const response = await fetch('http://localhost:3000/api/login', {
+        const response = await fetch(`${API_BASE}/api/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
@@ -393,7 +435,7 @@ function attachLoginListeners() {
           }
           return;
         }
-        loggedInUser = data.user.username;
+        setLoggedInUser(data.user.username);
         alert('Logged in as ' + loggedInUser);
         window.location.hash = '';
         render('');
@@ -425,7 +467,7 @@ function attachLoginListeners() {
       }
       if (errorDiv) errorDiv.classList.add('hidden');
       try {
-        const response = await fetch('http://localhost:3000/api/register', {
+        const response = await fetch(`${API_BASE}/api/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, email, password })
@@ -450,9 +492,57 @@ function attachLoginListeners() {
   }
 }
 
-function attachLogoutListener() {
-  document.getElementById('logout-btn')?.addEventListener('click', () => {
-    loggedInUser = null;
+function attachUserDropdownListeners() {
+  const btn = document.getElementById('user-dropdown-btn');
+  const menu = document.getElementById('user-dropdown-menu');
+  if (!btn || !menu) return;
+  let open = false;
+  function openMenu() {
+    if (!btn || !menu) return;
+    menu.classList.remove('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+    menu.querySelector('button')?.focus();
+    open = true;
+  }
+  function closeMenu() {
+    if (!btn || !menu) return;
+    menu.classList.add('hidden');
+    btn.setAttribute('aria-expanded', 'false');
+    open = false;
+  }
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (open) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  });
+  btn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openMenu();
+    }
+    if (e.key === 'Escape') closeMenu();
+  });
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMenu();
+      btn?.focus();
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (open && !menu?.contains(e.target as Node) && e.target !== btn) {
+      closeMenu();
+    }
+  });
+  document.getElementById('dropdown-edit-profile')?.addEventListener('click', () => {
+    closeMenu();
+    window.location.hash = '#edit-profile';
+  });
+  document.getElementById('dropdown-logout')?.addEventListener('click', () => {
+    closeMenu();
+    setLoggedInUser(null);
     render(window.location.hash.replace('#', ''));
   });
 }
@@ -678,9 +768,126 @@ function attachPongListeners() {
   }
 }
 
+function attachEditProfileListeners() {
+  document.getElementById('back-home-edit-profile')?.addEventListener('click', () => {
+    window.location.hash = '';
+  });
+  const form = document.getElementById('edit-profile-form') as HTMLFormElement | null;
+  if (form && loggedInUser) {
+    let original = { alias: '', username: '', email: '' };
+    // Prefill form with current user info
+    fetch(`${API_BASE}/users/${loggedInUser}`)
+      .then(res => res.json())
+      .then(user => {
+        original = {
+          alias: user.profile?.alias || '',
+          username: user.username || '',
+          email: user.email || ''
+        };
+        (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
+        (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
+        (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+      });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alias = (document.getElementById('edit-alias') as HTMLInputElement).value.trim();
+      const username = (document.getElementById('edit-username') as HTMLInputElement).value.trim();
+      const email = (document.getElementById('edit-email') as HTMLInputElement).value.trim();
+      const password = (document.getElementById('edit-password') as HTMLInputElement).value;
+      const errorDiv = document.getElementById('edit-profile-error');
+      const successDiv = document.getElementById('edit-profile-success');
+      if (errorDiv) errorDiv.classList.add('hidden');
+      if (successDiv) successDiv.classList.add('hidden');
+      let errorMsg = '';
+      if (!alias && !username && !email && !password) errorMsg = 'At least one field must be filled.';
+      if (errorMsg) {
+        if (errorDiv) {
+          errorDiv.textContent = errorMsg;
+          errorDiv.classList.remove('hidden');
+        }
+        return;
+      }
+      let ok = true;
+      let msg = '';
+      // Update username/email/password if changed
+      const updateBody: any = {};
+      if (username && username !== original.username) updateBody.username = username;
+      if (email && email !== original.email) updateBody.email = email;
+      if (password) updateBody.password = password;
+      let aliasTargetUser = loggedInUser;
+      // If username is changed, PATCH username/email/password first
+      if (Object.keys(updateBody).length > 0) {
+        try {
+          const userRes = await fetch(`${API_BASE}/users/${loggedInUser}` , {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateBody)
+          });
+          const userResBody = await userRes.json();
+          if (!userRes.ok) {
+            ok = false;
+            msg = userResBody.error || JSON.stringify(userResBody) || 'Failed to update profile.';
+          } else if (updateBody.username) {
+            setLoggedInUser(updateBody.username);
+            aliasTargetUser = updateBody.username;
+            // Reload form with new user info after username change
+            try {
+              const newUserRes = await fetch(`${API_BASE}/users/${updateBody.username}`);
+              const newUser = await newUserRes.json();
+              original = {
+                alias: newUser.profile?.alias || '',
+                username: newUser.username || '',
+                email: newUser.email || ''
+              };
+              (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
+              (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
+              (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+            } catch {}
+          }
+        } catch (err) {
+          ok = false;
+          msg = err instanceof Error ? err.message : 'Network error updating profile.';
+        }
+      }
+      // Update alias if changed (after username PATCH if needed)
+      if (ok && alias && alias !== original.alias) {
+        try {
+          const aliasRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/alias`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ alias })
+          });
+          const aliasResBody = await aliasRes.json();
+          if (!aliasRes.ok) {
+            ok = false;
+            msg = aliasResBody.error || JSON.stringify(aliasResBody) || 'Failed to update alias.';
+          }
+        } catch (err) {
+          ok = false;
+          msg = err instanceof Error ? err.message : 'Network error updating alias.';
+        }
+      }
+      if (ok) {
+        if (successDiv) {
+          successDiv.textContent = 'Profile updated successfully!';
+          successDiv.classList.remove('hidden');
+        }
+      } else {
+        if (errorDiv) {
+          errorDiv.textContent = msg;
+          errorDiv.classList.remove('hidden');
+        }
+      }
+    });
+  }
+}
+
 window.addEventListener('hashchange', () => {
   render(window.location.hash.replace('#', ''));
+  if (window.location.hash === '#edit-profile') attachEditProfileListeners();
 });
+// Ensure initial render also attaches listeners for edit-profile if needed
+if (window.location.hash === '#edit-profile') attachEditProfileListeners();
 
 // Initial render
 render(window.location.hash.replace('#', ''));

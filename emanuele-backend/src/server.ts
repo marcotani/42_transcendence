@@ -13,13 +13,21 @@ const app = Fastify({ logger: false }); // Disattiva il logger automatico di Fas
 async function buildServer() {
   // Abilita CORS per il frontend
   await app.register(cors, {
-    origin: [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'http://localhost:8080',
-      'http://127.0.0.1:8080'
-    ],
+    origin: (origin, cb) => {
+      // Accept localhost and 127.0.0.1 for port 8080 and 5173
+      if (!origin) return cb(null, true);
+      if (
+        origin.startsWith('http://localhost:8080') ||
+        origin.startsWith('http://127.0.0.1:8080') ||
+        origin.startsWith('http://localhost:5173') ||
+        origin.startsWith('http://127.0.0.1:5173')
+      ) {
+        return cb(null, true);
+      }
+      cb(new Error('Not allowed by CORS'), false);
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   // Registra il plugin Prisma (aggiunge app.prisma)
