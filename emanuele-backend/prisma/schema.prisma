@@ -24,7 +24,7 @@ model Profile {
   id        Int    @id @default(autoincrement())
   userId    Int    @unique
   bio       String @default("")
-  avatarUrl String @default("")
+  avatarUrl String @default("/static/default-avatar.png")
   alias     String ?
   user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

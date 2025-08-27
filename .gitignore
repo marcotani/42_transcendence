@@ -1,0 +1,14 @@
+# Ignora le dipendenze
+emanuele-backend/node_modules/
+marco-frontend/node_modules/
+
+# Ignora output di build (opzionale se usi tsc)
+dist/
+
+# Ignora file temporanei di sistema
+.DS_Store
+.env
+emanuele-backend/uploads/
+emanuele-backend/static/
+emanuele-backend/dev.db
+emanuele-backend/prisma/dev.db

@@ -8,6 +8,8 @@ services:
     environment:
       - DATABASE_URL=file:./dev.db
     volumes:
+      - ./emanuele-backend/uploads:/app/uploads
+      - ./emanuele-backend/static:/app/static
       - ./emanuele-backend/dev.db:/app/dev.db
     restart: unless-stopped
   frontend:

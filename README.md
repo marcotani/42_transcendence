@@ -11,6 +11,8 @@ sudo docker compose down
 Backend disponibile a http://localhost:3000
 Frontend disponibile a http://localhost:8080
 
+----Comandi database----
+
 User register via curl
 curl -X POST http://localhost:3000/api/register \
   -H "Content-Type: application/json" \
@@ -33,6 +35,51 @@ curl -X PATCH http://localhost:3000/users/"nome_utente"/alias \
   -H "Content-Type: application/json" \
   -d '{"alias": "new_alias"}'
 
+Username change via curl
+curl -X PATCH http://localhost:3000/users/vecchioUsername \
+  -H "Content-Type: application/json" \
+  -d '{
+    "currentPassword": "passwordAttuale",
+    "newUsername": "nuovoUsername"
+  }'
+
+Email change via curl
+curl -X PATCH http://localhost:3000/users/vecchioUsername \
+  -H "Content-Type: application/json" \
+  -d '{
+    "currentPassword": "passwordAttuale",
+    "newEmail": "nuovaEmail@example.com"
+  }'
+
+Password change via curl
+curl -X PATCH http://localhost:3000/users/vecchioUsername \
+  -H "Content-Type: application/json" \
+  -d '{
+    "currentPassword": "passwordAttuale",
+    "newPassword": "nuovaPassword"
+  }'
+
+Multi-field chenge via curl
+curl -X PATCH http://localhost:3000/users/vecchioUsername \
+  -H "Content-Type: application/json" \
+  -d '{
+    "currentPassword": "passwordAttuale",
+    "newUsername": "nuovoUsername",
+    "newEmail": "nuovaEmail@example.com",
+    "newPassword": "nuovaPassword"
+  }'
+
+Upload nuova profile icon
+curl -X PATCH http://localhost:3000/users/nome utente/avatar \
+  -H "Content-Type: multipart/form-data" \
+  -F "currentPassword=password corrente" \
+  -F "file=@emanuele-backend/uploads/nome file.png"
+
+Reset profile icon
+curl -X PATCH http://localhost:3000/users/nome utente/avatar/reset \
+  -H "Content-Type: application/json" \
+  -d '{"currentPassword":"password corrente"}'
+
 Users visualizer
 curl http://localhost:3000/api/users
 
@@ -49,3 +96,5 @@ Elimina un utente specifico
 curl -X DELETE http://localhost:3000/users/"nome_utente" \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
+
+------------------------

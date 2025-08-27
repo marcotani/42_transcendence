@@ -1,5 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import path from 'node:path';
 
 // Plugins personalizzati
 import prismaPlugin from './plugins/prisma';
@@ -28,6 +31,25 @@ async function buildServer() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
+
+  await app.register(multipart, {
+    limits: {
+      fileSize: 5 * 1024 * 1024,
+      files: 1,
+    },
+  });
+
+  await app.register(fastifyStatic, {
+    root: path.join(__dirname, '..', 'uploads'),
+    prefix: '/uploads/',
+    decorateReply: false,
+  });
+
+  await app.register(fastifyStatic, {
+    root: path.join(__dirname, '..', 'static'),
+    prefix: '/static/',
+    decorateReply: false,
   });
 
   // Registra il plugin Prisma (aggiunge app.prisma)

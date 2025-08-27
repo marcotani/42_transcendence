@@ -33,7 +33,7 @@ export default async function authRoutes(app: FastifyInstance) {
           username,
           email,
           password, // TODO: eseguire hashing della password
-          profile: { create: { bio: '', avatarUrl: '' } },
+          profile: { create: { bio: ''} },
           stats: { create: { wins: 0, losses: 0, elo: 1000 } },
         },
         include: { profile: true, stats: true },

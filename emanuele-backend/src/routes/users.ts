@@ -1,30 +1,35 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
 
+const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
+
 const usersRoute: FastifyPluginAsync = async (app) => {
-  // ➕ Crea utente
+  // Creazione utente
   app.post('/users', async (req, reply) => {
     const body = req.body as { email: string; username: string; password?: string };
 
-    // 1️ Controllo presenza campi
+    // Controllo campi del body
     if (!body?.email || !body?.username) {
       return reply.code(400).send({ error: 'Missing fields: email and username are required' });
     }
 
-    // 2️ Controllo formato email
+    // Controllo formato email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(body.email)) {
       return reply.code(400).send({ error: 'Invalid email format' });
     }
 
     try {
-      // 3️ Creazione utente
+      // Creazione utente tramite i parametri passati
       const user = await app.prisma.user.create({
         data: {
           email: body.email,
           username: body.username,
           password: body.password ?? null,
-          profile: { create: { bio: '', avatarUrl: '', alias: '' } },
+          profile: { create: { bio: '', alias: '' } },
           stats: { create: {} }
         }
       });
@@ -32,7 +37,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.code(201).send(user);
 
     } catch (err: any) {
-      // 4️ Gestione duplicati
+      // Errore nel caso di username o email già utilizzati
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         return reply.code(409).send({ error: 'Email or username already in use' });
       }
@@ -41,6 +46,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     }
   });
 
+  // Comando per recuperare un utente specifico, se esistente, dal database
   app.get('/users/:username', async (req, reply) => {
   const { username } = req.params as { username: string };
   const user = await app.prisma.user.findUnique({
@@ -53,20 +59,20 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   return user;
 });
 
-  // 📋 Lista utenti
+  // Comando per stamapre l'intero database
   app.get('/users', async () => {
     return app.prisma.user.findMany({
       include: { profile: true, stats: true }
     });
   });
 
-  // 🗑 Elimina tutti gli utenti
+  // Comando per eliminare tutti i profili sul database
   app.delete('/users', async (_, reply) => {
     await app.prisma.user.deleteMany({});
     return reply.send({ message: 'All users deleted successfully' });
   });
 
-  // 🗑 Elimina un utente specifico (username + password)
+  // Comando per eliminare un utente specifico sul database
   app.delete('/users/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
     const { password } = req.body as { password?: string };
@@ -88,6 +94,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     return reply.send({ message: `User '${username}' deleted successfully` });
   });
 
+  // Comando per modificare l'alias di un utente
   app.patch('/users/:username/alias', async (req, reply) => {
     const { username } = req.params as { username: string };
     const { alias } = req.body as { alias?: string };
@@ -111,6 +118,161 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     });
 
     return reply.send({ message: `Alias updated successfully for ${username}`, alias });
+  });
+
+  // Comando per modificare username, email o password
+  // dopo aver controllato che la password passata sia corretta per l'utente
+  app.patch('/users/:username', async (req, reply) => {
+    const { username } = req.params as { username: string };
+    const {
+      currentPassword,
+      newUsername,
+      newEmail,
+      newPassword,
+    } = req.body as {
+      currentPassword: string;
+      newUsername?: string;
+      newEmail?: string;
+      newPassword?: string;
+    };
+
+    if (!currentPassword) {
+      return reply.code(400).send({ error: 'currentPassword is required'});
+    }
+    if (!newUsername && !newEmail && !newPassword) {
+      return reply.code(400).send({ error: 'Provide at least one field to update (newUsername, newEmail, newPassword).' });
+    }
+    if (newEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmail)) {
+        return reply.code(400).send({ error: 'Invalid email format' });
+      }
+    }
+    // ricerca dell profilo all interno del database
+    const user = await app.prisma.user.findUnique({
+      where: { username },
+      select: { id: true, username: true, email: true, password: true, createdAt: true },
+    });
+    if (!user) {
+      return reply.code(400).send({ error: 'User not found' });
+    }
+    if (user.password !== currentPassword) {
+      return reply.code(400).send({ error: 'Invalid current password' });
+    }
+
+    const data: Record<string, any> = {};
+    if (typeof newUsername === 'string' && newUsername.trim() !== '') data.username = newUsername.trim();
+    if (typeof newEmail === 'string') data.email = newEmail;
+    if (typeof newPassword === 'string' && newPassword.trim() !== '') data.password = newPassword;
+
+    if (Object.keys(data).length === 0) {
+      return reply.code(400).send({ error: 'No valid changes provided' });
+    }
+
+    // 4) Esecuzione di update su prisma 
+    try {
+      const updated = await app.prisma.user.update({
+        where: { id: user.id },
+        data,
+        select: { id: true, username: true, email: true, createdAt: true },
+      });
+      return reply.send({ success: true, user: updated });
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        // Messaggio di errore nel caso username o email siano già utilizzati
+        return reply.code(409).send({ error: 'Username or email already in use' });
+      }
+      app.log.error(err);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // comando per cambiare immagine profilo
+  app.patch('/users/:username/avatar', async (req, reply) => {
+    const { username } = req.params as { username: string };
+
+    const parts = req.parts();
+    let currentPassword: string | undefined;
+    let filePart: any;
+
+    for await (const part of parts) {
+      if (part.type === 'file') {
+        filePart = part;
+      } else if (part.type === 'field') {
+        if (part.fieldname === 'currentPassword') currentPassword = part.value as string;
+      }
+    }
+
+    if (!currentPassword) {
+      return reply.code(400).send({ error: 'currentPassword is required' });
+    }
+    if (!filePart) {
+      return reply.code(400).send({ error: 'file is required' });
+    }
+    if (!ALLOWED_MIME.has(filePart.mimetype)) {
+      return reply.code(400).send({ error: 'Only PNG/JPEG/WebP allowed' });
+    }
+
+    // trova utente e verifica password
+    const user = await app.prisma.user.findUnique({
+      where: { username },
+      select: { id: true, password: true },
+    });
+    if (!user) return reply.code(404).send({ error: 'User not found' });
+    if (user.password !== currentPassword) {
+      return reply.code(401).send({ error: 'Invalid current password' });
+    }
+
+    // Salva nuova immagine
+    const ext = filePart.filename?.split('.').pop()?.toLowerCase() || 'png';
+    const filename = `${user.id}-${crypto.randomUUID()}.${ext}`;
+    const uploadDir = path.join(__dirname, '..', '..', 'uploads');
+    const filePath = path.join(uploadDir, filename);
+
+    await fs.promises.mkdir(uploadDir, { recursive: true });
+    const writeStream = fs.createWriteStream(filePath);
+    await filePart.file.pipe(writeStream);
+    await new Promise((res, rej) => {
+      writeStream.on('finish', res);
+      writeStream.on('error', rej);
+    });
+
+    // URL del file su uploads
+    const publicUrl = `/uploads/${filename}`;
+
+    // Aggiorna profilo
+    await app.prisma.profile.update({
+      where: { userId: user.id },
+      data: { avatarUrl: publicUrl },
+    });
+
+    return reply.send({ success: true, avatarUrl: publicUrl });
+  });
+
+  // comando per resettare immagine profilo a default
+  app.patch('/users/:username/avatar/reset', async (req, reply) => {
+    const { username } = req.params as { username: string };
+    const { currentPassword } = req.body as { currentPassword?: string };
+
+    if (!currentPassword) {
+      return reply.code(400).send({ error: 'currentPassword is required' });
+    }
+
+    const user = await app.prisma.user.findUnique({
+      where: { username },
+      select: { id: true, password: true },
+    });
+    if (!user) return reply.code(404).send({ error: 'User not found' });
+    if (user.password !== currentPassword) {
+      return reply.code(401).send({ error: 'Invalid current password' });
+    }
+
+    await app.prisma.profile.update({
+      where: { userId: user.id },
+      data: { avatarUrl: '/static/default-avatar.png' },
+    });
+
+    return reply.send({ success: true, avatarUrl: '/static/default-avatar.png' });
   });
 };
 
