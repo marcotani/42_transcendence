@@ -10,6 +10,7 @@ import prismaPlugin from './plugins/prisma';
 // Rotte
 import usersRoute from './routes/users';
 import authRoutes from './routes/auth';
+import friendsRoutes from './routes/friends';
 
 const app = Fastify({ logger: false }); // Disattiva il logger automatico di Fastify, evita spam di messaggi
 
@@ -58,6 +59,7 @@ async function buildServer() {
   // Registra le rotte
   await app.register(usersRoute);
   await app.register(authRoutes);
+  await app.register(friendsRoutes);
 
   // Rotta di health check DB
   app.get('/health/db', async () => {

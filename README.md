@@ -80,6 +80,37 @@ curl -X PATCH http://localhost:3000/users/nome utente/avatar/reset \
   -H "Content-Type: application/json" \
   -d '{"currentPassword":"password corrente"}'
 
+Inviare una richiesta di amicizia
+curl -X POST http://localhost:3000/friends/requests \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromUsername": "username profilo",
+    "currentPassword": "password profilo corrente",
+    "toUsername": "username amico"
+  }' | jq
+
+Accetta una richiesta di amicizia in attesa
+curl -X POST http://localhost:3000/friends/requests/"id della richiesta"/accept \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "nome utente",
+    "currentPassword": "password utente"
+  }' | jq
+
+Rimuovi un utente dalla lista amici
+curl -X DELETE http://localhost:3000/friends/nome utente da rimuovere \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "nome utente",
+    "currentPassword": "password utente"
+  }' | jq
+
+Visualizza le richieste di amicizia in attesa 
+curl -X GET "http://localhost:3000/friends/requests?for=nomeutente" | jq
+
+Visualizza gli amici dell'utente
+curl -X GET http://localhost:3000/friends/nome utente | jq
+
 Users visualizer
 curl http://localhost:3000/api/users
 

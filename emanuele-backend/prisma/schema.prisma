@@ -8,25 +8,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model FriendRequest {
+  id         Int           @id @default(autoincrement())
+  fromUserId Int
+  toUserId   Int
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+
+  fromUser User @relation("FriendRequestsSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("FriendRequestsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId, status])
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model User {
-  id         Int       @id @default(autoincrement())
-  email      String?   @unique
-  username   String    @unique
-  password   String?
-  createdAt  DateTime  @default(now())
-  profile    Profile?
-  stats      UserStat?
-  friends    Friend[]  @relation("UserFriends")
-  friendedBy Friend[]  @relation("UserFriendedBy")
+  id               Int             @id @default(autoincrement())
+  email            String?         @unique
+  username         String          @unique
+  password         String?
+  createdAt        DateTime        @default(now())
+  profile          Profile?
+  stats            UserStat?
+  friends          Friend[]        @relation("UserFriends")
+  friendedBy       Friend[]        @relation("UserFriendedBy")
+  sentRequests     FriendRequest[] @relation("FriendRequestsSent")
+  receivedRequests FriendRequest[] @relation("FriendRequestsReceived")
 }
 
 model Profile {
-  id        Int    @id @default(autoincrement())
-  userId    Int    @unique
-  bio       String @default("")
-  avatarUrl String @default("/static/default-avatar.png")
-  alias     String ?
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  userId    Int     @unique
+  bio       String  @default("")
+  avatarUrl String  @default("/static/default-avatar.png")
+  alias     String?
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Friend {
