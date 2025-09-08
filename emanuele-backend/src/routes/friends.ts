@@ -7,9 +7,11 @@ export default async function friendsRoutes(app: FastifyInstance) {
     if (!username || !password) return null;
     const user = await app.prisma.user.findUnique({
       where: { username },
-      select: { id: true, username: true, password: true },
+      select: { id: true, username: true, password_hash: true, password_salt: true },
     });
-    if (!user || user.password !== password) return null;
+    if (!user) return null;
+    const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
+    if (!verifyPassword(password, user.password_salt, user.password_hash)) return null;
     return user;
   }
 

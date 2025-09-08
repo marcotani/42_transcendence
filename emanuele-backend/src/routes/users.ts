@@ -24,11 +24,17 @@ const usersRoute: FastifyPluginAsync = async (app) => {
 
     try {
       // Creazione utente tramite i parametri passati
+      let hash, salt;
+      if (body.password) {
+        const result = await import('../leonardo-security/plugins/password-hash');
+        ({ hash, salt } = result.hashPassword(body.password));
+      }
       const user = await app.prisma.user.create({
         data: {
           email: body.email,
           username: body.username,
-          password: body.password ?? null,
+          password_hash: hash ?? "",
+          password_salt: salt ?? "",
           profile: { create: { bio: '', alias: '' } },
           stats: { create: {} }
         }
@@ -81,12 +87,12 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.code(400).send({ error: 'Password is required' });
     }
 
-    const user = await app.prisma.user.findUnique({ where: { username } });
+    const user = await app.prisma.user.findUnique({ where: { username }, select: { password_hash: true, password_salt: true } });
     if (!user) {
       return reply.code(404).send({ error: 'User not found' });
     }
-
-    if (user.password !== password) {
+    const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
+    if (!verifyPassword(password, user.password_salt, user.password_hash)) {
       return reply.code(401).send({ error: 'Invalid password' });
     }
 
@@ -151,19 +157,24 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     // ricerca dell profilo all interno del database
     const user = await app.prisma.user.findUnique({
       where: { username },
-      select: { id: true, username: true, email: true, password: true, createdAt: true },
+      select: { id: true, username: true, email: true, password_hash: true, password_salt: true, createdAt: true },
     });
     if (!user) {
       return reply.code(400).send({ error: 'User not found' });
     }
-    if (user.password !== currentPassword) {
+    const { verifyPassword, hashPassword } = await import('../leonardo-security/plugins/password-hash');
+    if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
       return reply.code(400).send({ error: 'Invalid current password' });
     }
 
     const data: Record<string, any> = {};
     if (typeof newUsername === 'string' && newUsername.trim() !== '') data.username = newUsername.trim();
     if (typeof newEmail === 'string') data.email = newEmail;
-    if (typeof newPassword === 'string' && newPassword.trim() !== '') data.password = newPassword;
+    if (typeof newPassword === 'string' && newPassword.trim() !== '') {
+      const { hash, salt } = hashPassword(newPassword);
+      data.password_hash = hash;
+      data.password_salt = salt;
+    }
 
     if (Object.keys(data).length === 0) {
       return reply.code(400).send({ error: 'No valid changes provided' });
@@ -216,10 +227,11 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     // trova utente e verifica password
     const user = await app.prisma.user.findUnique({
       where: { username },
-      select: { id: true, password: true },
+      select: { id: true, password_hash: true, password_salt: true },
     });
     if (!user) return reply.code(404).send({ error: 'User not found' });
-    if (user.password !== currentPassword) {
+    const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
+    if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
       return reply.code(401).send({ error: 'Invalid current password' });
     }
 
@@ -260,10 +272,11 @@ const usersRoute: FastifyPluginAsync = async (app) => {
 
     const user = await app.prisma.user.findUnique({
       where: { username },
-      select: { id: true, password: true },
+      select: { id: true, password_hash: true, password_salt: true },
     });
     if (!user) return reply.code(404).send({ error: 'User not found' });
-    if (user.password !== currentPassword) {
+    const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
+    if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
       return reply.code(401).send({ error: 'Invalid current password' });
     }
 

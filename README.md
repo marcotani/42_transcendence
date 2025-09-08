@@ -72,44 +72,44 @@ curl -X PATCH http://localhost:3000/users/vecchioUsername \
 Upload nuova profile icon
 curl -X PATCH http://localhost:3000/users/nome utente/avatar \
   -H "Content-Type: multipart/form-data" \
-  -F "currentPassword=password corrente" \
+  -F "currentPassword=password_corrente" \
   -F "file=@emanuele-backend/uploads/nome file.png"
 
 Reset profile icon
 curl -X PATCH http://localhost:3000/users/nome utente/avatar/reset \
   -H "Content-Type: application/json" \
-  -d '{"currentPassword":"password corrente"}'
+  -d '{"currentPassword":"password_corrente"}'
 
 Inviare una richiesta di amicizia
 curl -X POST http://localhost:3000/friends/requests \
   -H "Content-Type: application/json" \
   -d '{
-    "fromUsername": "username profilo",
-    "currentPassword": "password profilo corrente",
-    "toUsername": "username amico"
+    "fromUsername": "username_profilo",
+    "currentPassword": "password_profilo_corrente",
+    "toUsername": "username_amico"
   }' | jq
 
 Accetta una richiesta di amicizia in attesa
-curl -X POST http://localhost:3000/friends/requests/"id della richiesta"/accept \
+curl -X POST http://localhost:3000/friends/requests/"id_della_richiesta"/accept \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "nome utente",
-    "currentPassword": "password utente"
+    "username": "nome_utente",
+    "currentPassword": "password_utente"
   }' | jq
 
 Rimuovi un utente dalla lista amici
-curl -X DELETE http://localhost:3000/friends/nome utente da rimuovere \
+curl -X DELETE http://localhost:3000/friends/nome_utente_da_rimuovere \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "nome utente",
-    "currentPassword": "password utente"
+    "username": "nome_utente",
+    "currentPassword": "password_utente"
   }' | jq
 
 Visualizza le richieste di amicizia in attesa 
 curl -X GET "http://localhost:3000/friends/requests?for=nomeutente" | jq
 
 Visualizza gli amici dell'utente
-curl -X GET http://localhost:3000/friends/nome utente | jq
+curl -X GET http://localhost:3000/friends/nome_utente | jq
 
 Users visualizer
 curl http://localhost:3000/api/users

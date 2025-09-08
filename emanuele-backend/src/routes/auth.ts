@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
+import { hashPassword, verifyPassword } from '../leonardo-security/plugins/password-hash';
 
 export default async function authRoutes(app: FastifyInstance) {
   // POST /api/register
@@ -28,11 +29,13 @@ export default async function authRoutes(app: FastifyInstance) {
     }
 
     try {
+      const { hash, salt } = hashPassword(password);
       const newUser = await app.prisma.user.create({
         data: {
           username,
           email,
-          password, // TODO: eseguire hashing della password
+          password_hash: hash,
+          password_salt: salt,
           profile: { create: { bio: ''} },
           stats: { create: { wins: 0, losses: 0, elo: 1000 } },
         },
@@ -81,17 +84,17 @@ export default async function authRoutes(app: FastifyInstance) {
 
     const user = await app.prisma.user.findUnique({
       where: { username },
-      select: { id: true, username: true, email: true, password: true, createdAt: true },
+      select: { id: true, username: true, email: true, password_hash: true, password_salt: true, createdAt: true },
     });
 
-    if (!user || user.password !== password) {
+    if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
       return reply.code(401).send({
         success: false,
         error: 'Credenziali non valide'
       });
     }
 
-    const { password: _omit, ...safeUser } = user as any;
+    const { password_hash: _omit, ...safeUser } = user as any;
     return reply.send({ success: true, user: safeUser });
   });
 
@@ -134,10 +137,10 @@ export default async function authRoutes(app: FastifyInstance) {
 
     const user = await app.prisma.user.findUnique({
       where: { username },
-      select: { id: true, password: true },
+      select: { id: true, password_hash: true, password_salt: true },
     });
 
-    if (!user || user.password !== password) {
+    if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
       return reply.code(401).send({
         success: false,
         error: 'Credenziali non valide'
