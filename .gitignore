@@ -1,6 +1,7 @@
 # Ignora le dipendenze
 emanuele-backend/node_modules/
 marco-frontend/node_modules/
+node_modules/
 
 # Ignora output di build (opzionale se usi tsc)
 dist/
