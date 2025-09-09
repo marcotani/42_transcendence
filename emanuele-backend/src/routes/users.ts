@@ -7,21 +7,22 @@ import { Prisma } from '@prisma/client';
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 const usersRoute: FastifyPluginAsync = async (app) => {
+  
   // Creazione utente
   app.post('/users', async (req, reply) => {
     const body = req.body as { email: string; username: string; password?: string };
-
+    
     // Controllo campi del body
     if (!body?.email || !body?.username) {
       return reply.code(400).send({ error: 'Missing fields: email and username are required' });
     }
-
+    
     // Controllo formato email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(body.email)) {
       return reply.code(400).send({ error: 'Invalid email format' });
     }
-
+    
     try {
       // Creazione utente tramite i parametri passati
       let hash, salt;
@@ -35,13 +36,13 @@ const usersRoute: FastifyPluginAsync = async (app) => {
           username: body.username,
           password_hash: hash ?? "",
           password_salt: salt ?? "",
-          profile: { create: { bio: '', alias: '' } },
+          profile: { create: { bio: '', alias: '', gdpr: false } },
           stats: { create: {} }
         }
       });
-
+      
       return reply.code(201).send(user);
-
+      
     } catch (err: any) {
       // Errore nel caso di username o email già utilizzati
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -51,42 +52,51 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.code(500).send({ error: 'Internal server error' });
     }
   });
-
+  
   // Comando per recuperare un utente specifico, se esistente, dal database
   app.get('/users/:username', async (req, reply) => {
-  const { username } = req.params as { username: string };
-  const user = await app.prisma.user.findUnique({
-    where: { username },
-    include: { profile: true },
+    const { username } = req.params as { username: string };
+    const user = await app.prisma.user.findUnique({
+      where: { username },
+      include: { profile: true },
+    });
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    if (user.profile?.gdpr === true) {
+      user.email = '*************';
+    }
+    return user;
   });
-  if (!user) {
-    return reply.code(404).send({ error: 'User not found' });
-  }
-  return user;
-});
-
+  
   // Comando per stamapre l'intero database
   app.get('/users', async () => {
-    return app.prisma.user.findMany({
+    const users = await app.prisma.user.findMany({
       include: { profile: true, stats: true }
     });
+    for (const user of users) {
+      if (user.profile?.gdpr === true) {
+        user.email = '*************';
+      }
+    }
+    return users;
   });
-
+  
   // Comando per eliminare tutti i profili sul database
   app.delete('/users', async (_, reply) => {
     await app.prisma.user.deleteMany({});
     return reply.send({ message: 'All users deleted successfully' });
   });
-
+  
   // Comando per eliminare un utente specifico sul database
   app.delete('/users/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
     const { password } = req.body as { password?: string };
-
+    
     if (!password) {
       return reply.code(400).send({ error: 'Password is required' });
     }
-
+    
     const user = await app.prisma.user.findUnique({ where: { username }, select: { password_hash: true, password_salt: true } });
     if (!user) {
       return reply.code(404).send({ error: 'User not found' });
@@ -95,11 +105,11 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     if (!verifyPassword(password, user.password_salt, user.password_hash)) {
       return reply.code(401).send({ error: 'Invalid password' });
     }
-
+    
     await app.prisma.user.delete({ where: { username } });
     return reply.send({ message: `User '${username}' deleted successfully` });
   });
-
+  
   // Comando per modificare l'alias di un utente
   app.patch('/users/:username/alias', async (req, reply) => {
     const { username } = req.params as { username: string };
@@ -108,24 +118,43 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     if (!alias || alias.trim() === '') {
       return reply.code(400).send({ error: 'Alias is required' });
     }
-
+    
     const user = await app.prisma.user.findUnique({
-    where: { username },
-    include: { profile: true }
+      where: { username },
+      include: { profile: true }
     });
-
+    
     if (!user) {
       return reply.code(404).send({ error: 'User not found' });
     }
-
+    
     await app.prisma.profile.update({
       where: { userId: user.id },
       data: { alias }
     });
-
+    
     return reply.send({ message: `Alias updated successfully for ${username}`, alias });
   });
 
+  // Rotta per accettare GDPR
+  app.patch('/users/:username/gdpr', async (req, reply) => {
+    const { username } = req.params as { username: string };
+    const { password } = req.body as { password?: string };
+    if (!password) {
+      return reply.code(400).send({ error: 'Password is required' });
+    }
+  const user = await app.prisma.user.findUnique({ where: { username } });
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
+    if (!verifyPassword(password, user.password_salt, user.password_hash)) {
+      return reply.code(401).send({ error: 'Invalid password' });
+    }
+    await app.prisma.profile.update({ where: { userId: user.id }, data: { gdpr: true } });
+    return reply.send({ success: true, message: 'GDPR flag set to true' });
+  });
+  
   // Comando per modificare username, email o password
   // dopo aver controllato che la password passata sia corretta per l'utente
   app.patch('/users/:username', async (req, reply) => {

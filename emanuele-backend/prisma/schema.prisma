@@ -48,6 +48,7 @@ model Profile {
   bio       String  @default("")
   avatarUrl String  @default("/static/default-avatar.png")
   alias     String?
+  gdpr      Boolean @default(false)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

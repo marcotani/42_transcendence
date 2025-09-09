@@ -1,17 +1,17 @@
 ## Transcendence
 
-Starta Docker:
+---------- START & STOP DOCKER ----------
 
-```
 sudo docker compose build
 sudo docker compose up
-```
 sudo docker compose down
+
+---------- INFO FRONTEND & BACKEND ----------
 
 Backend disponibile a http://localhost:3000
 Frontend disponibile a http://localhost:8080
 
-----Comandi database----
+---------- COMANDI REGISTRAZIONE UTENTE ----------
 
 User register via curl
 curl -X POST http://localhost:3000/api/register \
@@ -29,6 +29,8 @@ curl -X POST http://localhost:3000/api/login \
     "username": "testuser",
     "password": "password123"
   }'
+
+---------- COMANDI MODIFICA CREDENZIALI UTENTE ----------
 
 User alias chenge via curl
 curl -X PATCH http://localhost:3000/users/"nome_utente"/alias \
@@ -59,6 +61,11 @@ curl -X PATCH http://localhost:3000/users/vecchioUsername \
     "newPassword": "nuovaPassword"
   }'
 
+Attivazione gdpr
+curl -X PATCH http://localhost:3000/users/nome_utente/gdpr \
+  -H "Content-Type: application/json" \
+  -d '{"password": "password_utente"}'
+
 Multi-field chenge via curl
 curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
@@ -79,6 +86,8 @@ Reset profile icon
 curl -X PATCH http://localhost:3000/users/nome utente/avatar/reset \
   -H "Content-Type: application/json" \
   -d '{"currentPassword":"password_corrente"}'
+
+---------- COMANDI LISTA AMICI ----------
 
 Inviare una richiesta di amicizia
 curl -X POST http://localhost:3000/friends/requests \
@@ -111,14 +120,18 @@ curl -X GET "http://localhost:3000/friends/requests?for=nomeutente" | jq
 Visualizza gli amici dell'utente
 curl -X GET http://localhost:3000/friends/nome_utente | jq
 
-Users visualizer
+---------- COMANDI VISUALIZZAZIONE DATEBASE ----------
+
+Visualizza tutti gli utenti
 curl http://localhost:3000/api/users
 
-Users stats visualizer 
+Visualizza tutte le credenziali degli utenti
 curl -X GET http://localhost:3000/users | jq
 
-Single user visualizer 
+Visualizza un utente specifico
 curl -X GET http://localhost:3000/users/"nome_utente" | jq
+
+---------- COMANDI ELIMINAZIONE DATABASE ----------
 
 Cancella tutte le utenze nel database
 curl -X DELETE http://localhost:3000/users
@@ -128,4 +141,4 @@ curl -X DELETE http://localhost:3000/users/"nome_utente" \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
-------------------------
+--------------------
