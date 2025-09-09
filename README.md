@@ -13,7 +13,7 @@ Frontend disponibile a http://localhost:8080
 
 ---------- COMANDI REGISTRAZIONE UTENTE ----------
 
-User register via curl
+Registrazione utente
 curl -X POST http://localhost:3000/api/register \
   -H "Content-Type: application/json" \
   -d '{
@@ -22,7 +22,7 @@ curl -X POST http://localhost:3000/api/register \
     "email": "email@example.com"
   }'
 
-User login via curl
+Login utente
 curl -X POST http://localhost:3000/api/login \
   -H "Content-Type: application/json" \
   -d '{
@@ -32,12 +32,12 @@ curl -X POST http://localhost:3000/api/login \
 
 ---------- COMANDI MODIFICA CREDENZIALI UTENTE ----------
 
-User alias chenge via curl
+Modifica alias utente
 curl -X PATCH http://localhost:3000/users/"nome_utente"/alias \
   -H "Content-Type: application/json" \
   -d '{"alias": "new_alias"}'
 
-Username change via curl
+Modifica username utente
 curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
@@ -45,7 +45,7 @@ curl -X PATCH http://localhost:3000/users/vecchioUsername \
     "newUsername": "nuovoUsername"
   }'
 
-Email change via curl
+Modifica email utente
 curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
@@ -53,7 +53,7 @@ curl -X PATCH http://localhost:3000/users/vecchioUsername \
     "newEmail": "nuovaEmail@example.com"
   }'
 
-Password change via curl
+Modifica password utente
 curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
@@ -66,7 +66,7 @@ curl -X PATCH http://localhost:3000/users/nome_utente/gdpr \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
-Multi-field chenge via curl
+Modifica multi-campo utente
 curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
@@ -76,13 +76,13 @@ curl -X PATCH http://localhost:3000/users/vecchioUsername \
     "newPassword": "nuovaPassword"
   }'
 
-Upload nuova profile icon
+Modifica icona profilo utente
 curl -X PATCH http://localhost:3000/users/nome utente/avatar \
   -H "Content-Type: multipart/form-data" \
   -F "currentPassword=password_corrente" \
   -F "file=@emanuele-backend/uploads/nome file.png"
 
-Reset profile icon
+Resetta icona profilo utente
 curl -X PATCH http://localhost:3000/users/nome utente/avatar/reset \
   -H "Content-Type: application/json" \
   -d '{"currentPassword":"password_corrente"}'
