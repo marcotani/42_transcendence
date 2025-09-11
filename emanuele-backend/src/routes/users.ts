@@ -136,6 +136,33 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     return reply.send({ message: `Alias updated successfully for ${username}`, alias });
   });
 
+  // PATCH per cambiare solo la skin (colore) del player
+  app.patch('/users/:username/skin', async (req, reply) => {
+    const { username } = req.params as { username: string };
+    const { skinColor } = req.body as { skinColor?: string };
+    // 5 colori predefiniti
+    const allowedColors = [
+      '#FF0000', // rosso
+      '#00FF00', // verde
+      '#0000FF', // blu
+      '#FFFF00', // giallo
+      '#FF00FF'  // magenta
+    ];
+    if (!skinColor || !allowedColors.includes(skinColor)) {
+      return reply.code(400).send({ error: 'skinColor must be one of: ' + allowedColors.join(', ') });
+    }
+    // Trova utente e aggiorna skinColor
+    const user = await app.prisma.user.findUnique({ where: { username }, select: { id: true } });
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    await app.prisma.profile.update({
+      where: { userId: user.id },
+      data: { skinColor }
+    });
+    return reply.send({ success: true, skinColor });
+  });
+
   // Rotta per accettare GDPR
   app.patch('/users/:username/gdpr', async (req, reply) => {
     const { username } = req.params as { username: string };
@@ -315,6 +342,23 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     });
 
     return reply.send({ success: true, avatarUrl: '/static/default-avatar.png' });
+  });
+
+  app.patch('/users/:username/bio', async (req, reply) => {
+    const { username } = req.params as { username: string };
+    const { bio } = req.body as { bio?: string };
+    if (typeof bio !== 'string' || bio.trim() === '') {
+      return reply.code(400).send({ error: 'Bio is required' });
+    }
+    const user = await app.prisma.user.findUnique({ where: { username }, select: { id: true } });
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    await app.prisma.profile.update({
+      where: { userId: user.id },
+      data: { bio: bio.trim() }
+    });
+    return reply.send({ success: true, bio: bio.trim() });
   });
 };
 

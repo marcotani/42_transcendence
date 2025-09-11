@@ -30,7 +30,7 @@ curl -X POST http://localhost:3000/api/login \
     "password": "password123"
   }'
 
----------- COMANDI MODIFICA CREDENZIALI UTENTE ----------
+---------- COMANDI MODIFICA UTENTE ----------
 
 Modifica alias utente
 curl -X PATCH http://localhost:3000/users/"nome_utente"/alias \
@@ -86,6 +86,23 @@ Resetta icona profilo utente
 curl -X PATCH http://localhost:3000/users/nome utente/avatar/reset \
   -H "Content-Type: application/json" \
   -d '{"currentPassword":"password_corrente"}'
+
+Cambia biografia
+curl -X PATCH http://localhost:3000/users/nome_utente/bio \
+  -H "Content-Type: application/json" \
+  -d '{"bio":"Questa è la nuova biografia!"}'
+
+Cambia colore skin
+curl -X PATCH http://localhost:3000/users/nome-utente/skin \
+  -H "Content-Type: application/json" \
+  -d '{"skinColor":"codice_colore"}'
+
+colori disponibili:
+  '#FF0000', // rosso
+  '#00FF00', // verde
+  '#0000FF', // blu
+  '#FFFF00', // giallo
+  '#FF00FF'  // magenta
 
 ---------- COMANDI LISTA AMICI ----------
 
