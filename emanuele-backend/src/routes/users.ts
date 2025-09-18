@@ -181,6 +181,30 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     await app.prisma.profile.update({ where: { userId: user.id }, data: { gdpr: true } });
     return reply.send({ success: true, message: 'GDPR flag set to true' });
   });
+
+  // Rotta per abilitare/disabilitare 2FA
+  app.patch('/users/:username/2fa', async (req, reply) => {
+    const { username } = req.params as { username: string };
+    const { password } = req.body as { password?: string };
+    if (!password) {
+      return reply.code(400).send({ error: 'Password is required' });
+    }
+  const user = await app.prisma.user.findUnique({ where: { username } });
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
+    if (!verifyPassword(password, user.password_salt, user.password_hash)) {
+      return reply.code(401).send({ error: 'Invalid password' });
+    }
+    if (!user.twoFactorEnabled) {
+      const { generate2FASecret } = await import('../leonardo-security/plugins/two-factors-authentication');
+      await app.prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true, twoFactorSecret: generate2FASecret() } });
+      return reply.send({ success: true, message: '2FA enabled successfully' });
+    }
+    await app.prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false, twoFactorSecret: null } });
+    return reply.send({ success: true, message: '2FA disabled successfully' });
+  });
   
   // Comando per modificare username, email o password
   // dopo aver controllato che la password passata sia corretta per l'utente

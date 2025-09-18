@@ -66,6 +66,11 @@ curl -X PATCH http://localhost:3000/users/nome_utente/gdpr \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
+Attivazione/Disattivazione 2FA
+curl -X PATCH http://localhost:3000/users/nome_utente/2fa \
+  -H "Content-Type: application/json" \
+  -d '{"password": "password_utente"}'
+
 Modifica multi-campo utente
 curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
