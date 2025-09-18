@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   backend:
     build:
@@ -6,17 +5,23 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=file:./dev.db
+      - DATABASE_URL=file:/app/db/dev.db
     volumes:
       - ./emanuele-backend/uploads:/app/uploads
       - ./emanuele-backend/static:/app/static
-      - ./emanuele-backend/dev.db:/app/dev.db
+
+      - transcendence-db:/app/db
     restart: unless-stopped
+
   frontend:
     build: ./marco-frontend
     ports:
       - "8080:8080"
     restart: unless-stopped
+
 networks:
   default:
     driver: bridge
+
+volumes:
+  transcendence-db:
