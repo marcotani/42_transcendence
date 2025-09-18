@@ -33,6 +33,8 @@ model User {
   username         String          @unique
   password_hash    String
   password_salt    String
+  twoFactorEnabled Boolean         @default(false)
+  twoFactorSecret  String?         // nullable, only set if 2FA is enabled
   createdAt        DateTime        @default(now())
   profile          Profile?
   stats            UserStat?
