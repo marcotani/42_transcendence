@@ -236,6 +236,10 @@ const routes: { [key: string]: string } = {
         <label for='edit-password' class='block mb-1'>New Password</label>
         <input type='password' id='edit-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' autocomplete='new-password' />
       </div>
+      <div>
+        <label for='edit-current-password' class='block mb-1'>Current Password <span class='text-red-500'>*</span></label>
+        <input type='password' id='edit-current-password' name='currentPassword' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400' required autocomplete='current-password' />
+      </div>
       <button type='submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>Update Profile</button>
       <div id='edit-profile-error' class='text-red-500 mt-2 hidden'></div>
       <div id='edit-profile-success' class='text-green-500 mt-2 hidden'></div>
@@ -543,7 +547,8 @@ function attachUserDropdownListeners() {
   document.getElementById('dropdown-logout')?.addEventListener('click', () => {
     closeMenu();
     setLoggedInUser(null);
-    render(window.location.hash.replace('#', ''));
+    window.location.hash = '';
+    render('');
   });
 }
 
@@ -794,12 +799,20 @@ function attachEditProfileListeners() {
       const username = (document.getElementById('edit-username') as HTMLInputElement).value.trim();
       const email = (document.getElementById('edit-email') as HTMLInputElement).value.trim();
       const password = (document.getElementById('edit-password') as HTMLInputElement).value;
+      const currentPassword = (document.getElementById('edit-current-password') as HTMLInputElement).value;
       const errorDiv = document.getElementById('edit-profile-error');
       const successDiv = document.getElementById('edit-profile-success');
       if (errorDiv) errorDiv.classList.add('hidden');
       if (successDiv) successDiv.classList.add('hidden');
       let errorMsg = '';
-      if (!alias && !username && !email && !password) errorMsg = 'At least one field must be filled.';
+      // Only require current password if changing username/email/password
+      const wantsUsernameChange = username && username !== original.username;
+      const wantsEmailChange = email && email !== original.email;
+      const wantsPasswordChange = !!password;
+      if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange) errorMsg = 'At least one field must be filled.';
+      if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange) && !currentPassword) {
+        errorMsg = 'Current password is required to change username, email, or password.';
+      }
       if (errorMsg) {
         if (errorDiv) {
           errorDiv.textContent = errorMsg;
@@ -807,15 +820,18 @@ function attachEditProfileListeners() {
         }
         return;
       }
+      // Build PATCH body for username/email/password changes
+      const updateBody: any = {};
+      if (wantsUsernameChange) updateBody.newUsername = username;
+      if (wantsEmailChange) updateBody.newEmail = email;
+      if (wantsPasswordChange) updateBody.newPassword = password;
+      if (wantsUsernameChange || wantsEmailChange || wantsPasswordChange) {
+        updateBody.currentPassword = currentPassword;
+      }
       let ok = true;
       let msg = '';
-      // Update username/email/password if changed
-      const updateBody: any = {};
-      if (username && username !== original.username) updateBody.username = username;
-      if (email && email !== original.email) updateBody.email = email;
-      if (password) updateBody.password = password;
       let aliasTargetUser = loggedInUser;
-      // If username is changed, PATCH username/email/password first
+      // PATCH username/email/password only if needed
       if (Object.keys(updateBody).length > 0) {
         try {
           const userRes = await fetch(`${API_BASE}/users/${loggedInUser}` , {
@@ -826,23 +842,40 @@ function attachEditProfileListeners() {
           const userResBody = await userRes.json();
           if (!userRes.ok) {
             ok = false;
+            // Only show 'invalid current password' if backend returns it
             msg = userResBody.error || JSON.stringify(userResBody) || 'Failed to update profile.';
-          } else if (updateBody.username) {
-            setLoggedInUser(updateBody.username);
-            aliasTargetUser = updateBody.username;
-            // Reload form with new user info after username change
-            try {
-              const newUserRes = await fetch(`${API_BASE}/users/${updateBody.username}`);
-              const newUser = await newUserRes.json();
-              original = {
-                alias: newUser.profile?.alias || '',
-                username: newUser.username || '',
-                email: newUser.email || ''
-              };
-              (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
-              (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-              (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
-            } catch {}
+          } else {
+            // If username changed, update local state and reload form
+            if (updateBody.newUsername) {
+              setLoggedInUser(updateBody.newUsername);
+              aliasTargetUser = updateBody.newUsername;
+              try {
+                const newUserRes = await fetch(`${API_BASE}/users/${updateBody.newUsername}`);
+                const newUser = await newUserRes.json();
+                original = {
+                  alias: newUser.profile?.alias || '',
+                  username: newUser.username || '',
+                  email: newUser.email || ''
+                };
+                (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
+                (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
+                (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+              } catch {}
+            } else if (updateBody.newEmail) {
+              // Reload form with new user info after email change
+              try {
+                const newUserRes = await fetch(`${API_BASE}/users/${aliasTargetUser}`);
+                const newUser = await newUserRes.json();
+                original = {
+                  alias: newUser.profile?.alias || '',
+                  username: newUser.username || '',
+                  email: newUser.email || ''
+                };
+                (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
+                (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
+                (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+              } catch {}
+            }
           }
         } catch (err) {
           ok = false;
