@@ -144,14 +144,24 @@ curl -X GET http://localhost:3000/friends/nome_utente | jq
 
 ---------- COMANDI VISUALIZZAZIONE DATEBASE ----------
 
+Aggiorna statistiche vittorie/sconfitte
+curl -X POST http://localhost:3000/stats/update -H "Content-Type: application/json" -d \
+"{\"userId\":1,\"result\":\"win_or_loss\",\"type\":\"bot_player_tournament\"}"
+
 Visualizza tutti gli utenti
 curl http://localhost:3000/api/users
+
+Visualizza le stats di tutti gli utenti
+curl http://localhost:3000/stats
 
 Visualizza tutte le credenziali degli utenti
 curl -X GET http://localhost:3000/users | jq
 
 Visualizza un utente specifico
 curl -X GET http://localhost:3000/users/"nome_utente" | jq
+
+Visualizza le stast di un utente specifico
+curl http://localhost:3000/stats/"nome_utente"
 
 ---------- COMANDI ELIMINAZIONE DATABASE ----------
 

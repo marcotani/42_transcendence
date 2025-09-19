@@ -37,7 +37,13 @@ export default async function authRoutes(app: FastifyInstance) {
           password_hash: hash,
           password_salt: salt,
           profile: { create: { bio: '', gdpr: false } },
-          stats: { create: { wins: 0, losses: 0, elo: 1000 } },
+          stats: { create: {
+            botWins: 0,
+            botLosses: 0,
+            playerWins: 0,
+            playerLosses: 0,
+            tournamentWins: 0
+          } },
         },
         include: { profile: true, stats: true },
       });
@@ -49,8 +55,8 @@ export default async function authRoutes(app: FastifyInstance) {
           username: newUser.username,
           email: newUser.email,
           createdAt: newUser.createdAt,
-          profile: newUser.profile,
-          stats: newUser.stats,
+          profile: newUser.profile ?? null,
+          stats: newUser.stats ?? null,
         },
       });
     } catch (err: any) {

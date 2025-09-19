@@ -66,10 +66,12 @@ model Friend {
 }
 
 model UserStat {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  wins   Int  @default(0)
-  losses Int  @default(0)
-  elo    Int  @default(1000)
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             Int  @id @default(autoincrement())
+  userId         Int  @unique
+  botWins        Int  @default(0)
+  botLosses      Int  @default(0)
+  playerWins     Int  @default(0)
+  playerLosses   Int  @default(0)
+  tournamentWins Int  @default(0)
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
