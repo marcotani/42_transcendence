@@ -264,6 +264,8 @@ const routes: { [key: string]: string } = {
       <div class='text-base text-white mb-6' id='profile-bio'></div>
   <button id='edit-profile-btn' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 mb-2'>Edit Profile Information</button>
   <a href="/public/static/GDPR_Compliance.pdf" target="_blank" class="w-full block mb-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400 text-center">View Privacy Policy</a>
+  <button id='delete-profile-btn' class='w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-red-400 mb-2'>Delete Profile</button>
+  <div id='delete-profile-error' class='text-red-500 mb-2 hidden'></div>
   <button id='back-home-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
     </div>
   </div>`
@@ -605,6 +607,37 @@ function attachUserDropdownListeners() {
 
 // Attach listeners and fill data for the profile page
 function attachProfilePageListeners() {
+  // Delete profile button logic
+  const deleteBtn = document.getElementById('delete-profile-btn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to delete your profile? This action cannot be undone.')) return;
+      if (!confirm('This is your last chance! Do you really want to delete your profile and all your data?')) return;
+      const password = prompt('Please enter your password to confirm deletion:');
+      if (!password) return;
+      const errorDiv = document.getElementById('delete-profile-error');
+      errorDiv?.classList.add('hidden');
+      try {
+        const res = await fetch(`${API_BASE}/users/${loggedInUser}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errorDiv!.textContent = data.error || 'Failed to delete profile.';
+          errorDiv!.classList.remove('hidden');
+        } else {
+          alert('Your profile has been deleted.');
+          setLoggedInUser(null);
+          window.location.hash = '';
+        }
+      } catch (err) {
+        errorDiv!.textContent = 'Network error.';
+        errorDiv!.classList.remove('hidden');
+      }
+    });
+  }
   if (!loggedInUser) return;
   // Fetch user info
   fetch(`${API_BASE}/users/${loggedInUser}`)
