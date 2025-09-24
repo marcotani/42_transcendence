@@ -36,6 +36,7 @@ export default async function authRoutes(app: FastifyInstance) {
           email,
           password_hash: hash,
           password_salt: salt,
+          online: false,
           profile: { create: { bio: '', gdpr: false } },
           stats: { create: {
             botWins: 0,
@@ -100,8 +101,14 @@ export default async function authRoutes(app: FastifyInstance) {
       });
     }
 
+    // Set online a true dopo login
+    await app.prisma.user.update({
+      where: { id: user.id },
+      data: { online: true }
+    });
+
     const { password_hash: _omit, ...safeUser } = user as any;
-    return reply.send({ success: true, user: safeUser });
+    return reply.send({ success: true, user: { ...safeUser, online: true } });
   });
 
   // GET /api/users 
