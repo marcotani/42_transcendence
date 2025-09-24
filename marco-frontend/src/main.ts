@@ -69,7 +69,11 @@ const translations: Record<'en'|'it'|'fr', {
   }
 };
 
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'http://backend:3000';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000'
+  : (window.location.hostname === 'host.docker.internal' || window.location.hostname === '0.0.0.0')
+    ? 'http://host.docker.internal:3000'
+    : 'http://backend:3000';
 
 function getLang(): 'en'|'it'|'fr' {
   const lang = localStorage.getItem('lang');
@@ -223,7 +227,12 @@ const routes: { [key: string]: string } = {
   </div>`,
   'edit-profile': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
     <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Edit Profile</h2>
-    <form id='edit-profile-form' class='space-y-4'>
+  <form id='edit-profile-form' class='space-y-4' enctype='multipart/form-data'>
+      <div>
+        <label for='edit-avatar' class='block mb-1'>Avatar Image</label>
+        <input type='file' id='edit-avatar' name='avatar' accept='image/png,image/jpeg,image/webp' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' />
+        <div id='edit-avatar-preview' class='mt-2'></div>
+      </div>
       <div>
         <label for='edit-alias' class='block mb-1'>Alias (Display Name)</label>
         <input type='text' id='edit-alias' name='alias' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
@@ -262,11 +271,12 @@ const routes: { [key: string]: string } = {
       <div class='text-2xl font-bold mb-2' id='profile-alias'></div>
       <div class='text-gray-400 mb-4' id='profile-username'></div>
       <div class='text-base text-white mb-6' id='profile-bio'></div>
-  <button id='edit-profile-btn' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 mb-2'>Edit Profile Information</button>
-  <a href="/public/static/GDPR_Compliance.pdf" target="_blank" class="w-full block mb-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400 text-center">View Privacy Policy</a>
-  <button id='delete-profile-btn' class='w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-red-400 mb-2'>Delete Profile</button>
-  <div id='delete-profile-error' class='text-red-500 mb-2 hidden'></div>
-  <button id='back-home-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+      <div id='profile-stats-counters' class='w-full mb-6'></div>
+      <button id='edit-profile-btn' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 mb-2'>Edit Profile Information</button>
+      <a href="/public/static/GDPR_Compliance.pdf" target="_blank" class="w-full block mb-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400 text-center">View Privacy Policy</a>
+      <button id='delete-profile-btn' class='w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-red-400 mb-2'>Delete Profile</button>
+      <div id='delete-profile-error' class='text-red-500 mb-2 hidden'></div>
+      <button id='back-home-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
     </div>
   </div>`
 };
@@ -639,33 +649,74 @@ function attachProfilePageListeners() {
     });
   }
   if (!loggedInUser) return;
-  // Fetch user info
-  fetch(`${API_BASE}/users/${loggedInUser}`)
-    .then(res => res.json())
-    .then(user => {
-      // Avatar
-      let avatarUrl = user.profile?.avatarUrl || '';
-      if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
-        avatarUrl = API_BASE + avatarUrl;
-      }
-      const avatarHtml = avatarUrl
-        ? `<img src='${avatarUrl}' alt='avatar' class='w-32 h-32 rounded-full border-4 border-gray-600 bg-gray-700 object-cover mb-2' />`
-        : `<span class='inline-block w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
-      document.getElementById('profile-avatar')!.innerHTML = avatarHtml;
-      // Alias
-      document.getElementById('profile-alias')!.textContent = user.profile?.alias || user.username;
-      // Username
-      document.getElementById('profile-username')!.textContent = '@' + user.username;
-      // Bio
-      const bio = user.profile?.bio;
-      const bioDiv = document.getElementById('profile-bio');
-      if (bio && bio.trim()) {
-        bioDiv!.textContent = '';
-        bioDiv!.innerHTML = `<div class='whitespace-pre-line text-gray-300'>${bio}</div>`;
-      } else {
-        bioDiv!.innerHTML = '';
-      }
-    });
+  // Fetch user info and stats
+  Promise.all([
+    fetch(`${API_BASE}/users/${loggedInUser}`).then(res => res.json()),
+    fetch(`${API_BASE}/stats/${loggedInUser}`).then(res => res.json())
+  ]).then(([user, stats]) => {
+    // Avatar
+    let avatarUrl = user.profile?.avatarUrl || '';
+    if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
+      avatarUrl = API_BASE + avatarUrl;
+    }
+    // Add cache-busting query string to force refresh after upload
+    if (avatarUrl && avatarUrl.includes('/uploads/')) {
+      avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+    }
+    const avatarHtml = avatarUrl
+      ? `<img src='${avatarUrl}' alt='avatar' class='w-32 h-32 rounded-full border-4 border-gray-600 bg-gray-700 object-cover mb-2' />`
+      : `<span class='inline-block w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
+    document.getElementById('profile-avatar')!.innerHTML = avatarHtml;
+    // Alias
+    document.getElementById('profile-alias')!.textContent = user.profile?.alias || user.username;
+    // Username
+    document.getElementById('profile-username')!.textContent = '@' + user.username;
+    // Bio
+    const bio = user.profile?.bio;
+    const bioDiv = document.getElementById('profile-bio');
+    if (bio && bio.trim()) {
+      bioDiv!.textContent = '';
+      bioDiv!.innerHTML = `<div class='whitespace-pre-line text-gray-300'>${bio}</div>`;
+    } else {
+      bioDiv!.innerHTML = '';
+    }
+    // Stats counters
+    const statsHtml = `
+      <div class='grid grid-cols-2 gap-4 mb-2'>
+        <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
+          <div class='text-lg font-semibold text-green-400'>Bot</div>
+          <div class='flex space-x-4 mt-2'>
+            <div class='text-center'>
+              <div class='text-2xl font-bold'>${stats.botWins ?? 0}</div>
+              <div class='text-gray-400 text-sm'>Wins</div>
+            </div>
+            <div class='text-center'>
+              <div class='text-2xl font-bold'>${stats.botLosses ?? 0}</div>
+              <div class='text-gray-400 text-sm'>Losses</div>
+            </div>
+          </div>
+        </div>
+        <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
+          <div class='text-lg font-semibold text-blue-400'>Player</div>
+          <div class='flex space-x-4 mt-2'>
+            <div class='text-center'>
+              <div class='text-2xl font-bold'>${stats.playerWins ?? 0}</div>
+              <div class='text-gray-400 text-sm'>Wins</div>
+            </div>
+            <div class='text-center'>
+              <div class='text-2xl font-bold'>${stats.playerLosses ?? 0}</div>
+              <div class='text-gray-400 text-sm'>Losses</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
+        <div class='text-lg font-semibold text-yellow-400'>Tournament Wins</div>
+        <div class='text-3xl font-bold mt-2'>${stats.tournamentWins ?? 0}</div>
+      </div>
+    `;
+    document.getElementById('profile-stats-counters')!.innerHTML = statsHtml;
+  });
   document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
     window.location.hash = '#edit-profile';
   });
@@ -766,6 +817,34 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
     ctx.closePath();
   }
 
+  // Helper to send match result to backend
+  async function sendMatchResult({ result, score, opponent, startedAt, endedAt, duration }: { result: 'win'|'loss', score: string, opponent: string, startedAt: string, endedAt: string, duration: number }) {
+    if (!loggedInUser) return;
+    // Fetch userId for loggedInUser
+    try {
+      const userRes = await fetch(`${API_BASE}/users/${loggedInUser}`);
+      const user = await userRes.json();
+      if (!user || !user.id) return;
+      await fetch(`${API_BASE}/stats/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          result,
+          type: 'bot',
+          score,
+          opponent,
+          startedAt,
+          endedAt,
+          duration
+        })
+      });
+    } catch (e) {
+      // Ignore errors for now
+    }
+  }
+
+  let matchStart = new Date();
   function update() {
     let prevPaddleY = leftPaddleY;
     if (upPressed && leftPaddleY > 0) leftPaddleY -= paddleSpeed;
@@ -821,10 +900,30 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
     if (ballX < 0) {
       gameOver = true;
       if (statusDiv) statusDiv.textContent = 'Game Over! Right player wins.';
+      // Send match result: user lost
+      const matchEnd = new Date();
+      sendMatchResult({
+        result: 'loss',
+        score: '0-1',
+        opponent: 'AI',
+        startedAt: matchStart.toISOString(),
+        endedAt: matchEnd.toISOString(),
+        duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
+      });
     }
     if (ballX > canvas.width) {
       gameOver = true;
       if (statusDiv) statusDiv.textContent = 'Game Over! Left player wins.';
+      // Send match result: user won
+      const matchEnd = new Date();
+      sendMatchResult({
+        result: 'win',
+        score: '1-0',
+        opponent: 'AI',
+        startedAt: matchStart.toISOString(),
+        endedAt: matchEnd.toISOString(),
+        duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
+      });
     }
     if (gameOver) {
       clearInterval(aiInterval);
@@ -882,6 +981,22 @@ function attachEditProfileListeners() {
     window.location.hash = '';
   });
   const form = document.getElementById('edit-profile-form') as HTMLFormElement | null;
+  const avatarInput = document.getElementById('edit-avatar') as HTMLInputElement | null;
+  const avatarPreview = document.getElementById('edit-avatar-preview');
+  if (avatarInput && avatarPreview) {
+    avatarInput.addEventListener('change', () => {
+      const file = avatarInput.files && avatarInput.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          avatarPreview.innerHTML = `<img src='${e.target?.result}' alt='avatar preview' class='w-24 h-24 rounded-full object-cover border-2 border-gray-600' />`;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        avatarPreview.innerHTML = '';
+      }
+    });
+  }
   if (form && loggedInUser) {
     let original = { alias: '', username: '', email: '', bio: '' };
     // Prefill form with current user info
@@ -904,21 +1019,23 @@ function attachEditProfileListeners() {
       const alias = (document.getElementById('edit-alias') as HTMLInputElement).value.trim();
       const username = (document.getElementById('edit-username') as HTMLInputElement).value.trim();
       const email = (document.getElementById('edit-email') as HTMLInputElement).value.trim();
-  const bio = (document.getElementById('edit-bio') as HTMLTextAreaElement).value;
-  const password = (document.getElementById('edit-password') as HTMLInputElement).value;
+      const bio = (document.getElementById('edit-bio') as HTMLTextAreaElement).value;
+      const password = (document.getElementById('edit-password') as HTMLInputElement).value;
       const currentPassword = (document.getElementById('edit-current-password') as HTMLInputElement).value;
       const errorDiv = document.getElementById('edit-profile-error');
       const successDiv = document.getElementById('edit-profile-success');
+      const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
       if (errorDiv) errorDiv.classList.add('hidden');
       if (successDiv) successDiv.classList.add('hidden');
       let errorMsg = '';
-      // Only require current password if changing username/email/password
+      // Only require current password if changing username/email/password or uploading avatar
       const wantsUsernameChange = username && username !== original.username;
       const wantsEmailChange = email && email !== original.email;
       const wantsPasswordChange = !!password;
-      if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange) errorMsg = 'At least one field must be filled.';
-      if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange) && !currentPassword) {
-        errorMsg = 'Current password is required to change username, email, or password.';
+      const wantsAvatarChange = avatarInput && avatarInput.files && avatarInput.files.length > 0;
+      if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange) errorMsg = 'At least one field must be filled.';
+      if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange || wantsAvatarChange) && !currentPassword) {
+        errorMsg = 'Current password is required to change username, email, password, or avatar.';
       }
       if (errorMsg) {
         if (errorDiv) {
@@ -927,106 +1044,139 @@ function attachEditProfileListeners() {
         }
         return;
       }
-      // Build PATCH body for username/email/password changes
-      const updateBody: any = {};
-      if (wantsUsernameChange) updateBody.newUsername = username;
-      if (wantsEmailChange) updateBody.newEmail = email;
-      if (wantsPasswordChange) updateBody.newPassword = password;
-      if (wantsUsernameChange || wantsEmailChange || wantsPasswordChange) {
-        updateBody.currentPassword = currentPassword;
-      }
       let ok = true;
       let msg = '';
       let aliasTargetUser = loggedInUser;
-      // PATCH username/email/password only if needed
-      if (Object.keys(updateBody).length > 0) {
-        try {
-          const userRes = await fetch(`${API_BASE}/users/${loggedInUser}` , {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updateBody)
-          });
-          const userResBody = await userRes.json();
-          if (!userRes.ok) {
-            ok = false;
-            // Only show 'invalid current password' if backend returns it
-            msg = userResBody.error || JSON.stringify(userResBody) || 'Failed to update profile.';
-          } else {
-            // If username changed, update local state and reload form
-            if (updateBody.newUsername) {
-              setLoggedInUser(updateBody.newUsername);
-              aliasTargetUser = updateBody.newUsername;
-              try {
-                const newUserRes = await fetch(`${API_BASE}/users/${updateBody.newUsername}`);
-                const newUser = await newUserRes.json();
-                original = {
-                  alias: newUser.profile?.alias || '',
-                  username: newUser.username || '',
-                  email: newUser.email || '',
-                  bio: newUser.profile?.bio || ''
-                };
-                (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
-                (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-                (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
-                (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
-              } catch {}
-            } else if (updateBody.newEmail) {
-              // Reload form with new user info after email change
-              try {
-                const newUserRes = await fetch(`${API_BASE}/users/${aliasTargetUser}`);
-                const newUser = await newUserRes.json();
-                original = {
-                  alias: newUser.profile?.alias || '',
-                  username: newUser.username || '',
-                  email: newUser.email || '',
-                  bio: newUser.profile?.bio || ''
-                };
-                (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
-                (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-                (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
-                (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
-              } catch {}
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Updating...';
+      }
+      try {
+        // PATCH username/email/password only if needed
+        const updateBody: any = {};
+        if (wantsUsernameChange) updateBody.newUsername = username;
+        if (wantsEmailChange) updateBody.newEmail = email;
+        if (wantsPasswordChange) updateBody.newPassword = password;
+        if (wantsUsernameChange || wantsEmailChange || wantsPasswordChange) {
+          updateBody.currentPassword = currentPassword;
+        }
+        if (Object.keys(updateBody).length > 0) {
+          try {
+            const userRes = await fetch(`${API_BASE}/users/${loggedInUser}` , {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updateBody)
+            });
+            const userResBody = await userRes.json();
+            if (!userRes.ok) {
+              ok = false;
+              msg = userResBody.error || JSON.stringify(userResBody) || 'Failed to update profile.';
+            } else {
+              if (updateBody.newUsername) {
+                setLoggedInUser(updateBody.newUsername);
+                aliasTargetUser = updateBody.newUsername;
+                try {
+                  const newUserRes = await fetch(`${API_BASE}/users/${updateBody.newUsername}`);
+                  const newUser = await newUserRes.json();
+                  original = {
+                    alias: newUser.profile?.alias || '',
+                    username: newUser.username || '',
+                    email: newUser.email || '',
+                    bio: newUser.profile?.bio || ''
+                  };
+                  (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
+                  (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
+                  (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+                  (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
+                } catch {}
+              } else if (updateBody.newEmail) {
+                try {
+                  const newUserRes = await fetch(`${API_BASE}/users/${aliasTargetUser}`);
+                  const newUser = await newUserRes.json();
+                  original = {
+                    alias: newUser.profile?.alias || '',
+                    username: newUser.username || '',
+                    email: newUser.email || '',
+                    bio: newUser.profile?.bio || ''
+                  };
+                  (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
+                  (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
+                  (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+                  (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
+                } catch {}
+              }
             }
-          }
-        } catch (err) {
-          ok = false;
-          msg = err instanceof Error ? err.message : 'Network error updating profile.';
-        }
-      }
-      // Update alias if changed (after username PATCH if needed)
-      if (ok && alias && alias !== original.alias) {
-        try {
-          const aliasRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/alias`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ alias })
-          });
-          const aliasResBody = await aliasRes.json();
-          if (!aliasRes.ok) {
+          } catch (err) {
             ok = false;
-            msg = aliasResBody.error || JSON.stringify(aliasResBody) || 'Failed to update alias.';
+            msg = err instanceof Error ? err.message : 'Network error updating profile.';
           }
-        } catch (err) {
-          ok = false;
-          msg = err instanceof Error ? err.message : 'Network error updating alias.';
         }
-      }
-      // Update bio if changed
-      if (ok && bio && bio !== original.bio) {
-        try {
-          const bioRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/bio`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bio })
-          });
-          const bioResBody = await bioRes.json();
-          if (!bioRes.ok) {
+        // Avatar upload if needed
+        if (ok && wantsAvatarChange && avatarInput && avatarInput.files && avatarInput.files.length > 0) {
+          const file = avatarInput.files[0];
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('currentPassword', currentPassword);
+          try {
+            const avatarRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/avatar`, {
+              method: 'PATCH',
+              body: formData
+            });
+            const avatarResBody = await avatarRes.json();
+            if (!avatarRes.ok) {
+              ok = false;
+              msg = avatarResBody.error || JSON.stringify(avatarResBody) || 'Failed to upload avatar.';
+            } else {
+              setLoggedInUser(aliasTargetUser);
+              // Clear file input and preview
+              avatarInput.value = '';
+              if (avatarPreview) avatarPreview.innerHTML = '';
+            }
+          } catch (err) {
             ok = false;
-            msg = bioResBody.error || JSON.stringify(bioResBody) || 'Failed to update biography.';
+            msg = err instanceof Error ? err.message : 'Network error uploading avatar.';
           }
-        } catch (err) {
-          ok = false;
-          msg = err instanceof Error ? err.message : 'Network error updating biography.';
+        }
+        // Update alias if changed (after username PATCH if needed)
+        if (ok && alias && alias !== original.alias) {
+          try {
+            const aliasRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/alias`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ alias })
+            });
+            const aliasResBody = await aliasRes.json();
+            if (!aliasRes.ok) {
+              ok = false;
+              msg = aliasResBody.error || JSON.stringify(aliasResBody) || 'Failed to update alias.';
+            }
+          } catch (err) {
+            ok = false;
+            msg = err instanceof Error ? err.message : 'Network error updating alias.';
+          }
+        }
+        // Update bio if changed
+        if (ok && bio && bio !== original.bio) {
+          try {
+            const bioRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/bio`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bio })
+            });
+            const bioResBody = await bioRes.json();
+            if (!bioRes.ok) {
+              ok = false;
+              msg = bioResBody.error || JSON.stringify(bioResBody) || 'Failed to update biography.';
+            }
+          } catch (err) {
+            ok = false;
+            msg = err instanceof Error ? err.message : 'Network error updating biography.';
+          }
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Update Profile';
         }
       }
       if (ok) {

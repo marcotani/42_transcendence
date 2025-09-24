@@ -4,6 +4,7 @@
     "prisma": "^6.16.2"
   },
   "dependencies": {
+    "@fastify/multipart": "^9.2.1",
     "@prisma/client": "^6.16.2"
   }
 }
