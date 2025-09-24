@@ -272,6 +272,19 @@ const routes: { [key: string]: string } = {
       <div class='text-gray-400 mb-4' id='profile-username'></div>
       <div class='text-base text-white mb-6' id='profile-bio'></div>
       <div id='profile-stats-counters' class='w-full mb-6'></div>
+  <div class='w-full mb-6' id='profile-skinColor-container'>
+        <label for='profile-skinColor' class='block mb-1'>Paddle Color</label>
+        <select id='profile-skinColor' name='skinColor' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400'>
+          <option value="#FF0000" style="color:#FF0000">Red</option>
+          <option value="#00FF00" style="color:#00FF00">Green</option>
+          <option value="#0000FF" style="color:#0000FF">Blue</option>
+          <option value="#FFFF00" style="color:#FFFF00">Yellow</option>
+          <option value="#FF00FF" style="color:#FF00FF">Magenta</option>
+        </select>
+        <button id='profile-skinColor-confirm' class='mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400'>Confirm Color</button>
+        <div id='profile-skinColor-success' class='text-green-500 mt-2 hidden'></div>
+        <div id='profile-skinColor-error' class='text-red-500 mt-2 hidden'></div>
+      </div>
       <button id='edit-profile-btn' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 mb-2'>Edit Profile Information</button>
       <a href="/public/static/GDPR_Compliance.pdf" target="_blank" class="w-full block mb-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400 text-center">View Privacy Policy</a>
       <button id='delete-profile-btn' class='w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-red-400 mb-2'>Delete Profile</button>
@@ -283,6 +296,7 @@ const routes: { [key: string]: string } = {
 
 let loggedInUser: string | null = localStorage.getItem('loggedInUser');
 // Store avatar URL for logged-in user
+// Paddle color change logic for profile page
 let loggedInUserAvatar: string | null = null;
 
 function setLoggedInUser(username: string | null) {
@@ -308,6 +322,48 @@ function setLoggedInUser(username: string | null) {
 }
 
 function render(route: string) {
+  // Attach paddle color selector logic after rendering profile page
+  if (route === 'profile') {
+    setTimeout(() => {
+      const skinColorSelect = document.getElementById('profile-skinColor') as HTMLSelectElement | null;
+      const skinColorConfirm = document.getElementById('profile-skinColor-confirm') as HTMLButtonElement | null;
+      if (skinColorSelect && skinColorConfirm && loggedInUser) {
+        // Set initial value from user profile
+        fetch(`${API_BASE}/users/${loggedInUser}`)
+          .then(res => res.json())
+          .then(user => {
+            if (user.profile?.skinColor) {
+              skinColorSelect.value = user.profile.skinColor;
+            }
+          });
+        skinColorConfirm.onclick = () => {
+          const newColor = skinColorSelect.value;
+          fetch(`${API_BASE}/users/${loggedInUser}/skin`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ skinColor: newColor })
+          })
+            .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
+            .then(() => {
+              document.getElementById('profile-skinColor-success')!.textContent = 'Paddle color updated!';
+              document.getElementById('profile-skinColor-success')!.classList.remove('hidden');
+              document.getElementById('profile-skinColor-error')!.classList.add('hidden');
+            })
+            .catch(err => {
+              document.getElementById('profile-skinColor-error')!.textContent = err.error || 'Failed to update color.';
+              document.getElementById('profile-skinColor-error')!.classList.remove('hidden');
+              document.getElementById('profile-skinColor-success')!.classList.add('hidden');
+            });
+        };
+      }
+    }, 0);
+  }
+  // Attach edit profile form listeners after rendering edit-profile page
+  if (route === 'edit-profile') {
+    setTimeout(() => {
+      attachEditProfileListeners();
+    }, 0);
+  }
   const lang = getLang();
   const t = translations[lang];
   const app = document.getElementById('app');
@@ -623,7 +679,8 @@ function attachProfilePageListeners() {
     deleteBtn.addEventListener('click', async () => {
       if (!confirm('Are you sure you want to delete your profile? This action cannot be undone.')) return;
       if (!confirm('This is your last chance! Do you really want to delete your profile and all your data?')) return;
-      const password = prompt('Please enter your password to confirm deletion:');
+      // Prompt for password
+      const password = prompt('Please enter your current password to confirm deletion:');
       if (!password) return;
       const errorDiv = document.getElementById('delete-profile-error');
       errorDiv?.classList.add('hidden');
@@ -804,11 +861,24 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
     if (aiDownPressed && rightPaddleY < canvas.height - paddleHeight) rightPaddleY += paddleSpeed;
   }
 
+  // Paddle color customization
+  let userPaddleColor = '#FFFFFF';
+  if (loggedInUser) {
+    fetch(`${API_BASE}/users/${loggedInUser}`)
+      .then(res => res.json())
+      .then(user => {
+        userPaddleColor = user.profile?.skinColor || '#FFFFFF';
+      });
+  }
+
   function draw() {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff';
+    // Use user's preferred color for left paddle
+    ctx.fillStyle = userPaddleColor;
     ctx.fillRect(20, leftPaddleY, paddleWidth, paddleHeight);
+    // Right paddle stays white
+    ctx.fillStyle = '#fff';
     ctx.fillRect(canvas.width - 30, rightPaddleY, paddleWidth, paddleHeight);
     ctx.beginPath();
     ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
@@ -977,10 +1047,12 @@ function attachPongListeners() {
 }
 
 function attachEditProfileListeners() {
+  console.log('[DEBUG] attachEditProfileListeners called');
   document.getElementById('back-home-edit-profile')?.addEventListener('click', () => {
     window.location.hash = '';
   });
   const form = document.getElementById('edit-profile-form') as HTMLFormElement | null;
+  console.log('[DEBUG] edit-profile-form:', form);
   const avatarInput = document.getElementById('edit-avatar') as HTMLInputElement | null;
   const avatarPreview = document.getElementById('edit-avatar-preview');
   if (avatarInput && avatarPreview) {
@@ -998,7 +1070,8 @@ function attachEditProfileListeners() {
     });
   }
   if (form && loggedInUser) {
-    let original = { alias: '', username: '', email: '', bio: '' };
+    console.log('[DEBUG] Form and loggedInUser present, attaching submit handler');
+    let original = { alias: '', username: '', email: '', bio: '', skinColor: '#FFFFFF' };
     // Prefill form with current user info
     fetch(`${API_BASE}/users/${loggedInUser}`)
       .then(res => res.json())
@@ -1007,12 +1080,14 @@ function attachEditProfileListeners() {
           alias: user.profile?.alias || '',
           username: user.username || '',
           email: user.email || '',
-          bio: user.profile?.bio || ''
+          bio: user.profile?.bio || '',
+          skinColor: user.profile?.skinColor || '#FFFFFF'
         };
         (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
         (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
         (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
         (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
+        // Removed edit-skinColor field, do not set its value
       });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1020,8 +1095,9 @@ function attachEditProfileListeners() {
       const username = (document.getElementById('edit-username') as HTMLInputElement).value.trim();
       const email = (document.getElementById('edit-email') as HTMLInputElement).value.trim();
       const bio = (document.getElementById('edit-bio') as HTMLTextAreaElement).value;
-      const password = (document.getElementById('edit-password') as HTMLInputElement).value;
-      const currentPassword = (document.getElementById('edit-current-password') as HTMLInputElement).value;
+  const password = (document.getElementById('edit-password') as HTMLInputElement).value;
+  const currentPassword = (document.getElementById('edit-current-password') as HTMLInputElement).value;
+  // Removed edit-skinColor field, do not read its value
       const errorDiv = document.getElementById('edit-profile-error');
       const successDiv = document.getElementById('edit-profile-success');
       const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
@@ -1033,7 +1109,8 @@ function attachEditProfileListeners() {
       const wantsEmailChange = email && email !== original.email;
       const wantsPasswordChange = !!password;
       const wantsAvatarChange = avatarInput && avatarInput.files && avatarInput.files.length > 0;
-      if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange) errorMsg = 'At least one field must be filled.';
+  // Removed wantsSkinColorChange logic for skinColor
+  if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange) errorMsg = 'At least one field must be filled.';
       if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange || wantsAvatarChange) && !currentPassword) {
         errorMsg = 'Current password is required to change username, email, password, or avatar.';
       }
@@ -1060,7 +1137,8 @@ function attachEditProfileListeners() {
         if (wantsUsernameChange || wantsEmailChange || wantsPasswordChange) {
           updateBody.currentPassword = currentPassword;
         }
-        if (Object.keys(updateBody).length > 0) {
+  if (Object.keys(updateBody).length > 0) {
+        // Removed PATCH for skinColor; handled in profile view only
           try {
             const userRes = await fetch(`${API_BASE}/users/${loggedInUser}` , {
               method: 'PATCH',
@@ -1082,7 +1160,8 @@ function attachEditProfileListeners() {
                     alias: newUser.profile?.alias || '',
                     username: newUser.username || '',
                     email: newUser.email || '',
-                    bio: newUser.profile?.bio || ''
+                    bio: newUser.profile?.bio || '',
+                    skinColor: newUser.profile?.skinColor || '#FFFFFF'
                   };
                   (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
                   (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
@@ -1097,7 +1176,8 @@ function attachEditProfileListeners() {
                     alias: newUser.profile?.alias || '',
                     username: newUser.username || '',
                     email: newUser.email || '',
-                    bio: newUser.profile?.bio || ''
+                    bio: newUser.profile?.bio || '',
+                    skinColor: newUser.profile?.skinColor || '#FFFFFF'
                   };
                   (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
                   (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
