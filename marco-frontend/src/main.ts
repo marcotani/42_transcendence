@@ -233,6 +233,10 @@ const routes: { [key: string]: string } = {
         <input type='email' id='edit-email' name='email' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
       </div>
       <div>
+        <label for='edit-bio' class='block mb-1'>Biography</label>
+        <textarea id='edit-bio' name='bio' rows='3' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400'></textarea>
+      </div>
+      <div>
         <label for='edit-password' class='block mb-1'>New Password</label>
         <input type='password' id='edit-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' autocomplete='new-password' />
       </div>
@@ -245,17 +249,44 @@ const routes: { [key: string]: string } = {
       <div id='edit-profile-success' class='text-green-500 mt-2 hidden'></div>
     </form>
     <button id='back-home-edit-profile' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`,
+
+  // Profile page for logged-in user
+  'profile': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg' id='profile-page'>
+    <div class='flex flex-col items-center'>
+      <div id='profile-avatar' class='mb-4'></div>
+      <div class='text-2xl font-bold mb-2' id='profile-alias'></div>
+      <div class='text-gray-400 mb-4' id='profile-username'></div>
+      <div class='text-base text-white mb-6' id='profile-bio'></div>
+  <button id='edit-profile-btn' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 mb-2'>Edit Profile Information</button>
+      <button id='back-home-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+    </div>
   </div>`
 };
 
 let loggedInUser: string | null = localStorage.getItem('loggedInUser');
+// Store avatar URL for logged-in user
+let loggedInUserAvatar: string | null = null;
 
 function setLoggedInUser(username: string | null) {
   loggedInUser = username;
   if (username) {
     localStorage.setItem('loggedInUser', username);
+    // Fetch avatar URL for the user
+    fetch(`${API_BASE}/users/${username}`)
+      .then(res => res.json())
+      .then(user => {
+        loggedInUserAvatar = user.profile?.avatarUrl || null;
+        // Re-render to update avatar if needed
+        render(window.location.hash.replace('#', ''));
+      })
+      .catch(() => {
+        loggedInUserAvatar = null;
+        render(window.location.hash.replace('#', ''));
+      });
   } else {
     localStorage.removeItem('loggedInUser');
+    loggedInUserAvatar = null;
   }
 }
 
@@ -344,11 +375,26 @@ function render(route: string) {
   }
   let topRightUI = '';
   if (loggedInUser) {
+    // Show avatar if available, else fallback to default icon
+    let avatarImg = '';
+    if (loggedInUserAvatar) {
+      // If avatarUrl is relative, prepend API_BASE
+      let avatarUrl = loggedInUserAvatar;
+      if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
+        avatarUrl = API_BASE + avatarUrl;
+      }
+      avatarImg = `<img src='${avatarUrl}' alt='avatar' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' />`;
+    } else {
+      // fallback: show a default avatar SVG
+      avatarImg = `<span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
+    }
     topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center'>
-      <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${loggedInUser}</button>
-      <div id='user-dropdown-menu' class='absolute right-0 mt-2 w-40 bg-gray-900 border border-gray-700 rounded shadow-lg hidden' role='menu' aria-label='User menu'>
-        <button id='dropdown-edit-profile' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>Edit Profile</button>
-        <button id='dropdown-logout' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>Logout</button>
+      <div class='relative'>
+        <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400 flex items-center' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${avatarImg}<span>${loggedInUser}</span></button>
+        <div id='user-dropdown-menu' class='absolute right-0 top-full mt-1 w-40 bg-gray-900 border border-gray-700 rounded shadow-lg hidden' role='menu' aria-label='User menu'>
+          <button id='dropdown-my-profile' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>My Profile</button>
+          <button id='dropdown-logout' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>Logout</button>
+        </div>
       </div>
     </div>`;
   } else {
@@ -540,9 +586,9 @@ function attachUserDropdownListeners() {
       closeMenu();
     }
   });
-  document.getElementById('dropdown-edit-profile')?.addEventListener('click', () => {
+  document.getElementById('dropdown-my-profile')?.addEventListener('click', () => {
     closeMenu();
-    window.location.hash = '#edit-profile';
+    window.location.hash = '#profile';
   });
   document.getElementById('dropdown-logout')?.addEventListener('click', () => {
     closeMenu();
@@ -552,22 +598,42 @@ function attachUserDropdownListeners() {
   });
 }
 
-function drawPongSkeleton(canvas: HTMLCanvasElement) {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Draw left paddle
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(20, canvas.height / 2 - 40, 10, 80);
-  // Draw right paddle
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(canvas.width - 30, canvas.height / 2 - 40, 10, 80);
-  // Draw ball
-  ctx.beginPath();
-  ctx.arc(canvas.width / 2, canvas.height / 2, 10, 0, Math.PI * 2);
-  ctx.fillStyle = '#fff';
-  ctx.fill();
-  ctx.closePath();
+// Attach listeners and fill data for the profile page
+function attachProfilePageListeners() {
+  if (!loggedInUser) return;
+  // Fetch user info
+  fetch(`${API_BASE}/users/${loggedInUser}`)
+    .then(res => res.json())
+    .then(user => {
+      // Avatar
+      let avatarUrl = user.profile?.avatarUrl || '';
+      if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
+        avatarUrl = API_BASE + avatarUrl;
+      }
+      const avatarHtml = avatarUrl
+        ? `<img src='${avatarUrl}' alt='avatar' class='w-32 h-32 rounded-full border-4 border-gray-600 bg-gray-700 object-cover mb-2' />`
+        : `<span class='inline-block w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
+      document.getElementById('profile-avatar')!.innerHTML = avatarHtml;
+      // Alias
+      document.getElementById('profile-alias')!.textContent = user.profile?.alias || user.username;
+      // Username
+      document.getElementById('profile-username')!.textContent = '@' + user.username;
+      // Bio
+      const bio = user.profile?.bio;
+      const bioDiv = document.getElementById('profile-bio');
+      if (bio && bio.trim()) {
+        bioDiv!.textContent = '';
+        bioDiv!.innerHTML = `<div class='whitespace-pre-line text-gray-300'>${bio}</div>`;
+      } else {
+        bioDiv!.innerHTML = '';
+      }
+    });
+  document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
+    window.location.hash = '#edit-profile';
+  });
+  document.getElementById('back-home-profile')?.addEventListener('click', () => {
+    window.location.hash = '';
+  });
 }
 
 // Basic Pong game logic
@@ -779,7 +845,7 @@ function attachEditProfileListeners() {
   });
   const form = document.getElementById('edit-profile-form') as HTMLFormElement | null;
   if (form && loggedInUser) {
-    let original = { alias: '', username: '', email: '' };
+    let original = { alias: '', username: '', email: '', bio: '' };
     // Prefill form with current user info
     fetch(`${API_BASE}/users/${loggedInUser}`)
       .then(res => res.json())
@@ -787,18 +853,21 @@ function attachEditProfileListeners() {
         original = {
           alias: user.profile?.alias || '',
           username: user.username || '',
-          email: user.email || ''
+          email: user.email || '',
+          bio: user.profile?.bio || ''
         };
         (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
         (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
         (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+        (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
       });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const alias = (document.getElementById('edit-alias') as HTMLInputElement).value.trim();
       const username = (document.getElementById('edit-username') as HTMLInputElement).value.trim();
       const email = (document.getElementById('edit-email') as HTMLInputElement).value.trim();
-      const password = (document.getElementById('edit-password') as HTMLInputElement).value;
+  const bio = (document.getElementById('edit-bio') as HTMLTextAreaElement).value;
+  const password = (document.getElementById('edit-password') as HTMLInputElement).value;
       const currentPassword = (document.getElementById('edit-current-password') as HTMLInputElement).value;
       const errorDiv = document.getElementById('edit-profile-error');
       const successDiv = document.getElementById('edit-profile-success');
@@ -855,11 +924,13 @@ function attachEditProfileListeners() {
                 original = {
                   alias: newUser.profile?.alias || '',
                   username: newUser.username || '',
-                  email: newUser.email || ''
+                  email: newUser.email || '',
+                  bio: newUser.profile?.bio || ''
                 };
                 (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
                 (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
                 (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+                (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
               } catch {}
             } else if (updateBody.newEmail) {
               // Reload form with new user info after email change
@@ -869,11 +940,13 @@ function attachEditProfileListeners() {
                 original = {
                   alias: newUser.profile?.alias || '',
                   username: newUser.username || '',
-                  email: newUser.email || ''
+                  email: newUser.email || '',
+                  bio: newUser.profile?.bio || ''
                 };
                 (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
                 (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
                 (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+                (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
               } catch {}
             }
           }
@@ -900,6 +973,24 @@ function attachEditProfileListeners() {
           msg = err instanceof Error ? err.message : 'Network error updating alias.';
         }
       }
+      // Update bio if changed
+      if (ok && bio && bio !== original.bio) {
+        try {
+          const bioRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/bio`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bio })
+          });
+          const bioResBody = await bioRes.json();
+          if (!bioRes.ok) {
+            ok = false;
+            msg = bioResBody.error || JSON.stringify(bioResBody) || 'Failed to update biography.';
+          }
+        } catch (err) {
+          ok = false;
+          msg = err instanceof Error ? err.message : 'Network error updating biography.';
+        }
+      }
       if (ok) {
         if (successDiv) {
           successDiv.textContent = 'Profile updated successfully!';
@@ -918,9 +1009,11 @@ function attachEditProfileListeners() {
 window.addEventListener('hashchange', () => {
   render(window.location.hash.replace('#', ''));
   if (window.location.hash === '#edit-profile') attachEditProfileListeners();
+  if (window.location.hash === '#profile') attachProfilePageListeners();
 });
 // Ensure initial render also attaches listeners for edit-profile if needed
 if (window.location.hash === '#edit-profile') attachEditProfileListeners();
+if (window.location.hash === '#profile') attachProfilePageListeners();
 
 // Initial render
 render(window.location.hash.replace('#', ''));
