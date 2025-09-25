@@ -10,6 +10,5 @@ dist/
 .DS_Store
 .env
 emanuele-backend/uploads/
-emanuele-backend/static/
 emanuele-backend/dev.db
 emanuele-backend/prisma/dev.db
