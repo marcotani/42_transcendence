@@ -62,6 +62,11 @@ const translations = {
         langLabel: "Langue"
     }
 };
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000'
+    : (window.location.hostname === 'host.docker.internal' || window.location.hostname === '0.0.0.0')
+        ? 'http://host.docker.internal:3000'
+        : 'http://backend:3000';
 function getLang() {
     const lang = localStorage.getItem('lang');
     if (lang === 'it' || lang === 'fr')
@@ -96,7 +101,10 @@ const routes = {
     <button class="w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-yellow-400" id="multiplayer">Multiplayer</button>
     <button class="w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-2 focus:ring-gray-400" id="options">Options</button>
     <button class="w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-purple-400" id="leaderboard">Leaderboard</button>
-    <button class="w-48 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-400" id="pong">Pong Game</button>
+    <div class="flex space-x-4 mt-8">
+      <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400" id="login-btn">Login</button>
+      <button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400" id="register-btn">Register</button>
+    </div>
   </div>`,
     'multiplayer': `<h2 class="text-2xl font-bold mb-4">Multiplayer</h2><p>Multiplayer options will go here.</p>`,
     'options': `<h2 class="text-2xl font-bold mb-4">Options</h2><p>Settings will go here.</p>`,
@@ -158,24 +166,44 @@ const routes = {
         </div>
       </div>`,
     'login': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
-    <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Login / Register</h2>
-    <form id='auth-form' class='space-y-4'>
+    <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Login</h2>
+    <form id='login-form' class='space-y-4'>
       <div>
-        <label for='username' class='block mb-1'>Username</label>
-        <input type='text' id='username' name='username' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='username' />
+        <label for='login-username' class='block mb-1'>Username</label>
+        <input type='text' id='login-username' name='username' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='username' />
       </div>
       <div>
-        <label for='password' class='block mb-1'>Password</label>
-        <input type='password' id='password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='current-password' />
+        <label for='login-password' class='block mb-1'>Password</label>
+        <input type='password' id='login-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400' required autocomplete='current-password' />
       </div>
-      <div class='flex items-center mb-2'>
-        <input type='checkbox' id='register-toggle' class='mr-2' />
-        <label for='register-toggle'>Register new account</label>
-      </div>
-      <button type='submit' class='w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400'>Continue</button>
-      <div id='auth-error' class='text-red-500 mt-2 hidden'></div>
+      <button type='submit' class='w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400'>Login</button>
+      <div id='login-error' class='text-red-500 mt-2 hidden'></div>
     </form>
-    <button id='back-home' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+    <button id='back-home-login' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`,
+    'register': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
+    <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Register</h2>
+    <form id='register-form' class='space-y-4'>
+      <div>
+        <label for='register-username' class='block mb-1'>Username</label>
+        <input type='text' id='register-username' name='username' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required autocomplete='username' />
+      </div>
+      <div>
+        <label for='register-email' class='block mb-1'>Email</label>
+        <input type='email' id='register-email' name='email' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required autocomplete='email' />
+      </div>
+      <div>
+        <label for='register-password' class='block mb-1'>Password</label>
+        <input type='password' id='register-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required autocomplete='new-password' />
+      </div>
+      <div class='flex items-start mb-2'>
+        <input id='register-gdpr' name='gdpr' type='checkbox' class='mt-1 mr-2' required />
+        <label for='register-gdpr' class='text-sm text-gray-300'>I have read and accept the <a href="/public/static/GDPR_Compliance.pdf" target="_blank" class="underline text-blue-400 hover:text-blue-600">privacy policy</a>.</label>
+      </div>
+      <button type='submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>Register</button>
+      <div id='register-error' class='text-red-500 mt-2 hidden'></div>
+    </form>
+    <button id='back-home-register' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
   </div>`,
     'pong': `<div class='flex flex-col items-center justify-center min-h-screen'>
     <h2 class='text-3xl font-bold mb-6'>Pong Game</h2>
@@ -185,8 +213,101 @@ const routes = {
       <div id='pong-status' class='text-white mt-2'></div>
     </div>
     <button id='back-home-pong' class='mt-8 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`,
+    'edit-profile': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
+    <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Edit Profile</h2>
+  <form id='edit-profile-form' class='space-y-4' enctype='multipart/form-data'>
+      <div>
+        <label for='edit-avatar' class='block mb-1'>Avatar Image</label>
+        <input type='file' id='edit-avatar' name='avatar' accept='image/png,image/jpeg,image/webp' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' />
+        <div id='edit-avatar-preview' class='mt-2'></div>
+      </div>
+      <div>
+        <label for='edit-alias' class='block mb-1'>Alias (Display Name)</label>
+        <input type='text' id='edit-alias' name='alias' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
+      </div>
+      <div>
+        <label for='edit-username' class='block mb-1'>Username</label>
+        <input type='text' id='edit-username' name='username' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
+      </div>
+      <div>
+        <label for='edit-email' class='block mb-1'>Email</label>
+        <input type='email' id='edit-email' name='email' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
+      </div>
+      <div>
+        <label for='edit-bio' class='block mb-1'>Biography</label>
+        <textarea id='edit-bio' name='bio' rows='3' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400'></textarea>
+      </div>
+      <div>
+        <label for='edit-password' class='block mb-1'>New Password</label>
+        <input type='password' id='edit-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' autocomplete='new-password' />
+      </div>
+      <div>
+        <label for='edit-current-password' class='block mb-1'>Current Password <span class='text-red-500'>*</span></label>
+        <input type='password' id='edit-current-password' name='currentPassword' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400' required autocomplete='current-password' />
+      </div>
+      <button type='submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>Update Profile</button>
+      <div id='edit-profile-error' class='text-red-500 mt-2 hidden'></div>
+      <div id='edit-profile-success' class='text-green-500 mt-2 hidden'></div>
+    </form>
+    <button id='back-home-edit-profile' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`,
+    // Profile page for logged-in user
+    'profile': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg' id='profile-page'>
+    <div class='flex flex-col items-center'>
+      <div id='profile-avatar' class='mb-4'></div>
+      <div class='text-2xl font-bold mb-2' id='profile-alias'></div>
+      <div class='text-gray-400 mb-4' id='profile-username'></div>
+      <div class='text-base text-white mb-6' id='profile-bio'></div>
+      <div id='profile-stats-counters' class='w-full mb-6'></div>
+  <div class='w-full mb-6' id='profile-skinColor-container'>
+        <label for='profile-skinColor' class='block mb-1'>Paddle Color</label>
+        <select id='profile-skinColor' name='skinColor' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400'>
+          <option value="#FF0000" style="color:#FF0000">Red</option>
+          <option value="#00FF00" style="color:#00FF00">Green</option>
+          <option value="#0000FF" style="color:#0000FF">Blue</option>
+          <option value="#FFFF00" style="color:#FFFF00">Yellow</option>
+          <option value="#FF00FF" style="color:#FF00FF">Magenta</option>
+        </select>
+        <button id='profile-skinColor-confirm' class='mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400'>Confirm Color</button>
+        <div id='profile-skinColor-success' class='text-green-500 mt-2 hidden'></div>
+        <div id='profile-skinColor-error' class='text-red-500 mt-2 hidden'></div>
+      </div>
+      <button id='edit-profile-btn' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 mb-2'>Edit Profile Information</button>
+      <a href="/public/static/GDPR_Compliance.pdf" target="_blank" class="w-full block mb-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400 text-center">View Privacy Policy</a>
+      <button id='delete-profile-btn' class='w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-red-400 mb-2'>Delete Profile</button>
+      <div id='delete-profile-error' class='text-red-500 mb-2 hidden'></div>
+      <button id='back-home-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+    </div>
   </div>`
 };
+let loggedInUser = localStorage.getItem('loggedInUser');
+// Store avatar URL for logged-in user
+// Paddle color change logic for profile page
+let loggedInUserAvatar = null;
+function setLoggedInUser(username) {
+    loggedInUser = username;
+    if (username) {
+        localStorage.setItem('loggedInUser', username);
+        // Fetch avatar URL for the user
+        fetch(`${API_BASE}/users/${username}`)
+            .then(res => res.json())
+            .then(user => {
+            var _a;
+            loggedInUserAvatar = ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.avatarUrl) || null;
+            // Re-render to update avatar if needed
+            render(window.location.hash.replace('#', ''));
+        })
+            .catch(() => {
+            loggedInUserAvatar = null;
+            render(window.location.hash.replace('#', ''));
+        });
+    }
+    else {
+        localStorage.removeItem('loggedInUser');
+        loggedInUserAvatar = null;
+    }
+}
 function render(route) {
     const lang = getLang();
     const t = translations[lang];
@@ -194,11 +315,12 @@ function render(route) {
     if (!app)
         return;
     let content = '';
-    if (route === 'pong') {
-        content = routes['pong'];
+    // Fix: ensure route is parsed correctly from hash
+    if (!route && window.location.hash) {
+        route = window.location.hash.replace('#', '');
     }
-    else if (route === 'login') {
-        content = routes['login'];
+    if (routes[route]) {
+        content = routes[route];
     }
     else if (route === 'multiplayer') {
         content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.multiplayerTitle}'>${t.multiplayerTitle}</h2><p>${t.multiplayerDesc}</p>`;
@@ -272,18 +394,61 @@ function render(route) {
         <button class='w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-yellow-400' id='multiplayer' aria-label='${t.multiplayer}' tabindex='0'>${t.multiplayer}</button>
         <button class='w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400' id='options' aria-label='${t.options}' tabindex='0'>${t.options}</button>
         <button class='w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-purple-400' id='leaderboard' aria-label='${t.leaderboard}' tabindex='0'>${t.leaderboard}</button>
-        <button class='w-48 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400' id='pong' aria-label='Pong Game' tabindex='0'>Pong Game</button>
       </div>`;
     }
-    app.innerHTML = langSwitcherUI(lang) + accessibilityTogglesUI() + `<div class='fixed top-4 right-4 z-50'><button class='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400' aria-label='${t.login}' tabindex='0' id='login-btn'>${t.login}</button></div>` + content;
+    let topRightUI = '';
+    if (loggedInUser) {
+        // Show avatar if available, else fallback to default icon
+        let avatarImg = '';
+        if (loggedInUserAvatar) {
+            // If avatarUrl is relative, prepend API_BASE
+            let avatarUrl = loggedInUserAvatar;
+            if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
+                avatarUrl = API_BASE + avatarUrl;
+            }
+            avatarImg = `<img src='${avatarUrl}' alt='avatar' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' />`;
+        }
+        else {
+            // fallback: show a default avatar SVG
+            avatarImg = `<span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
+        }
+        topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center'>
+      <div class='relative'>
+        <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400 flex items-center' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${avatarImg}<span>${loggedInUser}</span></button>
+        <div id='user-dropdown-menu' class='absolute right-0 top-full mt-1 w-40 bg-gray-900 border border-gray-700 rounded shadow-lg hidden' role='menu' aria-label='User menu'>
+          <button id='dropdown-my-profile' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>My Profile</button>
+          <button id='dropdown-logout' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>Logout</button>
+        </div>
+      </div>
+    </div>`;
+    }
+    else {
+        topRightUI = `<div class='fixed top-4 right-4 z-50 flex space-x-2'>
+      <button class='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400' aria-label='${t.login}' tabindex='0' id='login-btn'>${t.login}</button>
+      <button class='px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400' aria-label='Register' tabindex='0' id='register-btn'>Register</button>
+    </div>`;
+    }
+    app.innerHTML = langSwitcherUI(lang) + accessibilityTogglesUI() + topRightUI + content;
     attachMenuListeners();
     attachLangListener();
     attachAccessibilityListeners();
     attachLoginListeners();
+    attachUserDropdownListeners();
     attachPongListeners();
+    // Always check for page-specific listeners after rendering
+    attachPageSpecificListeners(route);
+}
+function attachPageSpecificListeners(route) {
+    // Attach page-specific listeners based on current route
+    if (route === 'edit-profile') {
+        setTimeout(() => attachEditProfileListeners(), 0);
+    }
+    if (route === 'profile') {
+        setTimeout(() => attachProfilePageListeners(), 0);
+    }
 }
 function attachMenuListeners() {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f, _g;
     (_a = document.getElementById('start-game')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
         window.location.hash = '#pong';
     });
@@ -296,8 +461,14 @@ function attachMenuListeners() {
     (_d = document.getElementById('leaderboard')) === null || _d === void 0 ? void 0 : _d.addEventListener('click', () => {
         window.location.hash = '#leaderboard';
     });
-    (_e = document.getElementById('pong')) === null || _e === void 0 ? void 0 : _e.addEventListener('click', () => {
-        window.location.hash = '#pong';
+    (_e = document.getElementById('login-btn')) === null || _e === void 0 ? void 0 : _e.addEventListener('click', () => {
+        window.location.hash = '#login';
+    });
+    (_f = document.getElementById('register-btn')) === null || _f === void 0 ? void 0 : _f.addEventListener('click', () => {
+        window.location.hash = '#register';
+    });
+    (_g = document.getElementById('edit-profile-btn')) === null || _g === void 0 ? void 0 : _g.addEventListener('click', () => {
+        window.location.hash = '#edit-profile';
     });
 }
 function attachLangListener() {
@@ -318,20 +489,16 @@ function attachAccessibilityListeners() {
 }
 function attachLoginListeners() {
     var _a, _b;
-    (_a = document.getElementById('login-btn')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
-        window.location.hash = '#login';
-    });
-    (_b = document.getElementById('back-home')) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
+    (_a = document.getElementById('back-home-login')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
         window.location.hash = '';
     });
-    const form = document.getElementById('auth-form');
-    if (form) {
-        form.addEventListener('submit', (e) => __awaiter(this, void 0, void 0, function* () {
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => __awaiter(this, void 0, void 0, function* () {
             e.preventDefault();
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const isRegister = document.getElementById('register-toggle').checked;
-            const errorDiv = document.getElementById('auth-error');
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
             if (!username || !password) {
                 if (errorDiv) {
                     errorDiv.textContent = 'Username and password required.';
@@ -341,11 +508,8 @@ function attachLoginListeners() {
             }
             if (errorDiv)
                 errorDiv.classList.add('hidden');
-            // Send request to backend for login/register
             try {
-                const endpoint = isRegister ? 'register' : 'login';
-                // Use backend service name for Docker Compose networking
-                const response = yield fetch('http://emanuele-backend:4000/api/' + endpoint, {
+                const response = yield fetch(`${API_BASE}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
@@ -353,13 +517,59 @@ function attachLoginListeners() {
                 const data = yield response.json();
                 if (!response.ok) {
                     if (errorDiv) {
-                        errorDiv.textContent = data.message || 'Authentication failed.';
+                        errorDiv.textContent = data.error || 'Authentication failed.';
                         errorDiv.classList.remove('hidden');
                     }
                     return;
                 }
-                // Success: you can store token, redirect, etc.
-                alert((isRegister ? 'Registered' : 'Logged in') + ' as ' + username);
+                setLoggedInUser(data.user.username);
+                alert('Logged in as ' + loggedInUser);
+                window.location.hash = '';
+                render('');
+            }
+            catch (err) {
+                if (errorDiv) {
+                    errorDiv.textContent = 'Network error.';
+                    errorDiv.classList.remove('hidden');
+                }
+            }
+        }));
+    }
+    (_b = document.getElementById('back-home-register')) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
+        window.location.hash = '';
+    });
+    const registerForm = document.getElementById('register-form');
+    if (registerForm) {
+        registerForm.addEventListener('submit', (e) => __awaiter(this, void 0, void 0, function* () {
+            e.preventDefault();
+            const username = document.getElementById('register-username').value.trim();
+            const email = document.getElementById('register-email').value.trim();
+            const password = document.getElementById('register-password').value;
+            const errorDiv = document.getElementById('register-error');
+            if (!username || !email || !password) {
+                if (errorDiv) {
+                    errorDiv.textContent = 'Username, email and password required.';
+                    errorDiv.classList.remove('hidden');
+                }
+                return;
+            }
+            if (errorDiv)
+                errorDiv.classList.add('hidden');
+            try {
+                const response = yield fetch(`${API_BASE}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+                const data = yield response.json();
+                if (!response.ok) {
+                    if (errorDiv) {
+                        errorDiv.textContent = data.message || 'Registration failed.';
+                        errorDiv.classList.remove('hidden');
+                    }
+                    return;
+                }
+                alert('Registered as ' + username);
                 window.location.hash = '';
             }
             catch (err) {
@@ -370,6 +580,473 @@ function attachLoginListeners() {
             }
         }));
     }
+}
+function attachUserDropdownListeners() {
+    var _a, _b;
+    const btn = document.getElementById('user-dropdown-btn');
+    const menu = document.getElementById('user-dropdown-menu');
+    if (!btn || !menu)
+        return;
+    let open = false;
+    function openMenu() {
+        var _a;
+        if (!btn || !menu)
+            return;
+        menu.classList.remove('hidden');
+        btn.setAttribute('aria-expanded', 'true');
+        (_a = menu.querySelector('button')) === null || _a === void 0 ? void 0 : _a.focus();
+        open = true;
+    }
+    function closeMenu() {
+        if (!btn || !menu)
+            return;
+        menu.classList.add('hidden');
+        btn.setAttribute('aria-expanded', 'false');
+        open = false;
+    }
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (open) {
+            closeMenu();
+        }
+        else {
+            openMenu();
+        }
+    });
+    btn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openMenu();
+        }
+        if (e.key === 'Escape')
+            closeMenu();
+    });
+    menu.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeMenu();
+            btn === null || btn === void 0 ? void 0 : btn.focus();
+        }
+    });
+    document.addEventListener('click', (e) => {
+        if (open && !(menu === null || menu === void 0 ? void 0 : menu.contains(e.target)) && e.target !== btn) {
+            closeMenu();
+        }
+    });
+    (_a = document.getElementById('dropdown-my-profile')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
+        closeMenu();
+        window.location.hash = '#profile';
+    });
+    (_b = document.getElementById('dropdown-logout')) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
+        closeMenu();
+        setLoggedInUser(null);
+        window.location.hash = '';
+        render('');
+    });
+}
+// Attach listeners and fill data for the profile page
+function attachProfilePageListeners() {
+    var _a, _b;
+    // Delete profile button logic
+    const deleteBtn = document.getElementById('delete-profile-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
+            if (!confirm('Are you sure you want to delete your profile? This action cannot be undone.'))
+                return;
+            if (!confirm('This is your last chance! Do you really want to delete your profile and all your data?'))
+                return;
+            // Prompt for password
+            const password = prompt('Please enter your current password to confirm deletion:');
+            if (!password)
+                return;
+            const errorDiv = document.getElementById('delete-profile-error');
+            errorDiv === null || errorDiv === void 0 ? void 0 : errorDiv.classList.add('hidden');
+            try {
+                const res = yield fetch(`${API_BASE}/users/${loggedInUser}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = yield res.json();
+                if (!res.ok) {
+                    errorDiv.textContent = data.error || 'Failed to delete profile.';
+                    errorDiv.classList.remove('hidden');
+                }
+                else {
+                    alert('Your profile has been deleted.');
+                    setLoggedInUser(null);
+                    window.location.hash = '';
+                }
+            }
+            catch (err) {
+                errorDiv.textContent = 'Network error.';
+                errorDiv.classList.remove('hidden');
+            }
+        }));
+    }
+    if (!loggedInUser)
+        return;
+    // Fetch user info and stats
+    Promise.all([
+        fetch(`${API_BASE}/users/${loggedInUser}`).then(res => res.json()),
+        fetch(`${API_BASE}/stats/${loggedInUser}`).then(res => res.json())
+    ]).then(([user, stats]) => {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
+        // Avatar
+        let avatarUrl = ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.avatarUrl) || '';
+        if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
+            avatarUrl = API_BASE + avatarUrl;
+        }
+        // Add cache-busting query string to force refresh after upload
+        if (avatarUrl && avatarUrl.includes('/uploads/')) {
+            avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+        }
+        // Use the same logic as the dropdown avatar for consistency
+        const avatarHtml = avatarUrl && !avatarUrl.includes('default-avatar.png')
+            ? `<img src='${avatarUrl}' alt='avatar' class='w-32 h-32 rounded-full border-4 border-gray-600 bg-gray-700 object-cover mb-2' onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2' style='display:none;'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`
+            : `<span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
+        document.getElementById('profile-avatar').innerHTML = avatarHtml;
+        // Alias
+        document.getElementById('profile-alias').textContent = ((_b = user.profile) === null || _b === void 0 ? void 0 : _b.alias) || user.username;
+        // Username
+        document.getElementById('profile-username').textContent = '@' + user.username;
+        // Bio
+        const bio = (_c = user.profile) === null || _c === void 0 ? void 0 : _c.bio;
+        const bioDiv = document.getElementById('profile-bio');
+        if (bio && bio.trim()) {
+            bioDiv.textContent = '';
+            bioDiv.innerHTML = `<div class='whitespace-pre-line text-gray-300'>${bio}</div>`;
+        }
+        else {
+            bioDiv.innerHTML = '';
+        }
+        // Stats counters
+        const statsHtml = `
+      <div class='grid grid-cols-2 gap-4 mb-2'>
+        <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
+          <div class='text-lg font-semibold text-green-400'>Bot</div>
+          <div class='flex space-x-4 mt-2'>
+            <div class='text-center'>
+              <div class='text-2xl font-bold'>${(_d = stats.botWins) !== null && _d !== void 0 ? _d : 0}</div>
+              <div class='text-gray-400 text-sm'>Wins</div>
+            </div>
+            <div class='text-center'>
+              <div class='text-2xl font-bold'>${(_e = stats.botLosses) !== null && _e !== void 0 ? _e : 0}</div>
+              <div class='text-gray-400 text-sm'>Losses</div>
+            </div>
+          </div>
+        </div>
+        <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
+          <div class='text-lg font-semibold text-blue-400'>Player</div>
+          <div class='flex space-x-4 mt-2'>
+            <div class='text-center'>
+              <div class='text-2xl font-bold'>${(_f = stats.playerWins) !== null && _f !== void 0 ? _f : 0}</div>
+              <div class='text-gray-400 text-sm'>Wins</div>
+            </div>
+            <div class='text-center'>
+              <div class='text-2xl font-bold'>${(_g = stats.playerLosses) !== null && _g !== void 0 ? _g : 0}</div>
+              <div class='text-gray-400 text-sm'>Losses</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
+        <div class='text-lg font-semibold text-yellow-400'>Tournament Wins</div>
+        <div class='text-3xl font-bold mt-2'>${(_h = stats.tournamentWins) !== null && _h !== void 0 ? _h : 0}</div>
+      </div>
+    `;
+        document.getElementById('profile-stats-counters').innerHTML = statsHtml;
+        // Setup paddle color selector after stats are loaded
+        setTimeout(() => {
+            var _a;
+            const skinColorSelect = document.getElementById('profile-skinColor');
+            const skinColorConfirm = document.getElementById('profile-skinColor-confirm');
+            if (skinColorSelect && skinColorConfirm && loggedInUser) {
+                // Set initial value from user profile  
+                if ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.skinColor) {
+                    skinColorSelect.value = user.profile.skinColor;
+                }
+                skinColorConfirm.onclick = () => {
+                    const newColor = skinColorSelect.value;
+                    fetch(`${API_BASE}/users/${loggedInUser}/skin`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ skinColor: newColor })
+                    })
+                        .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
+                        .then(() => {
+                        document.getElementById('profile-skinColor-success').textContent = 'Paddle color updated!';
+                        document.getElementById('profile-skinColor-success').classList.remove('hidden');
+                        document.getElementById('profile-skinColor-error').classList.add('hidden');
+                    })
+                        .catch(err => {
+                        document.getElementById('profile-skinColor-error').textContent = err.error || 'Failed to update color.';
+                        document.getElementById('profile-skinColor-error').classList.remove('hidden');
+                        document.getElementById('profile-skinColor-success').classList.add('hidden');
+                    });
+                };
+            }
+        }, 0);
+    });
+    (_a = document.getElementById('edit-profile-btn')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
+        window.location.hash = '#edit-profile';
+    });
+    (_b = document.getElementById('back-home-profile')) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
+        window.location.hash = '';
+    });
+}
+// Basic Pong game logic
+function startBasicPongGame(canvas, statusDiv) {
+    const ctx = canvas.getContext('2d');
+    if (!ctx)
+        return;
+    let ballX = canvas.width / 2;
+    let ballY = canvas.height / 2;
+    let ballVX = 3;
+    let ballVY = 2;
+    let leftPaddleY = canvas.height / 2 - 40;
+    let rightPaddleY = canvas.height / 2 - 40;
+    const paddleHeight = 80;
+    const paddleWidth = 10;
+    const paddleSpeed = 5;
+    let upPressed = false;
+    let downPressed = false;
+    let gameOver = false;
+    let paddleVY = 0;
+    // AI simulated keyboard input
+    let aiUpPressed = false;
+    let aiDownPressed = false;
+    function aiDecideMove() {
+        // AI only sees the game state once per second
+        // Predict ball position and set aiUpPressed/aiDownPressed
+        const paddleCenter = rightPaddleY + paddleHeight / 2;
+        // Predict ball's future Y position (simulate bounces)
+        let predictedY = ballY;
+        let predictedVY = ballVY;
+        let predictedVX = ballVX;
+        let predictedX = ballX;
+        // Simulate ball movement until it reaches right paddle X
+        while (predictedVX > 0 && predictedX < canvas.width - 30) {
+            predictedX += predictedVX;
+            predictedY += predictedVY;
+            // Bounce off top/bottom
+            if (predictedY < 10) {
+                predictedY = 10 + (10 - predictedY);
+                predictedVY *= -1;
+            }
+            else if (predictedY > canvas.height - 10) {
+                predictedY = (canvas.height - 10) - (predictedY - (canvas.height - 10));
+                predictedVY *= -1;
+            }
+        }
+        // Remove random error for more consistent prediction
+        // predictedY += (Math.random() - 0.5) * 5;
+        // Add a deadzone so AI doesn't constantly move
+        const deadzone = 30;
+        // Only move if paddle is far from predicted position
+        if (Math.abs(predictedY - paddleCenter) > deadzone) {
+            if (predictedY < paddleCenter) {
+                aiUpPressed = true;
+                aiDownPressed = false;
+            }
+            else {
+                aiUpPressed = false;
+                aiDownPressed = true;
+            }
+        }
+        else {
+            aiUpPressed = false;
+            aiDownPressed = false;
+        }
+    }
+    // Makes decision every second
+    let aiInterval;
+    function startAI() {
+        aiDecideMove();
+        aiInterval = window.setInterval(() => {
+            aiDecideMove();
+        }, 1000);
+    }
+    startAI();
+    function aiSimulateKey() {
+        // Simulate keyboard input for right paddle
+        if (aiUpPressed && rightPaddleY > 0)
+            rightPaddleY -= paddleSpeed;
+        if (aiDownPressed && rightPaddleY < canvas.height - paddleHeight)
+            rightPaddleY += paddleSpeed;
+    }
+    // Paddle color customization
+    let userPaddleColor = '#FFFFFF';
+    if (loggedInUser) {
+        fetch(`${API_BASE}/users/${loggedInUser}`)
+            .then(res => res.json())
+            .then(user => {
+            var _a;
+            userPaddleColor = ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.skinColor) || '#FFFFFF';
+        });
+    }
+    function draw() {
+        if (!ctx)
+            return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Use user's preferred color for left paddle
+        ctx.fillStyle = userPaddleColor;
+        ctx.fillRect(20, leftPaddleY, paddleWidth, paddleHeight);
+        // Right paddle stays white
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(canvas.width - 30, rightPaddleY, paddleWidth, paddleHeight);
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.closePath();
+    }
+    // Helper to send match result to backend
+    function sendMatchResult(_a) {
+        return __awaiter(this, arguments, void 0, function* ({ result, score, opponent, startedAt, endedAt, duration }) {
+            if (!loggedInUser)
+                return;
+            // Fetch userId for loggedInUser
+            try {
+                const userRes = yield fetch(`${API_BASE}/users/${loggedInUser}`);
+                const user = yield userRes.json();
+                if (!user || !user.id)
+                    return;
+                yield fetch(`${API_BASE}/stats/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: user.id,
+                        result,
+                        type: 'bot',
+                        score,
+                        opponent,
+                        startedAt,
+                        endedAt,
+                        duration
+                    })
+                });
+            }
+            catch (e) {
+                // Ignore errors for now
+            }
+        });
+    }
+    let matchStart = new Date();
+    function update() {
+        let prevPaddleY = leftPaddleY;
+        if (upPressed && leftPaddleY > 0)
+            leftPaddleY -= paddleSpeed;
+        if (downPressed && leftPaddleY < canvas.height - paddleHeight)
+            leftPaddleY += paddleSpeed;
+        paddleVY = leftPaddleY - prevPaddleY;
+        // Simulate AI keyboard input for right paddle
+        aiSimulateKey();
+        ballX += ballVX;
+        ballY += ballVY;
+        // Ball collision with top/bottom
+        if (ballY < 10 || ballY > canvas.height - 10)
+            ballVY *= -1;
+        // Ball collision with left paddle
+        if (ballX - 10 < 30 &&
+            ballY + 10 > leftPaddleY &&
+            ballY - 10 < leftPaddleY + paddleHeight &&
+            ballVX < 0) {
+            ballX = 30 + 10;
+            const hitPos = ((ballY - leftPaddleY) / paddleHeight) * 2 - 1;
+            let speed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+            const angle = hitPos * Math.PI / 4;
+            ballVX = Math.abs(speed * Math.cos(angle));
+            ballVY = speed * Math.sin(angle);
+            // Add spin based on paddle movement
+            ballVY += paddleVY * 0.7; // spin factor
+            // Slightly increase speed for more dynamic play
+            const newSpeed = Math.min(Math.sqrt(ballVX * ballVX + ballVY * ballVY) * 1.05, 12);
+            const norm = newSpeed / Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+            ballVX *= norm;
+            ballVY *= norm;
+        }
+        // Ball collision with right paddle
+        if (ballX + 10 > canvas.width - 30 &&
+            ballY + 10 > rightPaddleY &&
+            ballY - 10 < rightPaddleY + paddleHeight &&
+            ballVX > 0) {
+            ballX = canvas.width - 30 - 10;
+            const hitPos = ((ballY - rightPaddleY) / paddleHeight) * 2 - 1;
+            let speed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+            const angle = hitPos * Math.PI / 4;
+            ballVX = -Math.abs(speed * Math.cos(angle));
+            ballVY = speed * Math.sin(angle);
+            // Slightly increase speed for more dynamic play
+            const newSpeed = Math.min(Math.sqrt(ballVX * ballVX + ballVY * ballVY) * 1.05, 12);
+            const norm = newSpeed / Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+            ballVX *= norm;
+            ballVY *= norm;
+        }
+        // Ball out of bounds
+        if (ballX < 0) {
+            gameOver = true;
+            if (statusDiv)
+                statusDiv.textContent = 'Game Over! Right player wins.';
+            // Send match result: user lost
+            const matchEnd = new Date();
+            sendMatchResult({
+                result: 'loss',
+                score: '0-1',
+                opponent: 'AI',
+                startedAt: matchStart.toISOString(),
+                endedAt: matchEnd.toISOString(),
+                duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
+            });
+        }
+        if (ballX > canvas.width) {
+            gameOver = true;
+            if (statusDiv)
+                statusDiv.textContent = 'Game Over! Left player wins.';
+            // Send match result: user won
+            const matchEnd = new Date();
+            sendMatchResult({
+                result: 'win',
+                score: '1-0',
+                opponent: 'AI',
+                startedAt: matchStart.toISOString(),
+                endedAt: matchEnd.toISOString(),
+                duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
+            });
+        }
+        if (gameOver) {
+            clearInterval(aiInterval);
+        }
+    }
+    function gameLoop() {
+        if (gameOver)
+            return;
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+    // Keyboard controls for left paddle
+    function keyDownHandler(e) {
+        if (e.key === 'ArrowUp')
+            upPressed = true;
+        if (e.key === 'ArrowDown')
+            downPressed = true;
+    }
+    function keyUpHandler(e) {
+        if (e.key === 'ArrowUp')
+            upPressed = false;
+        if (e.key === 'ArrowDown')
+            downPressed = false;
+    }
+    document.addEventListener('keydown', keyDownHandler);
+    document.addEventListener('keyup', keyUpHandler);
+    if (statusDiv)
+        statusDiv.textContent = 'Game started! Use Arrow Up/Down to move left paddle.';
+    gameLoop();
+    // Clean up listeners on game over or navigation
+    window.addEventListener('hashchange', () => {
+        document.removeEventListener('keydown', keyDownHandler);
+        document.removeEventListener('keyup', keyUpHandler);
+    }, { once: true });
 }
 function attachPongListeners() {
     var _a, _b;
@@ -384,32 +1061,264 @@ function attachPongListeners() {
     const statusDiv = document.getElementById('pong-status');
     if (startBtn && canvas) {
         startBtn.addEventListener('click', () => {
-            if (statusDiv)
-                statusDiv.textContent = 'Game started! (logic not implemented yet)';
-            drawPongSkeleton(canvas);
+            startBasicPongGame(canvas, statusDiv);
         });
     }
 }
-function drawPongSkeleton(canvas) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx)
-        return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Draw left paddle
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(20, canvas.height / 2 - 40, 10, 80);
-    // Draw right paddle
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(canvas.width - 30, canvas.height / 2 - 40, 10, 80);
-    // Draw ball
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, 10, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.closePath();
+function attachEditProfileListeners() {
+    var _a;
+    console.log('[DEBUG] attachEditProfileListeners called');
+    (_a = document.getElementById('back-home-edit-profile')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
+        window.location.hash = '';
+    });
+    const form = document.getElementById('edit-profile-form');
+    console.log('[DEBUG] edit-profile-form:', form);
+    const avatarInput = document.getElementById('edit-avatar');
+    const avatarPreview = document.getElementById('edit-avatar-preview');
+    if (avatarInput && avatarPreview) {
+        avatarInput.addEventListener('change', () => {
+            const file = avatarInput.files && avatarInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    var _a;
+                    avatarPreview.innerHTML = `<img src='${(_a = e.target) === null || _a === void 0 ? void 0 : _a.result}' alt='avatar preview' class='w-24 h-24 rounded-full object-cover border-2 border-gray-600' />`;
+                };
+                reader.readAsDataURL(file);
+            }
+            else {
+                avatarPreview.innerHTML = '';
+            }
+        });
+    }
+    if (form && loggedInUser) {
+        console.log('[DEBUG] Form and loggedInUser present, attaching submit handler');
+        let original = { alias: '', username: '', email: '', bio: '', skinColor: '#FFFFFF' };
+        // Prefill form with current user info
+        fetch(`${API_BASE}/users/${loggedInUser}`)
+            .then(res => res.json())
+            .then(user => {
+            var _a, _b, _c;
+            original = {
+                alias: ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.alias) || '',
+                username: user.username || '',
+                email: user.email || '',
+                bio: ((_b = user.profile) === null || _b === void 0 ? void 0 : _b.bio) || '',
+                skinColor: ((_c = user.profile) === null || _c === void 0 ? void 0 : _c.skinColor) || '#FFFFFF'
+            };
+            document.getElementById('edit-alias').value = original.alias;
+            document.getElementById('edit-username').value = original.username;
+            document.getElementById('edit-email').value = original.email;
+            document.getElementById('edit-bio').value = original.bio;
+            // Removed edit-skinColor field, do not set its value
+        });
+        form.addEventListener('submit', (e) => __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c, _d, _e, _f;
+            e.preventDefault();
+            const alias = document.getElementById('edit-alias').value.trim();
+            const username = document.getElementById('edit-username').value.trim();
+            const email = document.getElementById('edit-email').value.trim();
+            const bio = document.getElementById('edit-bio').value;
+            const password = document.getElementById('edit-password').value;
+            const currentPassword = document.getElementById('edit-current-password').value;
+            // Removed edit-skinColor field, do not read its value
+            const errorDiv = document.getElementById('edit-profile-error');
+            const successDiv = document.getElementById('edit-profile-success');
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (errorDiv)
+                errorDiv.classList.add('hidden');
+            if (successDiv)
+                successDiv.classList.add('hidden');
+            let errorMsg = '';
+            // Only require current password if changing username/email/password or uploading avatar
+            const wantsUsernameChange = username && username !== original.username;
+            const wantsEmailChange = email && email !== original.email;
+            const wantsPasswordChange = !!password;
+            const wantsAvatarChange = avatarInput && avatarInput.files && avatarInput.files.length > 0;
+            // Removed wantsSkinColorChange logic for skinColor
+            if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange)
+                errorMsg = 'At least one field must be filled.';
+            if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange || wantsAvatarChange) && !currentPassword) {
+                errorMsg = 'Current password is required to change username, email, password, or avatar.';
+            }
+            if (errorMsg) {
+                if (errorDiv) {
+                    errorDiv.textContent = errorMsg;
+                    errorDiv.classList.remove('hidden');
+                }
+                return;
+            }
+            let ok = true;
+            let msg = '';
+            let aliasTargetUser = loggedInUser;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Updating...';
+            }
+            try {
+                // PATCH username/email/password only if needed
+                const updateBody = {};
+                if (wantsUsernameChange)
+                    updateBody.newUsername = username;
+                if (wantsEmailChange)
+                    updateBody.newEmail = email;
+                if (wantsPasswordChange)
+                    updateBody.newPassword = password;
+                if (wantsUsernameChange || wantsEmailChange || wantsPasswordChange) {
+                    updateBody.currentPassword = currentPassword;
+                }
+                if (Object.keys(updateBody).length > 0) {
+                    // Removed PATCH for skinColor; handled in profile view only
+                    try {
+                        const userRes = yield fetch(`${API_BASE}/users/${loggedInUser}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(updateBody)
+                        });
+                        const userResBody = yield userRes.json();
+                        if (!userRes.ok) {
+                            ok = false;
+                            msg = userResBody.error || JSON.stringify(userResBody) || 'Failed to update profile.';
+                        }
+                        else {
+                            if (updateBody.newUsername) {
+                                setLoggedInUser(updateBody.newUsername);
+                                aliasTargetUser = updateBody.newUsername;
+                                try {
+                                    const newUserRes = yield fetch(`${API_BASE}/users/${updateBody.newUsername}`);
+                                    const newUser = yield newUserRes.json();
+                                    original = {
+                                        alias: ((_a = newUser.profile) === null || _a === void 0 ? void 0 : _a.alias) || '',
+                                        username: newUser.username || '',
+                                        email: newUser.email || '',
+                                        bio: ((_b = newUser.profile) === null || _b === void 0 ? void 0 : _b.bio) || '',
+                                        skinColor: ((_c = newUser.profile) === null || _c === void 0 ? void 0 : _c.skinColor) || '#FFFFFF'
+                                    };
+                                    document.getElementById('edit-alias').value = original.alias;
+                                    document.getElementById('edit-username').value = original.username;
+                                    document.getElementById('edit-email').value = original.email;
+                                    document.getElementById('edit-bio').value = original.bio;
+                                }
+                                catch (_g) { }
+                            }
+                            else if (updateBody.newEmail) {
+                                try {
+                                    const newUserRes = yield fetch(`${API_BASE}/users/${aliasTargetUser}`);
+                                    const newUser = yield newUserRes.json();
+                                    original = {
+                                        alias: ((_d = newUser.profile) === null || _d === void 0 ? void 0 : _d.alias) || '',
+                                        username: newUser.username || '',
+                                        email: newUser.email || '',
+                                        bio: ((_e = newUser.profile) === null || _e === void 0 ? void 0 : _e.bio) || '',
+                                        skinColor: ((_f = newUser.profile) === null || _f === void 0 ? void 0 : _f.skinColor) || '#FFFFFF'
+                                    };
+                                    document.getElementById('edit-alias').value = original.alias;
+                                    document.getElementById('edit-username').value = original.username;
+                                    document.getElementById('edit-email').value = original.email;
+                                    document.getElementById('edit-bio').value = original.bio;
+                                }
+                                catch (_h) { }
+                            }
+                        }
+                    }
+                    catch (err) {
+                        ok = false;
+                        msg = err instanceof Error ? err.message : 'Network error updating profile.';
+                    }
+                }
+                // Avatar upload if needed
+                if (ok && wantsAvatarChange && avatarInput && avatarInput.files && avatarInput.files.length > 0) {
+                    const file = avatarInput.files[0];
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('currentPassword', currentPassword);
+                    try {
+                        const avatarRes = yield fetch(`${API_BASE}/users/${aliasTargetUser}/avatar`, {
+                            method: 'PATCH',
+                            body: formData
+                        });
+                        const avatarResBody = yield avatarRes.json();
+                        if (!avatarRes.ok) {
+                            ok = false;
+                            msg = avatarResBody.error || JSON.stringify(avatarResBody) || 'Failed to upload avatar.';
+                        }
+                        else {
+                            setLoggedInUser(aliasTargetUser);
+                            // Clear file input and preview
+                            avatarInput.value = '';
+                            if (avatarPreview)
+                                avatarPreview.innerHTML = '';
+                        }
+                    }
+                    catch (err) {
+                        ok = false;
+                        msg = err instanceof Error ? err.message : 'Network error uploading avatar.';
+                    }
+                }
+                // Update alias if changed (after username PATCH if needed)
+                if (ok && alias && alias !== original.alias) {
+                    try {
+                        const aliasRes = yield fetch(`${API_BASE}/users/${aliasTargetUser}/alias`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ alias })
+                        });
+                        const aliasResBody = yield aliasRes.json();
+                        if (!aliasRes.ok) {
+                            ok = false;
+                            msg = aliasResBody.error || JSON.stringify(aliasResBody) || 'Failed to update alias.';
+                        }
+                    }
+                    catch (err) {
+                        ok = false;
+                        msg = err instanceof Error ? err.message : 'Network error updating alias.';
+                    }
+                }
+                // Update bio if changed
+                if (ok && bio && bio !== original.bio) {
+                    try {
+                        const bioRes = yield fetch(`${API_BASE}/users/${aliasTargetUser}/bio`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ bio })
+                        });
+                        const bioResBody = yield bioRes.json();
+                        if (!bioRes.ok) {
+                            ok = false;
+                            msg = bioResBody.error || JSON.stringify(bioResBody) || 'Failed to update biography.';
+                        }
+                    }
+                    catch (err) {
+                        ok = false;
+                        msg = err instanceof Error ? err.message : 'Network error updating biography.';
+                    }
+                }
+            }
+            finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Update Profile';
+                }
+            }
+            if (ok) {
+                if (successDiv) {
+                    successDiv.textContent = 'Profile updated successfully!';
+                    successDiv.classList.remove('hidden');
+                }
+            }
+            else {
+                if (errorDiv) {
+                    errorDiv.textContent = msg;
+                    errorDiv.classList.remove('hidden');
+                }
+            }
+        }));
+    }
 }
 window.addEventListener('hashchange', () => {
-    render(window.location.hash.replace('#', ''));
+    const newRoute = window.location.hash.replace('#', '');
+    render(newRoute);
+    // Note: attachPageSpecificListeners is now called within render(), so no need to duplicate here
 });
 // Initial render
 render(window.location.hash.replace('#', ''));

@@ -322,48 +322,6 @@ function setLoggedInUser(username: string | null) {
 }
 
 function render(route: string) {
-  // Attach paddle color selector logic after rendering profile page
-  if (route === 'profile') {
-    setTimeout(() => {
-      const skinColorSelect = document.getElementById('profile-skinColor') as HTMLSelectElement | null;
-      const skinColorConfirm = document.getElementById('profile-skinColor-confirm') as HTMLButtonElement | null;
-      if (skinColorSelect && skinColorConfirm && loggedInUser) {
-        // Set initial value from user profile
-        fetch(`${API_BASE}/users/${loggedInUser}`)
-          .then(res => res.json())
-          .then(user => {
-            if (user.profile?.skinColor) {
-              skinColorSelect.value = user.profile.skinColor;
-            }
-          });
-        skinColorConfirm.onclick = () => {
-          const newColor = skinColorSelect.value;
-          fetch(`${API_BASE}/users/${loggedInUser}/skin`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ skinColor: newColor })
-          })
-            .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
-            .then(() => {
-              document.getElementById('profile-skinColor-success')!.textContent = 'Paddle color updated!';
-              document.getElementById('profile-skinColor-success')!.classList.remove('hidden');
-              document.getElementById('profile-skinColor-error')!.classList.add('hidden');
-            })
-            .catch(err => {
-              document.getElementById('profile-skinColor-error')!.textContent = err.error || 'Failed to update color.';
-              document.getElementById('profile-skinColor-error')!.classList.remove('hidden');
-              document.getElementById('profile-skinColor-success')!.classList.add('hidden');
-            });
-        };
-      }
-    }, 0);
-  }
-  // Attach edit profile form listeners after rendering edit-profile page
-  if (route === 'edit-profile') {
-    setTimeout(() => {
-      attachEditProfileListeners();
-    }, 0);
-  }
   const lang = getLang();
   const t = translations[lang];
   const app = document.getElementById('app');
@@ -450,15 +408,15 @@ function render(route: string) {
   if (loggedInUser) {
     // Show avatar if available, else fallback to default icon
     let avatarImg = '';
-    if (loggedInUserAvatar) {
-      // If avatarUrl is relative, prepend API_BASE
+    if (loggedInUserAvatar && !loggedInUserAvatar.includes('default') && loggedInUserAvatar.includes('/uploads/')) {
+      // Only show custom uploaded avatars
       let avatarUrl = loggedInUserAvatar;
       if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
         avatarUrl = API_BASE + avatarUrl;
       }
-      avatarImg = `<img src='${avatarUrl}' alt='avatar' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' />`;
+      avatarImg = `<img src='${avatarUrl}' alt='User Avatar' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' />`;
     } else {
-      // fallback: show a default avatar SVG
+      // Always show default SVG icon for no avatar or default avatar
       avatarImg = `<span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
     }
     topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center'>
@@ -483,6 +441,19 @@ function render(route: string) {
   attachLoginListeners();
   attachUserDropdownListeners();
   attachPongListeners();
+  
+  // Always check for page-specific listeners after rendering
+  attachPageSpecificListeners(route);
+}
+
+function attachPageSpecificListeners(route: string) {
+  // Attach page-specific listeners based on current route
+  if (route === 'edit-profile') {
+    setTimeout(() => attachEditProfileListeners(), 0);
+  }
+  if (route === 'profile') {
+    setTimeout(() => attachProfilePageListeners(), 0);
+  }
 }
 
 function attachMenuListeners() {
@@ -720,9 +691,11 @@ function attachProfilePageListeners() {
     if (avatarUrl && avatarUrl.includes('/uploads/')) {
       avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
     }
-    const avatarHtml = avatarUrl
-      ? `<img src='${avatarUrl}' alt='avatar' class='w-32 h-32 rounded-full border-4 border-gray-600 bg-gray-700 object-cover mb-2' />`
-      : `<span class='inline-block w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
+    
+    // Use the same logic as the dropdown avatar for consistency
+    const avatarHtml = avatarUrl && !avatarUrl.includes('default-avatar.png')
+      ? `<img src='${avatarUrl}' alt='avatar' class='w-32 h-32 rounded-full border-4 border-gray-600 bg-gray-700 object-cover mb-2' onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2' style='display:none;'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`
+      : `<span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
     document.getElementById('profile-avatar')!.innerHTML = avatarHtml;
     // Alias
     document.getElementById('profile-alias')!.textContent = user.profile?.alias || user.username;
@@ -773,6 +746,37 @@ function attachProfilePageListeners() {
       </div>
     `;
     document.getElementById('profile-stats-counters')!.innerHTML = statsHtml;
+    
+    // Setup paddle color selector after stats are loaded
+    setTimeout(() => {
+      const skinColorSelect = document.getElementById('profile-skinColor') as HTMLSelectElement | null;
+      const skinColorConfirm = document.getElementById('profile-skinColor-confirm') as HTMLButtonElement | null;
+      if (skinColorSelect && skinColorConfirm && loggedInUser) {
+        // Set initial value from user profile  
+        if (user.profile?.skinColor) {
+          skinColorSelect.value = user.profile.skinColor;
+        }
+        skinColorConfirm.onclick = () => {
+          const newColor = skinColorSelect.value;
+          fetch(`${API_BASE}/users/${loggedInUser}/skin`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ skinColor: newColor })
+          })
+            .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
+            .then(() => {
+              document.getElementById('profile-skinColor-success')!.textContent = 'Paddle color updated!';
+              document.getElementById('profile-skinColor-success')!.classList.remove('hidden');
+              document.getElementById('profile-skinColor-error')!.classList.add('hidden');
+            })
+            .catch(err => {
+              document.getElementById('profile-skinColor-error')!.textContent = err.error || 'Failed to update color.';
+              document.getElementById('profile-skinColor-error')!.classList.remove('hidden');
+              document.getElementById('profile-skinColor-success')!.classList.add('hidden');
+            });
+        };
+      }
+    }, 0);
   });
   document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
     window.location.hash = '#edit-profile';
@@ -1275,13 +1279,9 @@ function attachEditProfileListeners() {
 }
 
 window.addEventListener('hashchange', () => {
-  render(window.location.hash.replace('#', ''));
-  if (window.location.hash === '#edit-profile') attachEditProfileListeners();
-  if (window.location.hash === '#profile') attachProfilePageListeners();
+  const newRoute = window.location.hash.replace('#', '');
+  render(newRoute);
+  // Note: attachPageSpecificListeners is now called within render(), so no need to duplicate here
 });
-// Ensure initial render also attaches listeners for edit-profile if needed
-if (window.location.hash === '#edit-profile') attachEditProfileListeners();
-if (window.location.hash === '#profile') attachProfilePageListeners();
-
 // Initial render
 render(window.location.hash.replace('#', ''));
