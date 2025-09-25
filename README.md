@@ -154,7 +154,7 @@ curl -X POST http://localhost:3000/stats/update -H "Content-Type: application/js
 "{\"userId\":1,\"result\":\"win_or_loss\",\"type\":\"bot_player_tournament\"}"
 
 Visualizza tutti gli utenti
-curl http://localhost:3000/api/users
+curl http://localhost:3000/api/users | jq
 
 Visualizza le stats di tutti gli utenti
 curl http://localhost:3000/stats
@@ -178,4 +178,33 @@ curl -X DELETE http://localhost:3000/users/"nome_utente" \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
---------------------
+---------- COMANDI CRONOLOGIA PARTITE ----------
+
+Visualizza la cronologia di un utente
+curl -X GET http://localhost:3000/matches/history/nome_utente | jq
+
+Registra una partita contro il BOT o un player
+
+BOT
+  curl -X POST http://localhost:3000/matches \
+    -H "Content-Type: application/json" \
+    -d '{
+      "player1Id": 1,
+      "player2BotName": "BOT", 
+      "player1Score": 3,
+      "player2Score": 1,
+      "winnerId": 1,
+      "matchType": "bot"
+    }' | jq
+
+PLAYER
+  curl -X POST http://localhost:3000/matches \
+    -H "Content-Type: application/json" \
+    -d '{
+      "player1Id": 1,
+      "player2Id": 2,
+      "player1Score": 3,
+      "player2Score": 2,
+      "winnerId": 1,
+      "matchType": "player"
+    }' | jq

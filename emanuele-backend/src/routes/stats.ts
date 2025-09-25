@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify';
 import { PrismaClient } from '@prisma/client';
+import { MatchService } from '../services/matchService';
 
 const prisma = new PrismaClient();
 
@@ -35,12 +36,21 @@ const statsRoute: FastifyPluginAsync = async (app) => {
     }
   });
 
-  // Aggiorna statistiche utente
+  // Aggiorna statistiche utente e registra il match
   app.post('/stats/update', async (req, reply) => {
     const body = req.body as {
       userId: number;
       result: 'win' | 'loss';
       type: 'bot' | 'player' | 'tournament';
+
+      opponent?: {
+        id?: number;
+        botName?: string;
+      };
+      scores?: {
+        userScore: number;
+        opponentScore: number;
+      };
     };
 
     if (!body || !body.userId || !body.result || !body.type) {
@@ -64,6 +74,26 @@ const statsRoute: FastifyPluginAsync = async (app) => {
         where: { userId: body.userId },
         data: update,
       });
+
+      // Registrazione match 
+      if (body.type !== 'tournament' && body.opponent && body.scores) {
+        try {
+          const winnerId = body.result === 'win' ? body.userId : body.opponent.id;
+          
+          await MatchService.createMatch({
+            player1Id: body.userId,
+            player2Id: body.opponent.id,
+            player2BotName: body.opponent.botName,
+            player1Score: body.scores.userScore,
+            player2Score: body.scores.opponentScore,
+            winnerId: winnerId,
+            matchType: body.type
+          });
+        } catch (matchError) {
+          app.log.warn('Failed to create match record:', matchError);
+        }
+      }
+
       return reply.send({ success: true });
     } catch (err) {
       app.log.error(err);

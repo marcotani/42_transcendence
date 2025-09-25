@@ -44,6 +44,9 @@ model User {
   friendedBy       Friend[]        @relation("UserFriendedBy")
   sentRequests     FriendRequest[] @relation("FriendRequestsSent")
   receivedRequests FriendRequest[] @relation("FriendRequestsReceived")
+  player1Matches   Match[]         @relation("Player1Matches")
+  player2Matches   Match[]         @relation("Player2Matches")
+  wonMatches       Match[]         @relation("WonMatches")
 }
 
 model Profile {
@@ -76,4 +79,20 @@ model UserStat {
   playerLosses   Int  @default(0)
   tournamentWins Int  @default(0)
   user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Match {
+  id             Int       @id @default(autoincrement())
+  player1Id      Int
+  player2Id      Int?
+  player2BotName String?
+  player1Score   Int
+  player2Score   Int
+  winnerId       Int?
+  matchDate      DateTime  @default(now())
+  matchType      String
+  
+  player1 User @relation("Player1Matches", fields: [player1Id], references: [id], onDelete: Cascade)
+  player2 User? @relation("Player2Matches", fields: [player2Id], references: [id], onDelete: Cascade)
+  winner  User? @relation("WonMatches", fields: [winnerId], references: [id], onDelete: Cascade)
 }

@@ -13,6 +13,7 @@ import authRoutes from './routes/auth';
 import friendsRoutes from './routes/friends';
 import statsRoute from './routes/stats';
 import heartbeatRoutes from './routes/heartbeat';
+import matchesRoute from './routes/matches';
 
 const app = Fastify({ logger: false }); // Disattiva il logger automatico di Fastify, evita spam di messaggi
 
@@ -64,6 +65,7 @@ async function buildServer() {
   await app.register(friendsRoutes);
   await app.register(statsRoute);
   await app.register(heartbeatRoutes);
+  await app.register(matchesRoute);
 
   // Rotta di health check DB
   app.get('/health/db', async () => {
