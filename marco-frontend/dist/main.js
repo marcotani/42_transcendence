@@ -243,10 +243,10 @@ const routes = {
         <input type='password' id='edit-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' autocomplete='new-password' />
       </div>
       <div>
-        <label for='edit-current-password' class='block mb-1'>Current Password <span class='text-red-500'>*</span></label>
-        <input type='password' id='edit-current-password' name='currentPassword' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400' required autocomplete='current-password' />
+        <label for='edit-current-password' class='block mb-1'>Current Password <span class='text-yellow-500'>*</span> <small class='text-gray-400'>(Required only for username, email, password, or avatar changes)</small></label>
+        <input type='password' id='edit-current-password' name='currentPassword' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400' autocomplete='current-password' />
       </div>
-      <button type='submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>Update Profile</button>
+      <button type='submit' id='edit-profile-submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 disabled:opacity-50 disabled:cursor-not-allowed'>Loading...</button>
       <div id='edit-profile-error' class='text-red-500 mt-2 hidden'></div>
       <div id='edit-profile-success' class='text-green-500 mt-2 hidden'></div>
     </form>
@@ -400,16 +400,16 @@ function render(route) {
     if (loggedInUser) {
         // Show avatar if available, else fallback to default icon
         let avatarImg = '';
-        if (loggedInUserAvatar) {
-            // If avatarUrl is relative, prepend API_BASE
+        if (loggedInUserAvatar && !loggedInUserAvatar.includes('default') && loggedInUserAvatar.includes('/uploads/')) {
+            // Only show custom uploaded avatars
             let avatarUrl = loggedInUserAvatar;
             if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
                 avatarUrl = API_BASE + avatarUrl;
             }
-            avatarImg = `<img src='${avatarUrl}' alt='avatar' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' />`;
+            avatarImg = `<img src='${avatarUrl}' alt='User Avatar' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' />`;
         }
         else {
-            // fallback: show a default avatar SVG
+            // Always show default SVG icon for no avatar or default avatar
             avatarImg = `<span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
         }
         topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center'>
@@ -438,14 +438,21 @@ function render(route) {
     // Always check for page-specific listeners after rendering
     attachPageSpecificListeners(route);
 }
+// Track which page-specific listeners are already attached
+let attachedListeners = new Set();
 function attachPageSpecificListeners(route) {
     // Attach page-specific listeners based on current route
-    if (route === 'edit-profile') {
+    if (route === 'edit-profile' && !attachedListeners.has('edit-profile')) {
+        attachedListeners.add('edit-profile');
         setTimeout(() => attachEditProfileListeners(), 0);
     }
-    if (route === 'profile') {
+    if (route === 'profile' && !attachedListeners.has('profile')) {
+        attachedListeners.add('profile');
         setTimeout(() => attachProfilePageListeners(), 0);
     }
+}
+function clearPageSpecificListeners() {
+    attachedListeners.clear();
 }
 function attachMenuListeners() {
     var _a, _b, _c, _d, _e, _f, _g;
@@ -1067,12 +1074,10 @@ function attachPongListeners() {
 }
 function attachEditProfileListeners() {
     var _a;
-    console.log('[DEBUG] attachEditProfileListeners called');
     (_a = document.getElementById('back-home-edit-profile')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
         window.location.hash = '';
     });
     const form = document.getElementById('edit-profile-form');
-    console.log('[DEBUG] edit-profile-form:', form);
     const avatarInput = document.getElementById('edit-avatar');
     const avatarPreview = document.getElementById('edit-avatar-preview');
     if (avatarInput && avatarPreview) {
@@ -1092,8 +1097,14 @@ function attachEditProfileListeners() {
         });
     }
     if (form && loggedInUser) {
-        console.log('[DEBUG] Form and loggedInUser present, attaching submit handler');
         let original = { alias: '', username: '', email: '', bio: '', skinColor: '#FFFFFF' };
+        let formReady = false;
+        let isSubmitting = false; // Add submission lock
+        // Initially disable submit button
+        const submitBtn = document.getElementById('edit-profile-submit');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
         // Prefill form with current user info
         fetch(`${API_BASE}/users/${loggedInUser}`)
             .then(res => res.json())
@@ -1110,17 +1121,43 @@ function attachEditProfileListeners() {
             document.getElementById('edit-username').value = original.username;
             document.getElementById('edit-email').value = original.email;
             document.getElementById('edit-bio').value = original.bio;
-            // Removed edit-skinColor field, do not set its value
+            formReady = true; // Mark form as ready after data is loaded
+            // Enable submit button and update text
+            const submitBtn = document.getElementById('edit-profile-submit');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Profile';
+            }
         });
         form.addEventListener('submit', (e) => __awaiter(this, void 0, void 0, function* () {
             var _a, _b, _c, _d, _e, _f;
             e.preventDefault();
+            console.log('[DEBUG] Form submit event triggered');
+            console.log('[DEBUG] Form submit event triggered');
+            // Prevent multiple submissions
+            if (isSubmitting) {
+                console.log('[DEBUG] Already submitting, ignoring duplicate submission');
+                return;
+            }
+            // Prevent submission if form data isn't loaded yet
+            if (!formReady) {
+                console.log('[DEBUG] Form not ready yet');
+                const errorDiv = document.getElementById('edit-profile-error');
+                if (errorDiv) {
+                    errorDiv.textContent = 'Please wait for form to load completely before submitting.';
+                    errorDiv.classList.remove('hidden');
+                }
+                return;
+            }
+            isSubmitting = true; // Lock submissions
             const alias = document.getElementById('edit-alias').value.trim();
             const username = document.getElementById('edit-username').value.trim();
             const email = document.getElementById('edit-email').value.trim();
             const bio = document.getElementById('edit-bio').value;
-            const password = document.getElementById('edit-password').value;
-            const currentPassword = document.getElementById('edit-current-password').value;
+            const password = document.getElementById('edit-password').value.trim();
+            // More robust way to get current password
+            const currentPasswordInput = document.getElementById('edit-current-password');
+            const currentPassword = currentPasswordInput ? currentPasswordInput.value.trim() : '';
             // Removed edit-skinColor field, do not read its value
             const errorDiv = document.getElementById('edit-profile-error');
             const successDiv = document.getElementById('edit-profile-success');
@@ -1135,11 +1172,14 @@ function attachEditProfileListeners() {
             const wantsEmailChange = email && email !== original.email;
             const wantsPasswordChange = !!password;
             const wantsAvatarChange = avatarInput && avatarInput.files && avatarInput.files.length > 0;
-            // Removed wantsSkinColorChange logic for skinColor
-            if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange)
+            const wantsBioChange = bio !== original.bio;
+            // Check if at least one field is being changed
+            if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange && !wantsBioChange) {
                 errorMsg = 'At least one field must be filled.';
-            if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange || wantsAvatarChange) && !currentPassword) {
-                errorMsg = 'Current password is required to change username, email, password, or avatar.';
+            }
+            // Current password only required for sensitive changes (not for alias, bio, or avatar)
+            if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange) && !currentPassword) {
+                errorMsg = 'Current password is required to change username, email, or password.';
             }
             if (errorMsg) {
                 if (errorDiv) {
@@ -1194,10 +1234,17 @@ function attachEditProfileListeners() {
                                         bio: ((_b = newUser.profile) === null || _b === void 0 ? void 0 : _b.bio) || '',
                                         skinColor: ((_c = newUser.profile) === null || _c === void 0 ? void 0 : _c.skinColor) || '#FFFFFF'
                                     };
+                                    // Preserve current password field when updating form
+                                    const currentPasswordField = document.getElementById('edit-current-password');
+                                    const currentPasswordValue = (currentPasswordField === null || currentPasswordField === void 0 ? void 0 : currentPasswordField.value) || '';
                                     document.getElementById('edit-alias').value = original.alias;
                                     document.getElementById('edit-username').value = original.username;
                                     document.getElementById('edit-email').value = original.email;
                                     document.getElementById('edit-bio').value = original.bio;
+                                    // Restore current password field
+                                    if (currentPasswordField) {
+                                        currentPasswordField.value = currentPasswordValue;
+                                    }
                                 }
                                 catch (_g) { }
                             }
@@ -1212,10 +1259,17 @@ function attachEditProfileListeners() {
                                         bio: ((_e = newUser.profile) === null || _e === void 0 ? void 0 : _e.bio) || '',
                                         skinColor: ((_f = newUser.profile) === null || _f === void 0 ? void 0 : _f.skinColor) || '#FFFFFF'
                                     };
+                                    // Preserve current password field when updating form
+                                    const currentPasswordField = document.getElementById('edit-current-password');
+                                    const currentPasswordValue = (currentPasswordField === null || currentPasswordField === void 0 ? void 0 : currentPasswordField.value) || '';
                                     document.getElementById('edit-alias').value = original.alias;
                                     document.getElementById('edit-username').value = original.username;
                                     document.getElementById('edit-email').value = original.email;
                                     document.getElementById('edit-bio').value = original.bio;
+                                    // Restore current password field
+                                    if (currentPasswordField) {
+                                        currentPasswordField.value = currentPasswordValue;
+                                    }
                                 }
                                 catch (_h) { }
                             }
@@ -1229,9 +1283,9 @@ function attachEditProfileListeners() {
                 // Avatar upload if needed
                 if (ok && wantsAvatarChange && avatarInput && avatarInput.files && avatarInput.files.length > 0) {
                     const file = avatarInput.files[0];
+                    console.log('[DEBUG] Avatar upload: uploading file', file.name);
                     const formData = new FormData();
                     formData.append('file', file);
-                    formData.append('currentPassword', currentPassword);
                     try {
                         const avatarRes = yield fetch(`${API_BASE}/users/${aliasTargetUser}/avatar`, {
                             method: 'PATCH',
@@ -1295,6 +1349,8 @@ function attachEditProfileListeners() {
                 }
             }
             finally {
+                console.log('[DEBUG] Form submission completed');
+                isSubmitting = false; // Unlock submissions
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Update Profile';
@@ -1317,6 +1373,7 @@ function attachEditProfileListeners() {
 }
 window.addEventListener('hashchange', () => {
     const newRoute = window.location.hash.replace('#', '');
+    clearPageSpecificListeners(); // Clear previous listeners
     render(newRoute);
     // Note: attachPageSpecificListeners is now called within render(), so no need to duplicate here
 });

@@ -284,47 +284,29 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const { username } = req.params as { username: string };
 
     try {
-      // Usa file() per gestire multipart più facilmente
       const data = await req.file();
       
       if (!data) {
         return reply.code(400).send({ error: 'No file uploaded' });
-      }
-
-      // Ottieni currentPassword dai campi
-      let currentPassword: string | undefined;
-      
-      // Processa i campi per trovare la password
-      for (const [key, field] of Object.entries(data.fields)) {
-        if (key === 'currentPassword' && typeof field === 'object' && 'value' in field) {
-          currentPassword = field.value as string;
-        }
-      }
-
-      if (!currentPassword) {
-        return reply.code(400).send({ error: 'currentPassword is required' });
       }
       
       if (!ALLOWED_MIME.has(data.mimetype)) {
         return reply.code(400).send({ error: 'Only PNG/JPEG/WebP allowed' });
       }
 
-      // trova utente e verifica password
+      // trova utente (no password verification needed for avatar)
       const user = await app.prisma.user.findUnique({
         where: { username },
-        select: { id: true, password_hash: true, password_salt: true },
+        select: { id: true },
       });
-      if (!user) return reply.code(404).send({ error: 'User not found' });
-      
-      const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
-      if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
-        return reply.code(401).send({ error: 'Invalid current password' });
+      if (!user) {
+        return reply.code(404).send({ error: 'User not found' });
       }
 
       // Salva nuova immagine usando buffer
       const ext = data.filename?.split('.').pop()?.toLowerCase() || 'png';
       const filename = `${user.id}-${crypto.randomUUID()}.${ext}`;
-      const uploadDir = path.join(__dirname, '..', '..', 'uploads');
+      const uploadDir = path.join(process.cwd(), 'uploads');
       const filePath = path.join(uploadDir, filename);
 
       await fs.promises.mkdir(uploadDir, { recursive: true });
