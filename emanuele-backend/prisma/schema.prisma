@@ -37,6 +37,7 @@ model User {
   twoFactorSecret  String?         
   createdAt        DateTime        @default(now())
   online           Boolean         @default(false)
+  lastHeartbeat    DateTime?
   profile          Profile?
   stats            UserStat?
   friends          Friend[]        @relation("UserFriends")

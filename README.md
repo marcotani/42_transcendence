@@ -102,12 +102,17 @@ curl -X PATCH http://localhost:3000/users/nome-utente/skin \
   -H "Content-Type: application/json" \
   -d '{"skinColor":"codice_colore"}'
 
-colori disponibili:
+Colori disponibili:
   '#FF0000', // rosso
   '#00FF00', // verde
   '#0000FF', // blu
   '#FFFF00', // giallo
   '#FF00FF'  // magenta
+
+Aggiorna l'Heartbeat dell'utente
+curl -X POST http://localhost:3000/api/heartbeat \
+  -H "Content-Type: application/json" \
+  -d '{"userId": 1}'
 
 ---------- COMANDI LISTA AMICI ----------
 

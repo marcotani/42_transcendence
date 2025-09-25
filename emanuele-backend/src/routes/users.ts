@@ -69,8 +69,8 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     }
     return user;
   });
-  
-  // Comando per stamapre l'intero database
+
+  // Comando per stampare l'intero database
   app.get('/users', async () => {
     const users = await app.prisma.user.findMany({
       include: { profile: true, stats: true }
@@ -283,63 +283,73 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   app.patch('/users/:username/avatar', async (req, reply) => {
     const { username } = req.params as { username: string };
 
-    const parts = req.parts();
-    let currentPassword: string | undefined;
-    let filePart: any;
-
-    for await (const part of parts) {
-      if (part.type === 'file') {
-        filePart = part;
-      } else if (part.type === 'field') {
-        if (part.fieldname === 'currentPassword') currentPassword = part.value as string;
+    try {
+      // Usa file() per gestire multipart più facilmente
+      const data = await req.file();
+      
+      if (!data) {
+        return reply.code(400).send({ error: 'No file uploaded' });
       }
+
+      // Ottieni currentPassword dai campi
+      let currentPassword: string | undefined;
+      
+      // Processa i campi per trovare la password
+      for (const [key, field] of Object.entries(data.fields)) {
+        if (key === 'currentPassword' && typeof field === 'object' && 'value' in field) {
+          currentPassword = field.value as string;
+        }
+      }
+
+      if (!currentPassword) {
+        return reply.code(400).send({ error: 'currentPassword is required' });
+      }
+      
+      if (!ALLOWED_MIME.has(data.mimetype)) {
+        return reply.code(400).send({ error: 'Only PNG/JPEG/WebP allowed' });
+      }
+
+      // trova utente e verifica password
+      const user = await app.prisma.user.findUnique({
+        where: { username },
+        select: { id: true, password_hash: true, password_salt: true },
+      });
+      if (!user) return reply.code(404).send({ error: 'User not found' });
+      
+      const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
+      if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
+        return reply.code(401).send({ error: 'Invalid current password' });
+      }
+
+      // Salva nuova immagine usando buffer
+      const ext = data.filename?.split('.').pop()?.toLowerCase() || 'png';
+      const filename = `${user.id}-${crypto.randomUUID()}.${ext}`;
+      const uploadDir = path.join(__dirname, '..', '..', 'uploads');
+      const filePath = path.join(uploadDir, filename);
+
+      await fs.promises.mkdir(uploadDir, { recursive: true });
+      
+      // Leggi il file in un buffer
+      const buffer = await data.toBuffer();
+      
+      // Scrivi il buffer su disco
+      await fs.promises.writeFile(filePath, buffer);
+
+      // URL del file su uploads
+      const publicUrl = `/uploads/${filename}`;
+
+      // Aggiorna profilo
+      await app.prisma.profile.update({
+        where: { userId: user.id },
+        data: { avatarUrl: publicUrl },
+      });
+
+      return reply.send({ success: true, avatarUrl: publicUrl });
+      
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      return reply.code(500).send({ error: 'Internal server error' });
     }
-
-    if (!currentPassword) {
-      return reply.code(400).send({ error: 'currentPassword is required' });
-    }
-    if (!filePart) {
-      return reply.code(400).send({ error: 'file is required' });
-    }
-    if (!ALLOWED_MIME.has(filePart.mimetype)) {
-      return reply.code(400).send({ error: 'Only PNG/JPEG/WebP allowed' });
-    }
-
-    // trova utente e verifica password
-    const user = await app.prisma.user.findUnique({
-      where: { username },
-      select: { id: true, password_hash: true, password_salt: true },
-    });
-    if (!user) return reply.code(404).send({ error: 'User not found' });
-    const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
-    if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
-      return reply.code(401).send({ error: 'Invalid current password' });
-    }
-
-    // Salva nuova immagine
-    const ext = filePart.filename?.split('.').pop()?.toLowerCase() || 'png';
-    const filename = `${user.id}-${crypto.randomUUID()}.${ext}`;
-    const uploadDir = path.join(__dirname, '..', '..', 'uploads');
-    const filePath = path.join(uploadDir, filename);
-
-    await fs.promises.mkdir(uploadDir, { recursive: true });
-    const writeStream = fs.createWriteStream(filePath);
-    await filePart.file.pipe(writeStream);
-    await new Promise((res, rej) => {
-      writeStream.on('finish', res);
-      writeStream.on('error', rej);
-    });
-
-    // URL del file su uploads
-    const publicUrl = `/uploads/${filename}`;
-
-    // Aggiorna profilo
-    await app.prisma.profile.update({
-      where: { userId: user.id },
-      data: { avatarUrl: publicUrl },
-    });
-
-    return reply.send({ success: true, avatarUrl: publicUrl });
   });
 
   // comando per resettare immagine profilo a default
