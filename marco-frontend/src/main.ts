@@ -227,7 +227,7 @@ const routes: { [key: string]: string } = {
   </div>`,
   'edit-profile': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
     <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Edit Profile</h2>
-  <form id='edit-profile-form' class='space-y-4' enctype='multipart/form-data'>
+  <form id='edit-profile-form' class='space-y-4' method='POST' enctype='multipart/form-data'>
       <div>
         <label for='edit-avatar' class='block mb-1'>Avatar Image</label>
         <input type='file' id='edit-avatar' name='avatar' accept='image/png,image/jpeg,image/webp' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' />
@@ -296,27 +296,47 @@ const routes: { [key: string]: string } = {
 
 let loggedInUser: string | null = localStorage.getItem('loggedInUser');
 // Store avatar URL for logged-in user
-// Paddle color change logic for profile page
-let loggedInUserAvatar: string | null = null;
+let loggedInUserAvatar: string | null = localStorage.getItem('loggedInUserAvatar');
 
-function setLoggedInUser(username: string | null) {
+function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRender: boolean = false) {
   loggedInUser = username;
   if (username) {
     localStorage.setItem('loggedInUser', username);
-    // Fetch avatar URL for the user
-    fetch(`${API_BASE}/users/${username}`)
+    
+    // If a new avatar URL is explicitly provided, use it immediately
+    if (newAvatarUrl !== undefined) {
+      loggedInUserAvatar = newAvatarUrl;
+      localStorage.setItem('loggedInUserAvatar', newAvatarUrl || '');
+      // Update cache buster for immediate avatar refresh
+      if (newAvatarUrl && newAvatarUrl.includes('/uploads/')) {
+        localStorage.setItem('avatarCacheBuster', Date.now().toString());
+      }
+      // Re-render to update avatar immediately (unless skipRender is true)
+      if (!skipRender) {
+        render(window.location.hash.replace('#', ''));
+      }
+      return;
+    }
+    
+    // Fetch avatar URL for the user with cache-busting
+    const cacheBuster = Date.now();
+    fetch(`${API_BASE}/users/${username}?_t=${cacheBuster}`)
       .then(res => res.json())
       .then(user => {
-        loggedInUserAvatar = user.profile?.avatarUrl || null;
+        const avatarUrl = user.profile?.avatarUrl || null;
+        loggedInUserAvatar = avatarUrl;
+        localStorage.setItem('loggedInUserAvatar', avatarUrl || '');
         // Re-render to update avatar if needed
         render(window.location.hash.replace('#', ''));
       })
       .catch(() => {
         loggedInUserAvatar = null;
+        localStorage.removeItem('loggedInUserAvatar');
         render(window.location.hash.replace('#', ''));
       });
   } else {
     localStorage.removeItem('loggedInUser');
+    localStorage.removeItem('loggedInUserAvatar');
     loggedInUserAvatar = null;
   }
 }
@@ -414,6 +434,9 @@ function render(route: string) {
       if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
         avatarUrl = API_BASE + avatarUrl;
       }
+      // Add cache-busting query string to force refresh
+      const cacheBuster = localStorage.getItem('avatarCacheBuster') || Date.now().toString();
+      avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 'v=' + cacheBuster;
       avatarImg = `<img src='${avatarUrl}' alt='User Avatar' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' />`;
     } else {
       // Always show default SVG icon for no avatar or default avatar
@@ -698,7 +721,8 @@ function attachProfilePageListeners() {
     }
     // Add cache-busting query string to force refresh after upload
     if (avatarUrl && avatarUrl.includes('/uploads/')) {
-      avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+      const cacheBuster = localStorage.getItem('avatarCacheBuster') || Date.now().toString();
+      avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 'v=' + cacheBuster;
     }
     
     // Use the same logic as the dropdown avatar for consistency
@@ -1181,6 +1205,13 @@ function attachEditProfileListeners() {
           errorDiv.textContent = errorMsg;
           errorDiv.classList.remove('hidden');
         }
+        // Reset button state before returning
+        isSubmitting = false;
+        const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Update Profile';
+        }
         return;
       }
       let ok = true;
@@ -1290,7 +1321,9 @@ function attachEditProfileListeners() {
               ok = false;
               msg = avatarResBody.error || JSON.stringify(avatarResBody) || 'Failed to upload avatar.';
             } else {
-              setLoggedInUser(aliasTargetUser);
+              // Pass the new avatar URL directly to avoid refetch issues, but skip render to prevent button reset
+              const newAvatarUrl = avatarResBody.avatarUrl;
+              setLoggedInUser(aliasTargetUser, newAvatarUrl, true);
               // Clear file input and preview
               avatarInput.value = '';
               if (avatarPreview) avatarPreview.innerHTML = '';
@@ -1340,9 +1373,14 @@ function attachEditProfileListeners() {
         console.log('[DEBUG] Form submission completed');
         
         isSubmitting = false; // Unlock submissions
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Update Profile';
+        // Get fresh reference to submit button to ensure we have the correct element
+        const currentSubmitBtn = document.getElementById('edit-profile-submit') as HTMLButtonElement;
+        if (currentSubmitBtn) {
+          console.log('[DEBUG] Resetting button state');
+          currentSubmitBtn.disabled = false;
+          currentSubmitBtn.textContent = 'Update Profile';
+        } else {
+          console.log('[DEBUG] Submit button not found!');
         }
       }
       if (ok) {
