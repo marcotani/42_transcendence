@@ -17,8 +17,8 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.code(400).send({ error: 'Missing fields: email and username are required' });
     }
     
-    // Controllo formato email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Controllo formato email (RFC 5322 compliant)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(body.email)) {
       return reply.code(400).send({ error: 'Invalid email format' });
     }
@@ -230,7 +230,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.code(400).send({ error: 'Provide at least one field to update (newUsername, newEmail, newPassword).' });
     }
     if (newEmail) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(newEmail)) {
         return reply.code(400).send({ error: 'Invalid email format' });
       }

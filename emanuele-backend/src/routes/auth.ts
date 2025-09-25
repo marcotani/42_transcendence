@@ -19,8 +19,8 @@ export default async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    // Controllo formato email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Controllo formato email (RFC 5322 compliant)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(email)) {
       return reply.code(400).send({
         success: false,
