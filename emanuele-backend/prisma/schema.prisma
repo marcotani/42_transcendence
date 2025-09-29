@@ -50,14 +50,15 @@ model User {
 }
 
 model Profile {
-  id        Int     @id @default(autoincrement())
-  userId    Int     @unique
-  bio       String  @default("")
-  avatarUrl String  @default("/static/default_avatar.png")
-  alias     String?
-  skinColor String? @default("#FFFFFF")
-  gdpr      Boolean @default(false)
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           Int     @id @default(autoincrement())
+  userId       Int     @unique
+  bio          String  @default("")
+  avatarUrl    String  @default("/static/default_avatar.png")
+  alias        String?
+  skinColor    String? @default("#FFFFFF")
+  gdpr         Boolean @default(false)
+  emailVisible Boolean @default(true)
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Friend {

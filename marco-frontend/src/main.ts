@@ -245,6 +245,10 @@ const routes: { [key: string]: string } = {
         <label for='edit-email' class='block mb-1'>Email</label>
         <input type='email' id='edit-email' name='email' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
       </div>
+      <div class='flex items-center space-x-2'>
+        <input type='checkbox' id='edit-email-visible' name='emailVisible' class='rounded bg-gray-800 border border-gray-700 text-green-600 focus:outline-none focus:ring-2 focus:ring-green-400' />
+        <label for='edit-email-visible' class='text-gray-300'>Show email publicly</label>
+      </div>
       <div>
         <label for='edit-bio' class='block mb-1'>Biography</label>
         <textarea id='edit-bio' name='bio' rows='3' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400'></textarea>
@@ -269,7 +273,8 @@ const routes: { [key: string]: string } = {
     <div class='flex flex-col items-center'>
       <div id='profile-avatar' class='mb-4'></div>
       <div class='text-2xl font-bold mb-2' id='profile-alias'></div>
-      <div class='text-gray-400 mb-4' id='profile-username'></div>
+      <div class='text-gray-400 mb-2' id='profile-username'></div>
+      <div class='text-gray-400 mb-4' id='profile-email'></div>
       <div class='text-base text-white mb-6' id='profile-bio'></div>
       <div id='profile-stats-counters' class='w-full mb-6'></div>
       <div id='profile-match-history' class='w-full mb-6'></div>
@@ -800,6 +805,17 @@ function attachProfilePageListeners() {
     document.getElementById('profile-alias')!.textContent = user.profile?.alias || user.username;
     // Username
     document.getElementById('profile-username')!.textContent = '@' + user.username;
+    // Email (show only if emailVisible is true)
+    const emailDiv = document.getElementById('profile-email');
+    if (emailDiv) {
+      if (user.profile?.emailVisible && user.email && user.email !== '*************') {
+        emailDiv.textContent = user.email;
+        emailDiv.style.display = 'block';
+      } else {
+        emailDiv.textContent = '';
+        emailDiv.style.display = 'none';
+      }
+    }
     // Bio
     const bio = user.profile?.bio;
     const bioDiv = document.getElementById('profile-bio');
@@ -1239,7 +1255,7 @@ function attachEditProfileListeners() {
     });
   }
   if (form && loggedInUser) {
-    let original = { alias: '', username: '', email: '', bio: '', skinColor: '#FFFFFF' };
+    let original = { alias: '', username: '', email: '', bio: '', skinColor: '#FFFFFF', emailVisible: true };
     let formReady = false;
     let isSubmitting = false; // Add submission lock
     
@@ -1258,12 +1274,14 @@ function attachEditProfileListeners() {
           username: user.username || '',
           email: user.email || '',
           bio: user.profile?.bio || '',
-          skinColor: user.profile?.skinColor || '#FFFFFF'
+          skinColor: user.profile?.skinColor || '#FFFFFF',
+          emailVisible: user.profile?.emailVisible !== false
         };
         (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
         (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
         (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
         (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
+        (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
         formReady = true; // Mark form as ready after data is loaded
         
         // Enable submit button and update text
@@ -1310,6 +1328,7 @@ function attachEditProfileListeners() {
       const email = (document.getElementById('edit-email') as HTMLInputElement).value.trim();
       const bio = (document.getElementById('edit-bio') as HTMLTextAreaElement).value;
       const password = (document.getElementById('edit-password') as HTMLInputElement).value.trim();
+      const emailVisible = (document.getElementById('edit-email-visible') as HTMLInputElement).checked;
       
       // More robust way to get current password
       const currentPasswordInput = document.getElementById('edit-current-password') as HTMLInputElement;
@@ -1328,9 +1347,10 @@ function attachEditProfileListeners() {
       const wantsPasswordChange = !!password;
       const wantsAvatarChange = avatarInput && avatarInput.files && avatarInput.files.length > 0;
       const wantsBioChange = bio !== original.bio;
+      const wantsEmailVisibilityChange = emailVisible !== original.emailVisible;
       
       // Check if at least one field is being changed
-      if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange && !wantsBioChange) {
+      if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange && !wantsBioChange && !wantsEmailVisibilityChange) {
         errorMsg = 'At least one field must be filled.';
       }
       
@@ -1399,7 +1419,8 @@ function attachEditProfileListeners() {
                       username: newUser.username || '',
                       email: newUser.email || '',
                       bio: newUser.profile?.bio || '',
-                      skinColor: newUser.profile?.skinColor || '#FFFFFF'
+                      skinColor: newUser.profile?.skinColor || '#FFFFFF',
+                      emailVisible: newUser.profile?.emailVisible !== false
                     };
                     // Preserve current password field when updating form
                     const currentPasswordField = document.getElementById('edit-current-password') as HTMLInputElement;
@@ -1410,6 +1431,7 @@ function attachEditProfileListeners() {
                       (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
                       (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
                       (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
+                      (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
                       
                       // Restore current password field
                       if (currentPasswordField) {
@@ -1434,7 +1456,8 @@ function attachEditProfileListeners() {
                       username: newUser.username || '',
                       email: newUser.email || '',
                       bio: newUser.profile?.bio || '',
-                      skinColor: newUser.profile?.skinColor || '#FFFFFF'
+                      skinColor: newUser.profile?.skinColor || '#FFFFFF',
+                      emailVisible: newUser.profile?.emailVisible !== false
                     };
                     // Preserve current password field when updating form
                     const currentPasswordField = document.getElementById('edit-current-password') as HTMLInputElement;
@@ -1444,6 +1467,7 @@ function attachEditProfileListeners() {
                     (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
                     (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
                     (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
+                    (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
                     
                     // Restore current password field
                     if (currentPasswordField) {
@@ -1525,6 +1549,24 @@ function attachEditProfileListeners() {
           } catch (err) {
             ok = false;
             msg = err instanceof Error ? err.message : 'Network error updating biography.';
+          }
+        }
+        // Update email visibility if changed
+        if (ok && wantsEmailVisibilityChange) {
+          try {
+            const emailVisRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/email-visibility`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ emailVisible })
+            });
+            const emailVisResBody = await emailVisRes.json();
+            if (!emailVisRes.ok) {
+              ok = false;
+              msg = emailVisResBody.error || JSON.stringify(emailVisResBody) || 'Failed to update email visibility.';
+            }
+          } catch (err) {
+            ok = false;
+            msg = err instanceof Error ? err.message : 'Network error updating email visibility.';
           }
         }
       } finally {
