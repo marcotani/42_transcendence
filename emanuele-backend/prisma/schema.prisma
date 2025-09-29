@@ -53,7 +53,7 @@ model Profile {
   id        Int     @id @default(autoincrement())
   userId    Int     @unique
   bio       String  @default("")
-  avatarUrl String  @default("/static/default-avatar.png")
+  avatarUrl String  @default("/static/default_avatar.png")
   alias     String?
   skinColor String? @default("#FFFFFF")
   gdpr      Boolean @default(false)

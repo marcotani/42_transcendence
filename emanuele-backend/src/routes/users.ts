@@ -371,10 +371,10 @@ const usersRoute: FastifyPluginAsync = async (app) => {
 
     await app.prisma.profile.update({
       where: { userId: user.id },
-      data: { avatarUrl: '/static/default-avatar.png' },
+      data: { avatarUrl: '/static/default_avatar.png' },
     });
 
-    return reply.send({ success: true, avatarUrl: '/static/default-avatar.png' });
+    return reply.send({ success: true, avatarUrl: '/static/default_avatar.png' });
   });
 
   app.patch('/users/:username/bio', async (req, reply) => {
