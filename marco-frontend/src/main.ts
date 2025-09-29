@@ -994,29 +994,31 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
   }
 
   // Helper to send match result to backend
-  async function sendMatchResult({ result, score, opponent, startedAt, endedAt, duration }: { result: 'win'|'loss', score: string, opponent: string, startedAt: string, endedAt: string, duration: number }) {
+  async function sendMatchResult({ result, player1Score, player2Score, opponent, startedAt, endedAt, duration }: { result: 'win'|'loss', player1Score: number, player2Score: number, opponent: string, startedAt: string, endedAt: string, duration: number }) {
     if (!loggedInUser) return;
     // Fetch userId for loggedInUser
     try {
       const userRes = await fetch(`${API_BASE}/users/${loggedInUser}`);
       const user = await userRes.json();
       if (!user || !user.id) return;
-      await fetch(`${API_BASE}/stats/update`, {
+      
+      // Determine winner ID
+      const winnerId = result === 'win' ? user.id : null; // null for bot wins since bot doesn't have an ID
+      
+      await fetch(`${API_BASE}/matches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
-          result,
-          type: 'bot',
-          score,
-          opponent,
-          startedAt,
-          endedAt,
-          duration
+          player1Id: user.id,
+          player2BotName: opponent,
+          player1Score,
+          player2Score,
+          winnerId,
+          matchType: 'bot'
         })
       });
     } catch (e) {
-      // Ignore errors for now
+      console.error('Failed to send match result:', e);
     }
   }
 
@@ -1080,7 +1082,8 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
       const matchEnd = new Date();
       sendMatchResult({
         result: 'loss',
-        score: '0-1',
+        player1Score: 0,
+        player2Score: 1,
         opponent: 'AI',
         startedAt: matchStart.toISOString(),
         endedAt: matchEnd.toISOString(),
@@ -1094,7 +1097,8 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
       const matchEnd = new Date();
       sendMatchResult({
         result: 'win',
-        score: '1-0',
+        player1Score: 1,
+        player2Score: 0,
         opponent: 'AI',
         startedAt: matchStart.toISOString(),
         endedAt: matchEnd.toISOString(),

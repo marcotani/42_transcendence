@@ -27,7 +27,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
     }
   });
 
-  // Crea una nuova partita
+  // Crea una nuova partita e aggiorna le statistiche utente
   app.post('/matches', async (req, reply) => {
     const body = req.body as {
       player1Id: number;

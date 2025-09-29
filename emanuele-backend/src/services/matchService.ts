@@ -13,12 +13,129 @@ export interface MatchData {
 }
 
 export class MatchService {
+  static async updateUserStats(matchData: MatchData): Promise<void> {
+    try {
+      // Update stats for player1
+      const player1IsWinner = matchData.winnerId === matchData.player1Id;
+      
+      // Check if user stats exist, create if not
+      const player1Stats = await prisma.userStat.findUnique({
+        where: { userId: matchData.player1Id }
+      });
+      
+      if (!player1Stats) {
+        // Create initial stats record
+        const initialStats = {
+          userId: matchData.player1Id,
+          botWins: 0,
+          botLosses: 0,
+          playerWins: 0,
+          playerLosses: 0,
+          tournamentWins: 0
+        };
+        
+        // Apply the update for this match
+        const player1Update = this.getStatsUpdate(matchData.matchType, player1IsWinner);
+        Object.assign(initialStats, player1Update);
+        
+        await prisma.userStat.create({ data: initialStats });
+      } else {
+        // Update existing stats
+        const player1Update = this.getStatsUpdateIncrement(matchData.matchType, player1IsWinner);
+        await prisma.userStat.update({
+          where: { userId: matchData.player1Id },
+          data: player1Update
+        });
+      }
+
+      // Update stats for player2 if it's not a bot
+      if (matchData.player2Id) {
+        const player2IsWinner = matchData.winnerId === matchData.player2Id;
+        
+        const player2Stats = await prisma.userStat.findUnique({
+          where: { userId: matchData.player2Id }
+        });
+        
+        if (!player2Stats) {
+          // Create initial stats record
+          const initialStats = {
+            userId: matchData.player2Id,
+            botWins: 0,
+            botLosses: 0,
+            playerWins: 0,
+            playerLosses: 0,
+            tournamentWins: 0
+          };
+          
+          // Apply the update for this match
+          const player2Update = this.getStatsUpdate(matchData.matchType, player2IsWinner);
+          Object.assign(initialStats, player2Update);
+          
+          await prisma.userStat.create({ data: initialStats });
+        } else {
+          // Update existing stats
+          const player2Update = this.getStatsUpdateIncrement(matchData.matchType, player2IsWinner);
+          await prisma.userStat.update({
+            where: { userId: matchData.player2Id },
+            data: player2Update
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error updating user stats:', error);
+      throw error;
+    }
+  }
+
+  static getStatsUpdate(matchType: string, isWinner: boolean): any {
+    if (matchType === 'bot') {
+      if (isWinner) {
+        return { botWins: 1 };
+      } else {
+        return { botLosses: 1 };
+      }
+    } else if (matchType === 'player') {
+      if (isWinner) {
+        return { playerWins: 1 };
+      } else {
+        return { playerLosses: 1 };
+      }
+    } else if (matchType === 'tournament' && isWinner) {
+      return { tournamentWins: 1 };
+    }
+    
+    return {}; // No stats update for tournament losses
+  }
+
+  static getStatsUpdateIncrement(matchType: string, isWinner: boolean): any {
+    if (matchType === 'bot') {
+      if (isWinner) {
+        return { botWins: { increment: 1 } };
+      } else {
+        return { botLosses: { increment: 1 } };
+      }
+    } else if (matchType === 'player') {
+      if (isWinner) {
+        return { playerWins: { increment: 1 } };
+      } else {
+        return { playerLosses: { increment: 1 } };
+      }
+    } else if (matchType === 'tournament' && isWinner) {
+      return { tournamentWins: { increment: 1 } };
+    }
+    
+    return {}; // No stats update for tournament losses
+  }
+
   static async createMatch(matchData: MatchData): Promise<any> {
     try {
       // Verifica che non sia un torneo, temporaneo
       if (matchData.matchType.toLowerCase() === 'tournament') {
         throw new Error('Tournament matches should not be added to history');
       }
+
+      // Update user statistics first
+      await this.updateUserStats(matchData);
 
       // Controllo delle partite salvate
       const player1MatchCount = await prisma.match.count({
@@ -115,7 +232,7 @@ export class MatchService {
       });
 
       // Formatta i risultati per migliore leggibilità
-      return matches.map(match => ({
+      return matches.map((match: any) => ({
         id: match.id,
         participants: {
           player1: match.player1.username,
