@@ -281,6 +281,7 @@ const routes: { [key: string]: string } = {
           <option value="#0000FF" style="color:#0000FF">Blue</option>
           <option value="#FFFF00" style="color:#FFFF00">Yellow</option>
           <option value="#FF00FF" style="color:#FF00FF">Magenta</option>
+          <option value="#FFFFFF" style="color:#FFFFFF">White</option>
         </select>
         <button id='profile-skinColor-confirm' class='mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400'>Confirm Color</button>
         <div id='profile-skinColor-success' class='text-green-500 mt-2 hidden'></div>

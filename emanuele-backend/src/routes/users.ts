@@ -147,7 +147,8 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       '#00FF00', // verde
       '#0000FF', // blu
       '#FFFF00', // giallo
-      '#FF00FF'  // magenta
+      '#FF00FF',  // magenta
+      '#FFFFFF'   // bianco
     ];
     if (!skinColor || !allowedColors.includes(skinColor)) {
       return reply.code(400).send({ error: 'skinColor must be one of: ' + allowedColors.join(', ') });
