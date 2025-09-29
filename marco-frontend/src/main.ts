@@ -1209,9 +1209,18 @@ function attachPongListeners() {
 }
 
 function attachEditProfileListeners() {
-  document.getElementById('back-home-edit-profile')?.addEventListener('click', () => {
-    window.location.hash = '';
-  });
+  // Remove any existing listeners first to prevent duplicates
+  const backButton = document.getElementById('back-home-edit-profile');
+  if (backButton) {
+    // Clone and replace to remove all event listeners
+    const newBackButton = backButton.cloneNode(true) as HTMLElement;
+    backButton.parentNode?.replaceChild(newBackButton, backButton);
+    // Attach fresh event listener
+    newBackButton.addEventListener('click', () => {
+      window.location.hash = '';
+    });
+  }
+  
   const form = document.getElementById('edit-profile-form') as HTMLFormElement | null;
   const avatarInput = document.getElementById('edit-avatar') as HTMLInputElement | null;
   const avatarPreview = document.getElementById('edit-avatar-preview');
@@ -1283,9 +1292,13 @@ function attachEditProfileListeners() {
       if (!formReady) {
         console.log('[DEBUG] Form not ready yet');
         const errorDiv = document.getElementById('edit-profile-error');
+        const successDiv = document.getElementById('edit-profile-success');
         if (errorDiv) {
           errorDiv.textContent = 'Please wait for form to load completely before submitting.';
           errorDiv.classList.remove('hidden');
+        }
+        if (successDiv) {
+          successDiv.classList.add('hidden');
         }
         return;
       }
@@ -1330,6 +1343,10 @@ function attachEditProfileListeners() {
           errorDiv.textContent = errorMsg;
           errorDiv.classList.remove('hidden');
         }
+        // Hide success div when showing error
+        if (successDiv) {
+          successDiv.classList.add('hidden');
+        }
         // Reset button state before returning
         isSubmitting = false;
         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
@@ -1373,53 +1390,69 @@ function attachEditProfileListeners() {
                 aliasTargetUser = updateBody.newUsername;
                 try {
                   const newUserRes = await fetch(`${API_BASE}/users/${updateBody.newUsername}`);
-                  const newUser = await newUserRes.json();
-                  original = {
-                    alias: newUser.profile?.alias || '',
-                    username: newUser.username || '',
-                    email: newUser.email || '',
-                    bio: newUser.profile?.bio || '',
-                    skinColor: newUser.profile?.skinColor || '#FFFFFF'
-                  };
-                  // Preserve current password field when updating form
-                  const currentPasswordField = document.getElementById('edit-current-password') as HTMLInputElement;
-                  const currentPasswordValue = currentPasswordField?.value || '';
-                  
-                  (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
-                  (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-                  (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
-                  (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
-                  
-                  // Restore current password field
-                  if (currentPasswordField) {
-                    currentPasswordField.value = currentPasswordValue;
+                  if (!newUserRes.ok) {
+                    console.warn('Failed to fetch updated user data after username change');
+                  } else {
+                    const newUser = await newUserRes.json();
+                    original = {
+                      alias: newUser.profile?.alias || '',
+                      username: newUser.username || '',
+                      email: newUser.email || '',
+                      bio: newUser.profile?.bio || '',
+                      skinColor: newUser.profile?.skinColor || '#FFFFFF'
+                    };
+                    // Preserve current password field when updating form
+                    const currentPasswordField = document.getElementById('edit-current-password') as HTMLInputElement;
+                    const currentPasswordValue = currentPasswordField?.value || '';
+                    
+                    try {
+                      (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
+                      (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
+                      (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+                      (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
+                      
+                      // Restore current password field
+                      if (currentPasswordField) {
+                        currentPasswordField.value = currentPasswordValue;
+                      }
+                    } catch (domError) {
+                      console.error('Error updating form fields after username change:', domError);
+                    }
                   }
-                } catch {}
+                } catch (err) {
+                  console.warn('Error updating form after username change:', err);
+                }
               } else if (updateBody.newEmail) {
                 try {
                   const newUserRes = await fetch(`${API_BASE}/users/${aliasTargetUser}`);
-                  const newUser = await newUserRes.json();
-                  original = {
-                    alias: newUser.profile?.alias || '',
-                    username: newUser.username || '',
-                    email: newUser.email || '',
-                    bio: newUser.profile?.bio || '',
-                    skinColor: newUser.profile?.skinColor || '#FFFFFF'
-                  };
-                  // Preserve current password field when updating form
-                  const currentPasswordField = document.getElementById('edit-current-password') as HTMLInputElement;
-                  const currentPasswordValue = currentPasswordField?.value || '';
-                  
-                  (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
-                  (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-                  (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
-                  (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
-                  
-                  // Restore current password field
-                  if (currentPasswordField) {
-                    currentPasswordField.value = currentPasswordValue;
+                  if (!newUserRes.ok) {
+                    console.warn('Failed to fetch updated user data after email change');
+                  } else {
+                    const newUser = await newUserRes.json();
+                    original = {
+                      alias: newUser.profile?.alias || '',
+                      username: newUser.username || '',
+                      email: newUser.email || '',
+                      bio: newUser.profile?.bio || '',
+                      skinColor: newUser.profile?.skinColor || '#FFFFFF'
+                    };
+                    // Preserve current password field when updating form
+                    const currentPasswordField = document.getElementById('edit-current-password') as HTMLInputElement;
+                    const currentPasswordValue = currentPasswordField?.value || '';
+                    
+                    (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
+                    (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
+                    (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+                    (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
+                    
+                    // Restore current password field
+                    if (currentPasswordField) {
+                      currentPasswordField.value = currentPasswordValue;
+                    }
                   }
-                } catch {}
+                } catch (err) {
+                  console.warn('Error updating form after email change:', err);
+                }
               }
             }
           } catch (err) {
@@ -1509,14 +1542,50 @@ function attachEditProfileListeners() {
         }
       }
       if (ok) {
-        if (successDiv) {
-          successDiv.textContent = 'Profile updated successfully!';
-          successDiv.classList.remove('hidden');
+        console.log('[DEBUG] Profile update successful, showing success message');
+        // Get fresh DOM references to ensure they're current
+        const currentSuccessDiv = document.getElementById('edit-profile-success');
+        const currentErrorDiv = document.getElementById('edit-profile-error');
+        
+        if (currentSuccessDiv) {
+          currentSuccessDiv.textContent = 'Profile updated successfully!';
+          currentSuccessDiv.classList.remove('hidden');
+          console.log('[DEBUG] Success message displayed');
+          
+          // Ensure back button is still working after username change
+          setTimeout(() => {
+            const backButton = document.getElementById('back-home-edit-profile');
+            if (backButton) {
+              console.log('[DEBUG] Ensuring back button functionality after username change');
+              // Remove any existing listeners and add a fresh one
+              const newBackButton = backButton.cloneNode(true) as HTMLElement;
+              backButton.parentNode?.replaceChild(newBackButton, backButton);
+              newBackButton.addEventListener('click', () => {
+                console.log('[DEBUG] Back button clicked after username change');
+                window.location.hash = '';
+              });
+            }
+          }, 100);
+        } else {
+          console.warn('[DEBUG] Success div not found!');
+        }
+        // Hide error div if it was previously shown
+        if (currentErrorDiv) {
+          currentErrorDiv.classList.add('hidden');
         }
       } else {
-        if (errorDiv) {
-          errorDiv.textContent = msg;
-          errorDiv.classList.remove('hidden');
+        console.log('[DEBUG] Profile update failed:', msg);
+        // Get fresh DOM references
+        const currentErrorDiv = document.getElementById('edit-profile-error');
+        const currentSuccessDiv = document.getElementById('edit-profile-success');
+        
+        if (currentErrorDiv) {
+          currentErrorDiv.textContent = msg;
+          currentErrorDiv.classList.remove('hidden');
+        }
+        // Hide success div when showing error
+        if (currentSuccessDiv) {
+          currentSuccessDiv.classList.add('hidden');
         }
       }
     });
