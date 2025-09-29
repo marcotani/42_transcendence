@@ -888,10 +888,32 @@ function attachProfilePageListeners() {
   });
 }
 
+// Global flag to prevent multiple game instances
+let isGameRunning = false;
+
 // Basic Pong game logic
 function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | null) {
+  // Prevent multiple game instances
+  if (isGameRunning) {
+    console.log('Game already running, ignoring start request');
+    return;
+  }
+  
+  isGameRunning = true;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx) {
+    isGameRunning = false;
+    return;
+  }
+  
+  // Function to reset start button when game ends
+  function resetStartButton() {
+    const startBtn = document.getElementById('pong-start') as HTMLButtonElement | null;
+    if (startBtn) {
+      startBtn.disabled = false;
+      startBtn.textContent = 'Start Game';
+    }
+  }
   let ballX = canvas.width / 2;
   let ballY = canvas.height / 2;
   let ballVX = 3;
@@ -904,6 +926,7 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
   let upPressed = false;
   let downPressed = false;
   let gameOver = false;
+  let gameAborted = false; // Flag to prevent sending results during navigation
   let paddleVY = 0;
 
   // AI simulated keyboard input
@@ -1024,6 +1047,9 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
 
   let matchStart = new Date();
   function update() {
+    // Early exit if game was aborted during navigation
+    if (gameAborted || gameOver) return;
+    
     let prevPaddleY = leftPaddleY;
     if (upPressed && leftPaddleY > 0) leftPaddleY -= paddleSpeed;
     if (downPressed && leftPaddleY < canvas.height - paddleHeight) leftPaddleY += paddleSpeed;
@@ -1075,9 +1101,10 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
       ballVY *= norm;
     }
     // Ball out of bounds
-    if (ballX < 0) {
+    if (ballX < 0 && !gameAborted) {
       gameOver = true;
       if (statusDiv) statusDiv.textContent = 'Game Over! Right player wins.';
+      resetStartButton();
       // Send match result: user lost
       const matchEnd = new Date();
       sendMatchResult({
@@ -1090,9 +1117,10 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
         duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
       });
     }
-    if (ballX > canvas.width) {
+    if (ballX > canvas.width && !gameAborted) {
       gameOver = true;
       if (statusDiv) statusDiv.textContent = 'Game Over! Left player wins.';
+      resetStartButton();
       // Send match result: user won
       const matchEnd = new Date();
       sendMatchResult({
@@ -1106,6 +1134,7 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
       });
     }
     if (gameOver) {
+      isGameRunning = false; // Allow new games to start
       clearInterval(aiInterval);
     }
   }
@@ -1134,6 +1163,22 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
 
   // Clean up listeners on game over or navigation
   window.addEventListener('hashchange', () => {
+    gameAborted = true; // Flag to prevent sending match results
+    gameOver = true; // Stop the game loop
+    isGameRunning = false; // Allow new games to start
+    resetStartButton(); // Reset the start button
+    clearInterval(aiInterval); // Stop the AI interval
+    document.removeEventListener('keydown', keyDownHandler);
+    document.removeEventListener('keyup', keyUpHandler);
+  }, { once: true });
+
+  // Clean up on page unload (refresh/close)
+  window.addEventListener('beforeunload', () => {
+    gameAborted = true;
+    gameOver = true;
+    isGameRunning = false;
+    resetStartButton();
+    clearInterval(aiInterval);
     document.removeEventListener('keydown', keyDownHandler);
     document.removeEventListener('keyup', keyUpHandler);
   }, { once: true });
@@ -1146,11 +1191,17 @@ function attachPongListeners() {
   document.getElementById('back-home-pong')?.addEventListener('click', () => {
     window.location.hash = '';
   });
-  const startBtn = document.getElementById('pong-start');
+  const startBtn = document.getElementById('pong-start') as HTMLButtonElement | null;
   const canvas = document.getElementById('pong-canvas') as HTMLCanvasElement | null;
   const statusDiv = document.getElementById('pong-status');
   if (startBtn && canvas) {
     startBtn.addEventListener('click', () => {
+      if (isGameRunning) {
+        console.log('Game already running, ignoring start request');
+        return;
+      }
+      startBtn.disabled = true;
+      startBtn.textContent = 'Game Running...';
       startBasicPongGame(canvas, statusDiv);
     });
   }
