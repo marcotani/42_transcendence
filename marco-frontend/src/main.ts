@@ -119,63 +119,6 @@ const routes: { [key: string]: string } = {
   </div>`,
   'multiplayer': `<h2 class="text-2xl font-bold mb-4">Multiplayer</h2><p>Multiplayer options will go here.</p>`,
   'options': `<h2 class="text-2xl font-bold mb-4">Options</h2><p>Settings will go here.</p>`,
-  'leaderboard': `<h2 class="text-2xl font-bold mb-4">Leaderboard</h2>
-      <div class='mt-6 w-full max-w-2xl mx-auto'>
-        <div class='mb-6'>
-          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Player Stats</h3>
-          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
-            <thead class='bg-gray-700'>
-              <tr>
-                <th class='px-4 py-2'>Player</th>
-                <th class='px-4 py-2'>Wins</th>
-                <th class='px-4 py-2'>Losses</th>
-                <th class='px-4 py-2'>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class='px-4 py-2'>Alice</td>
-                <td class='px-4 py-2'>12</td>
-                <td class='px-4 py-2'>5</td>
-                <td class='px-4 py-2'>70%</td>
-              </tr>
-              <tr>
-                <td class='px-4 py-2'>Bob</td>
-                <td class='px-4 py-2'>8</td>
-                <td class='px-4 py-2'>10</td>
-                <td class='px-4 py-2'>44%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Match History</h3>
-          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
-            <thead class='bg-gray-700'>
-              <tr>
-                <th class='px-4 py-2'>Date</th>
-                <th class='px-4 py-2'>Players</th>
-                <th class='px-4 py-2'>Winner</th>
-                <th class='px-4 py-2'>Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class='px-4 py-2'>2025-08-10</td>
-                <td class='px-4 py-2'>Alice vs Bob</td>
-                <td class='px-4 py-2'>Alice</td>
-                <td class='px-4 py-2'>11-7</td>
-              </tr>
-              <tr>
-                <td class='px-4 py-2'>2025-08-09</td>
-                <td class='px-4 py-2'>Bob vs Alice</td>
-                <td class='px-4 py-2'>Bob</td>
-                <td class='px-4 py-2'>11-9</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>`,
   'login': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
     <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Login</h2>
     <form id='login-form' class='space-y-4'>
@@ -366,60 +309,10 @@ function render(route: string) {
     content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.optionsTitle}'>${t.optionsTitle}</h2><p>${t.optionsDesc}</p>`;
   } else if (route === 'leaderboard') {
     content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.leaderboardTitle}'>${t.leaderboardTitle}</h2>
-      <div class='mt-6 w-full max-w-2xl mx-auto'>
-        <div class='mb-6'>
-          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Player Stats</h3>
-          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
-            <thead class='bg-gray-700'>
-              <tr>
-                <th class='px-4 py-2'>Player</th>
-                <th class='px-4 py-2'>Wins</th>
-                <th class='px-4 py-2'>Losses</th>
-                <th class='px-4 py-2'>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class='px-4 py-2'>Alice</td>
-                <td class='px-4 py-2'>12</td>
-                <td class='px-4 py-2'>5</td>
-                <td class='px-4 py-2'>70%</td>
-              </tr>
-              <tr>
-                <td class='px-4 py-2'>Bob</td>
-                <td class='px-4 py-2'>8</td>
-                <td class='px-4 py-2'>10</td>
-                <td class='px-4 py-2'>44%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Match History</h3>
-          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
-            <thead class='bg-gray-700'>
-              <tr>
-                <th class='px-4 py-2'>Date</th>
-                <th class='px-4 py-2'>Players</th>
-                <th class='px-4 py-2'>Winner</th>
-                <th class='px-4 py-2'>Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class='px-4 py-2'>2025-08-10</td>
-                <td class='px-4 py-2'>Alice vs Bob</td>
-                <td class='px-4 py-2'>Alice</td>
-                <td class='px-4 py-2'>11-7</td>
-              </tr>
-              <tr>
-                <td class='px-4 py-2'>2025-08-09</td>
-                <td class='px-4 py-2'>Bob vs Alice</td>
-                <td class='px-4 py-2'>Bob</td>
-                <td class='px-4 py-2'>11-9</td>
-              </tr>
-            </tbody>
-          </table>
+      <div id='leaderboard-content' class='mt-6 w-full max-w-6xl mx-auto'>
+        <div class='text-center py-8'>
+          <div class='inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white'></div>
+          <p class='mt-2 text-gray-400'>Loading leaderboards...</p>
         </div>
       </div>`;
   } else {
@@ -489,6 +382,10 @@ function attachPageSpecificListeners(route: string) {
   if (route === 'profile' && !attachedListeners.has('profile')) {
     attachedListeners.add('profile');
     setTimeout(() => attachProfilePageListeners(), 0);
+  }
+  if (route === 'leaderboard' && !attachedListeners.has('leaderboard')) {
+    attachedListeners.add('leaderboard');
+    setTimeout(() => loadLeaderboards(), 0);
   }
 }
 
@@ -1200,6 +1097,82 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
     document.removeEventListener('keyup', keyUpHandler);
   }, { once: true });
 }
+
+// Function to create leaderboard table HTML
+function createLeaderboardTable(title: string, data: any[], emptyMessage: string) {
+  const rows = data.length > 0 
+    ? data.map(item => `
+        <tr class='hover:bg-gray-700 transition-colors'>
+          <td class='px-4 py-3 text-yellow-400 font-semibold'>#${item.rank}</td>
+          <td class='px-4 py-3'>${item.displayName}</td>
+          <td class='px-4 py-3 text-green-400 font-semibold'>${item.wins}</td>
+        </tr>
+      `).join('')
+    : `<tr><td colspan='3' class='px-4 py-6 text-center text-gray-400'>${emptyMessage}</td></tr>`;
+
+  return `
+    <div class='bg-gray-800 rounded-lg overflow-hidden'>
+      <h3 class='text-xl font-semibold p-4 bg-gray-700 text-center'>${title}</h3>
+      <table class='w-full text-left'>
+        <thead class='bg-gray-600'>
+          <tr>
+            <th class='px-4 py-3 text-yellow-400'>Rank</th>
+            <th class='px-4 py-3'>Player</th>
+            <th class='px-4 py-3 text-green-400'>Wins</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// Function to load and display leaderboards
+async function loadLeaderboards() {
+  const contentDiv = document.getElementById('leaderboard-content');
+  if (!contentDiv) return;
+
+  try {
+    // Fetch all three leaderboards in parallel
+    const [botWinsRes, playerWinsRes, tournamentWinsRes] = await Promise.all([
+      fetch(`${API_BASE}/stats/leaderboard/bot-wins`),
+      fetch(`${API_BASE}/stats/leaderboard/player-wins`),
+      fetch(`${API_BASE}/stats/leaderboard/tournament-wins`)
+    ]);
+
+    const [botWinsData, playerWinsData, tournamentWinsData] = await Promise.all([
+      botWinsRes.json(),
+      playerWinsRes.json(),
+      tournamentWinsRes.json()
+    ]);
+
+    // Create the three-column layout
+    const leaderboardHtml = `
+      <div class='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+        ${createLeaderboardTable('🤖 Bot Wins', botWinsData, 'No bot matches played yet')}
+        ${createLeaderboardTable('👥 Player Wins', playerWinsData, 'No player matches played yet')}
+        ${createLeaderboardTable('🏆 Tournament Wins', tournamentWinsData, 'No tournaments won yet')}
+      </div>
+    `;
+
+    contentDiv.innerHTML = leaderboardHtml;
+  } catch (error) {
+    console.error('Failed to load leaderboards:', error);
+    contentDiv.innerHTML = `
+      <div class='text-center py-8'>
+        <p class='text-red-400 mb-2'>Failed to load leaderboards</p>
+        <button onclick='window.loadLeaderboards()' class='px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-purple-400'>
+          Try Again
+        </button>
+      </div>
+    `;
+  }
+}
+
+// Make loadLeaderboards available globally
+(window as any).loadLeaderboards = loadLeaderboards;
 
 function attachPongListeners() {
   document.getElementById('pong')?.addEventListener('click', () => {

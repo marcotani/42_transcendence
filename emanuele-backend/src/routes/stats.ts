@@ -1,14 +1,11 @@
 import { FastifyPluginAsync } from 'fastify';
-import { PrismaClient } from '@prisma/client';
 import { MatchService } from '../services/matchService';
-
-const prisma = new PrismaClient();
 
 const statsRoute: FastifyPluginAsync = async (app) => {
   // Statistiche di tutti gli utenti
   app.get('/stats', async (req, reply) => {
     try {
-      const stats = await prisma.userStat.findMany({
+      const stats = await app.prisma.userStat.findMany({
         include: { user: { select: { username: true, email: true } } }
       });
       return reply.send(stats);
@@ -22,7 +19,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
   app.get('/stats/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
     try {
-      const user = await prisma.user.findUnique({
+      const user = await app.prisma.user.findUnique({
         where: { username },
         include: { stats: true }
       });
@@ -70,7 +67,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
         return reply.code(400).send({ error: 'Invalid combination' });
       }
 
-      await prisma.userStat.update({
+      await app.prisma.userStat.update({
         where: { userId: body.userId },
         data: update,
       });
@@ -95,6 +92,108 @@ const statsRoute: FastifyPluginAsync = async (app) => {
       }
 
       return reply.send({ success: true });
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Leaderboard per Bot Wins
+  app.get('/stats/leaderboard/bot-wins', async (req, reply) => {
+    try {
+      const topUsers = await app.prisma.userStat.findMany({
+        orderBy: { botWins: 'desc' },
+        take: 10,
+        include: {
+          user: {
+            select: {
+              username: true,
+              profile: {
+                select: {
+                  alias: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const leaderboard = topUsers.map((userStat: any, index: number) => ({
+        rank: index + 1,
+        username: userStat.user.username,
+        displayName: userStat.user.profile?.alias || userStat.user.username,
+        wins: userStat.botWins
+      }));
+
+      return reply.send(leaderboard);
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Leaderboard per Player Wins
+  app.get('/stats/leaderboard/player-wins', async (req, reply) => {
+    try {
+      const topUsers = await app.prisma.userStat.findMany({
+        orderBy: { playerWins: 'desc' },
+        take: 10,
+        include: {
+          user: {
+            select: {
+              username: true,
+              profile: {
+                select: {
+                  alias: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const leaderboard = topUsers.map((userStat: any, index: number) => ({
+        rank: index + 1,
+        username: userStat.user.username,
+        displayName: userStat.user.profile?.alias || userStat.user.username,
+        wins: userStat.playerWins
+      }));
+
+      return reply.send(leaderboard);
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Leaderboard per Tournament Wins
+  app.get('/stats/leaderboard/tournament-wins', async (req, reply) => {
+    try {
+      const topUsers = await app.prisma.userStat.findMany({
+        orderBy: { tournamentWins: 'desc' },
+        take: 10,
+        include: {
+          user: {
+            select: {
+              username: true,
+              profile: {
+                select: {
+                  alias: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const leaderboard = topUsers.map((userStat: any, index: number) => ({
+        rank: index + 1,
+        username: userStat.user.username,
+        displayName: userStat.user.profile?.alias || userStat.user.username,
+        wins: userStat.tournamentWins
+      }));
+
+      return reply.send(leaderboard);
     } catch (err) {
       app.log.error(err);
       return reply.code(500).send({ error: 'Internal server error' });
