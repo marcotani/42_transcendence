@@ -118,7 +118,32 @@ const routes: { [key: string]: string } = {
     </div>
   </div>`,
   'multiplayer': `<h2 class="text-2xl font-bold mb-4">Multiplayer</h2><p>Multiplayer options will go here.</p>`,
-  'options': `<h2 class="text-2xl font-bold mb-4">Options</h2><p>Settings will go here.</p>`,
+  'options': `
+    <h2 class="text-2xl font-bold mb-4">Options</h2>
+    <div style="max-width: 600px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; color: white;">
+      <div style="margin-bottom: 20px;">
+        <label for="ball-speed" style="display: block; margin-bottom: 5px;">Ball Speed:</label>
+        <input type="range" id="ball-speed" min="1" max="10" value="3" style="width: 100%; margin-bottom: 5px;">
+        <span id="ball-speed-value" style="font-size: 14px; color: #ccc;">3</span>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label for="paddle-speed" style="display: block; margin-bottom: 5px;">Paddle Speed:</label>
+        <input type="range" id="paddle-speed" min="1" max="10" value="5" style="width: 100%; margin-bottom: 5px;">
+        <span id="paddle-speed-value" style="font-size: 14px; color: #ccc;">5</span>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label for="points-to-win" style="display: block; margin-bottom: 5px;">Points to Win:</label>
+        <select id="points-to-win" style="width: 100%; padding: 5px; border-radius: 5px; background: #333; color: white; border: 1px solid #555;">
+          <option value="3">3 Points</option>
+          <option value="5">5 Points</option>
+          <option value="11" selected>11 Points</option>
+          <option value="21">21 Points</option>
+        </select>
+      </div>
+      <button id="save-options" style="width: 100%; padding: 10px; background: #007acc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Save Settings</button>
+      <div id="save-status" style="margin-top: 10px; text-align: center; font-size: 14px; color: #4CAF50;"></div>
+    </div>
+  `,
   'login': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
     <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Login</h2>
     <form id='login-form' class='space-y-4'>
@@ -291,6 +316,88 @@ function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRen
   }
 }
 
+// Game settings functions
+interface GameSettings {
+  ballSpeed: number;
+  paddleSpeed: number;
+  pointsToWin: number;
+}
+
+function getDefaultGameSettings(): GameSettings {
+  return {
+    ballSpeed: 3,
+    paddleSpeed: 5,
+    pointsToWin: 11
+  };
+}
+
+function saveGameSettings(settings: GameSettings): void {
+  localStorage.setItem('pong-game-settings', JSON.stringify(settings));
+}
+
+function loadGameSettings(): GameSettings {
+  const saved = localStorage.getItem('pong-game-settings');
+  if (saved) {
+    try {
+      return { ...getDefaultGameSettings(), ...JSON.parse(saved) };
+    } catch {
+      return getDefaultGameSettings();
+    }
+  }
+  return getDefaultGameSettings();
+}
+
+function initializeOptionsPage(): void {
+  const settings = loadGameSettings();
+  
+  const ballSpeedSlider = document.getElementById('ball-speed') as HTMLInputElement;
+  const ballSpeedValue = document.getElementById('ball-speed-value') as HTMLSpanElement;
+  const paddleSpeedSlider = document.getElementById('paddle-speed') as HTMLInputElement;
+  const paddleSpeedValue = document.getElementById('paddle-speed-value') as HTMLSpanElement;
+  const pointsSelect = document.getElementById('points-to-win') as HTMLSelectElement;
+  const saveButton = document.getElementById('save-options') as HTMLButtonElement;
+  const saveStatus = document.getElementById('save-status') as HTMLDivElement;
+  
+  if (ballSpeedSlider && ballSpeedValue) {
+    ballSpeedSlider.value = settings.ballSpeed.toString();
+    ballSpeedValue.textContent = settings.ballSpeed.toString();
+    ballSpeedSlider.addEventListener('input', () => {
+      ballSpeedValue.textContent = ballSpeedSlider.value;
+    });
+  }
+  
+  if (paddleSpeedSlider && paddleSpeedValue) {
+    paddleSpeedSlider.value = settings.paddleSpeed.toString();
+    paddleSpeedValue.textContent = settings.paddleSpeed.toString();
+    paddleSpeedSlider.addEventListener('input', () => {
+      paddleSpeedValue.textContent = paddleSpeedSlider.value;
+    });
+  }
+  
+  if (pointsSelect) {
+    pointsSelect.value = settings.pointsToWin.toString();
+  }
+  
+  if (saveButton) {
+    saveButton.addEventListener('click', () => {
+      const newSettings: GameSettings = {
+        ballSpeed: parseInt(ballSpeedSlider?.value || '3'),
+        paddleSpeed: parseInt(paddleSpeedSlider?.value || '5'),
+        pointsToWin: parseInt(pointsSelect?.value || '11')
+      };
+      
+      saveGameSettings(newSettings);
+      
+      if (saveStatus) {
+        saveStatus.textContent = 'Settings saved successfully!';
+        setTimeout(() => {
+          saveStatus.textContent = '';
+        }, 3000);
+      }
+    });
+  }
+}
+
 function render(route: string) {
   const lang = getLang();
   const t = translations[lang];
@@ -386,6 +493,10 @@ function attachPageSpecificListeners(route: string) {
   if (route === 'leaderboard' && !attachedListeners.has('leaderboard')) {
     attachedListeners.add('leaderboard');
     setTimeout(() => loadLeaderboards(), 0);
+  }
+  if (route === 'options' && !attachedListeners.has('options')) {
+    attachedListeners.add('options');
+    setTimeout(() => initializeOptionsPage(), 0);
   }
 }
 
@@ -819,6 +930,9 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
     isGameRunning = false;
     return;
   }
+
+  // Load game settings
+  const gameSettings = loadGameSettings();
   
   // Function to reset start button when game ends
   function resetStartButton() {
@@ -830,18 +944,23 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
   }
   let ballX = canvas.width / 2;
   let ballY = canvas.height / 2;
-  let ballVX = 3;
-  let ballVY = 2;
+  let ballVX = gameSettings.ballSpeed;
+  let ballVY = gameSettings.ballSpeed * 0.7; // Slightly less vertical speed
   let leftPaddleY = canvas.height / 2 - 40;
   let rightPaddleY = canvas.height / 2 - 40;
   const paddleHeight = 80;
   const paddleWidth = 10;
-  const paddleSpeed = 5;
+  const paddleSpeed = gameSettings.paddleSpeed;
   let upPressed = false;
   let downPressed = false;
   let gameOver = false;
   let gameAborted = false; // Flag to prevent sending results during navigation
   let paddleVY = 0;
+  
+  // Score tracking
+  let leftScore = 0;
+  let rightScore = 0;
+  const pointsToWin = gameSettings.pointsToWin;
 
   // AI simulated keyboard input
   let aiUpPressed = false;
@@ -917,6 +1036,23 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
   function draw() {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw scores
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${leftScore}`, canvas.width / 4, 40);
+    ctx.fillText(`${rightScore}`, (canvas.width * 3) / 4, 40);
+    
+    // Draw center line
+    ctx.setLineDash([5, 15]);
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2, 0);
+    ctx.lineTo(canvas.width / 2, canvas.height);
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
     // Use user's preferred color for left paddle
     ctx.fillStyle = userPaddleColor;
     ctx.fillRect(20, leftPaddleY, paddleWidth, paddleHeight);
@@ -957,6 +1093,14 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
     } catch (e) {
       console.error('Failed to send match result:', e);
     }
+  }
+
+  function resetBall() {
+    ballX = canvas.width / 2;
+    ballY = canvas.height / 2;
+    // Randomly choose initial direction but keep the speed setting
+    ballVX = (Math.random() > 0.5 ? 1 : -1) * gameSettings.ballSpeed;
+    ballVY = (Math.random() > 0.5 ? 1 : -1) * (gameSettings.ballSpeed * 0.7);
   }
 
   let matchStart = new Date();
@@ -1014,38 +1158,58 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
       ballVX *= norm;
       ballVY *= norm;
     }
-    // Ball out of bounds
+    // Ball out of bounds - scoring
     if (ballX < 0 && !gameAborted) {
-      gameOver = true;
-      if (statusDiv) statusDiv.textContent = 'Game Over! Right player wins.';
-      resetStartButton();
-      // Send match result: user lost
-      const matchEnd = new Date();
-      sendMatchResult({
-        result: 'loss',
-        player1Score: 0,
-        player2Score: 1,
-        opponent: 'AI',
-        startedAt: matchStart.toISOString(),
-        endedAt: matchEnd.toISOString(),
-        duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
-      });
+      rightScore++;
+      if (statusDiv) statusDiv.textContent = `Right Player scores! Score: ${leftScore} - ${rightScore}`;
+      
+      if (rightScore >= pointsToWin) {
+        gameOver = true;
+        if (statusDiv) statusDiv.textContent = `Game Over! Right player wins ${rightScore}-${leftScore}!`;
+        resetStartButton();
+        // Send match result: user lost
+        const matchEnd = new Date();
+        sendMatchResult({
+          result: 'loss',
+          player1Score: leftScore,
+          player2Score: rightScore,
+          opponent: 'AI',
+          startedAt: matchStart.toISOString(),
+          endedAt: matchEnd.toISOString(),
+          duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
+        });
+      } else {
+        resetBall();
+        setTimeout(() => {
+          if (statusDiv) statusDiv.textContent = `Score: ${leftScore} - ${rightScore}`;
+        }, 1500);
+      }
     }
     if (ballX > canvas.width && !gameAborted) {
-      gameOver = true;
-      if (statusDiv) statusDiv.textContent = 'Game Over! Left player wins.';
-      resetStartButton();
-      // Send match result: user won
-      const matchEnd = new Date();
-      sendMatchResult({
-        result: 'win',
-        player1Score: 1,
-        player2Score: 0,
-        opponent: 'AI',
-        startedAt: matchStart.toISOString(),
-        endedAt: matchEnd.toISOString(),
-        duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
-      });
+      leftScore++;
+      if (statusDiv) statusDiv.textContent = `Left Player scores! Score: ${leftScore} - ${rightScore}`;
+      
+      if (leftScore >= pointsToWin) {
+        gameOver = true;
+        if (statusDiv) statusDiv.textContent = `Game Over! Left player wins ${leftScore}-${rightScore}!`;
+        resetStartButton();
+        // Send match result: user won
+        const matchEnd = new Date();
+        sendMatchResult({
+          result: 'win',
+          player1Score: leftScore,
+          player2Score: rightScore,
+          opponent: 'AI',
+          startedAt: matchStart.toISOString(),
+          endedAt: matchEnd.toISOString(),
+          duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
+        });
+      } else {
+        resetBall();
+        setTimeout(() => {
+          if (statusDiv) statusDiv.textContent = `Score: ${leftScore} - ${rightScore}`;
+        }, 1500);
+      }
     }
     if (gameOver) {
       isGameRunning = false; // Allow new games to start
@@ -1072,7 +1236,7 @@ function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | 
   document.addEventListener('keydown', keyDownHandler);
   document.addEventListener('keyup', keyUpHandler);
 
-  if (statusDiv) statusDiv.textContent = 'Game started! Use Arrow Up/Down to move left paddle.';
+  if (statusDiv) statusDiv.textContent = `Game started! Score: ${leftScore} - ${rightScore}. Use Arrow Up/Down to move left paddle.`;
   gameLoop();
 
   // Clean up listeners on game over or navigation
