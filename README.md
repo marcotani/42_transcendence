@@ -71,6 +71,10 @@ curl -X PATCH http://localhost:3000/users/nome_utente/2fa \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
+curl -X POST http://localhost:3000/users/nome_utente/2fa/verify \
+  -H "Content-Type: application/json" \
+  -d '{"code": "codice_6_cifre"}'
+
 Modifica multi-campo utente
 curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
