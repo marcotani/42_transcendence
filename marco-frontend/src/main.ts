@@ -87,7 +87,7 @@ function setLang(lang: 'en'|'it'|'fr') {
 }
 
 function langSwitcherUI(currentLang: 'en'|'it'|'fr') {
-  return `<div class='absolute top-4 left-4 z-50'>
+  return `<div class='fixed top-4 left-4 z-50'>
     <label for='lang-select' class='mr-2'>${translations[currentLang].langLabel}:</label>
     <select id='lang-select' class='px-2 py-1 rounded bg-gray-800 text-white border border-gray-600'>
       <option value='en' ${currentLang === 'en' ? 'selected' : ''}>English</option>
@@ -98,7 +98,7 @@ function langSwitcherUI(currentLang: 'en'|'it'|'fr') {
 }
 
 function accessibilityTogglesUI() {
-  return `<div class='absolute bottom-4 left-4 z-50 flex space-x-2'>
+  return `<div class='fixed bottom-4 left-4 z-50 flex space-x-2'>
     <button id='toggle-contrast' class='px-2 py-1 bg-black text-white rounded border border-white focus:outline-none focus:ring-2 focus:ring-white' aria-label='Toggle high contrast' tabindex='0'>🌓</button>
     <button id='toggle-textsize' class='px-2 py-1 bg-black text-white rounded border border-white focus:outline-none focus:ring-2 focus:ring-white' aria-label='Toggle large text' tabindex='0'>A+</button>
   </div>`;
