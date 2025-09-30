@@ -913,10 +913,11 @@ function generateViewProfilePage(username: string): string {
 
 async function loadUserProfile(username: string) {
   try {
-    // Fetch user profile and stats
-    const [userResponse, statsResponse] = await Promise.all([
+    // Fetch user profile, stats, and match history
+    const [userResponse, statsResponse, matchHistoryResponse] = await Promise.all([
       fetch(`${API_BASE}/users/${username}`),
-      fetch(`${API_BASE}/stats/${username}`)
+      fetch(`${API_BASE}/stats/${username}`),
+      fetch(`${API_BASE}/matches/history/${username}`)
     ]);
 
     if (!userResponse.ok) {
@@ -925,6 +926,7 @@ async function loadUserProfile(username: string) {
 
     const userData = await userResponse.json();
     const statsData = statsResponse.ok ? await statsResponse.json() : null;
+    const matchHistoryData = matchHistoryResponse.ok ? await matchHistoryResponse.json() : null;
 
     // Update the profile page content
     const container = document.getElementById('view-profile-page');
@@ -977,6 +979,9 @@ async function loadUserProfile(username: string) {
         </div>
       ` : '';
 
+      // Match History HTML
+      const matchHistoryHtml = matchHistoryData ? generateMatchHistoryHtml(matchHistoryData.matches || [], username) : '';
+
       container.innerHTML = `
         <div class='flex flex-col items-center'>
           <div class='mb-4'>${avatarHtml}</div>
@@ -985,6 +990,7 @@ async function loadUserProfile(username: string) {
           ${userData.profile?.emailVisible && userData.email && userData.email !== '*************' ? `<div class='text-gray-400 mb-4'>${userData.email}</div>` : ''}
           ${userData.profile?.bio ? `<div class='text-base text-white mb-6'>${userData.profile.bio}</div>` : ''}
           ${statsHtml}
+          ${matchHistoryHtml}
           <button id='back-home-view-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Friends</button>
         </div>
       `;
@@ -1336,7 +1342,7 @@ function attachUserDropdownListeners() {
   });
 }
 
-function generateMatchHistoryHtml(matches: any[]): string {
+function generateMatchHistoryHtml(matches: any[], username?: string): string {
   if (!matches || matches.length === 0) {
     return `
       <div class='bg-gray-800 rounded-lg p-4'>
@@ -1346,6 +1352,9 @@ function generateMatchHistoryHtml(matches: any[]): string {
     `;
   }
 
+  // Use provided username or fall back to loggedInUser for backward compatibility
+  const targetUser = username || loggedInUser;
+
   const matchesHtml = matches.map(match => {
     const matchDate = new Date(match.matchDate).toLocaleDateString();
     const isWin = match.userResult === 'WIN';
@@ -1353,9 +1362,16 @@ function generateMatchHistoryHtml(matches: any[]): string {
     const resultBg = isWin ? 'bg-green-900' : 'bg-red-900';
     
     // Determine opponent name
-    const opponent = match.participants.player1 === loggedInUser 
-      ? match.participants.player2 
-      : match.participants.player1;
+    let opponent;
+    if (match.matchType === 'bot') {
+      // For bot matches, show the bot name or "AI"
+      opponent = match.participants.player2BotName || 'AI';
+    } else {
+      // For player matches, show the other player
+      opponent = match.participants.player1 === targetUser 
+        ? match.participants.player2 
+        : match.participants.player1;
+    }
     
     // Format match type
     const typeColor = match.matchType === 'bot' ? 'text-orange-400' : 
