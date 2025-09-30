@@ -394,6 +394,37 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     });
     return reply.send({ success: true, bio: bio.trim() });
   });
+
+  // Update email visibility
+  app.patch('/users/:username/email-visibility', async (req, reply) => {
+    const { username } = req.params as { username: string };
+    const { emailVisible } = req.body as { emailVisible: boolean };
+
+    if (typeof emailVisible !== 'boolean') {
+      return reply.code(400).send({ error: 'emailVisible must be a boolean' });
+    }
+
+    try {
+      const user = await app.prisma.user.findUnique({
+        where: { username },
+        select: { id: true }
+      });
+
+      if (!user) {
+        return reply.code(404).send({ error: 'User not found' });
+      }
+
+      await app.prisma.profile.update({
+        where: { userId: user.id },
+        data: { emailVisible }
+      });
+
+      return reply.send({ success: true, emailVisible });
+    } catch (err: any) {
+      console.error('Error updating email visibility:', err);
+      return reply.code(500).send({ error: 'Failed to update email visibility' });
+    }
+  });
 };
 
 export default usersRoute;

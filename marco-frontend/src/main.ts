@@ -982,7 +982,7 @@ async function loadUserProfile(username: string) {
           <div class='mb-4'>${avatarHtml}</div>
           <div class='text-2xl font-bold mb-2'>${userData.profile?.alias || userData.username}</div>
           <div class='text-gray-400 mb-2'>@${userData.username}</div>
-          ${userData.email && userData.email !== '*************' ? `<div class='text-gray-400 mb-4'>${userData.email}</div>` : ''}
+          ${userData.profile?.emailVisible && userData.email && userData.email !== '*************' ? `<div class='text-gray-400 mb-4'>${userData.email}</div>` : ''}
           ${userData.profile?.bio ? `<div class='text-base text-white mb-6'>${userData.profile.bio}</div>` : ''}
           ${statsHtml}
           <button id='back-home-view-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Friends</button>
