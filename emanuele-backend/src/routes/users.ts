@@ -37,7 +37,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
           password_hash: hash ?? "",
           password_salt: salt ?? "",
           online: false,
-          profile: { create: { bio: '', alias: '', gdpr: false } },
+          profile: { create: { bio: '', alias: body.username, gdpr: false } },
           stats: { create: {} }
         }
       });
