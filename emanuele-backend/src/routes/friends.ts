@@ -118,6 +118,25 @@ export default async function friendsRoutes(app: FastifyInstance) {
     return reply.send({ success: true });
   });
 
+  app.delete('/friends/requests/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { username, currentPassword } = req.body as { username: string; currentPassword: string };
+
+    const me = await authByUsernameAndPassword(username, currentPassword);
+    if (!me) return reply.code(401).send({ error: 'Credenziali non valide' });
+
+    const request = await app.prisma.friendRequest.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!request) return reply.code(404).send({ error: 'Richiesta non trovata' });
+    if (request.fromUserId !== me.id) return reply.code(403).send({ error: 'Non sei il mittente di questa richiesta' });
+    if (request.status !== 'PENDING') return reply.code(400).send({ error: 'Puoi annullare solo richieste in attesa' });
+
+    await app.prisma.friendRequest.delete({ where: { id: Number(id) } });
+
+    return reply.send({ success: true, message: 'Richiesta di amicizia annullata' });
+  });
+
   app.get('/friends/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
 
@@ -126,13 +145,15 @@ export default async function friendsRoutes(app: FastifyInstance) {
 
     const links = await app.prisma.friend.findMany({
       where: { userId: user.id },
-      include: { friend: { select: { username: true, profile: true } } },
+      include: { friend: { select: { username: true, profile: true, lastHeartbeat: true, online: true } } },
     });
 
     const friends = links.map((l) => ({
       username: l.friend.username,
       alias: l.friend.profile?.alias ?? null,
       avatarUrl: l.friend.profile?.avatarUrl ?? null,
+      heartbeat: l.friend.lastHeartbeat ?? null,
+      online: l.friend.online ? 'online' : 'offline',
     }));
 
     return reply.send({ friends });

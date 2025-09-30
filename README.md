@@ -139,6 +139,14 @@ curl -X POST http://localhost:3000/friends/requests/"id_della_richiesta"/accept 
     "currentPassword": "password_utente"
   }' | jq
 
+Rifiuta una richiesta di amicizia in attesa
+curl -X DELETE http://localhost:3000/friends/requests/"id_della_richiesta" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "nome_utente",
+    "currentPassword": "password_utente"
+  }'
+
 Rimuovi un utente dalla lista amici
 curl -X DELETE http://localhost:3000/friends/nome_utente_da_rimuovere \
   -H "Content-Type: application/json" \
