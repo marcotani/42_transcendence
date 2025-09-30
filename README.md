@@ -6,6 +6,8 @@ sudo docker compose build
 sudo docker compose up
 sudo docker compose down
 
+Se succedono cose strane: sudo docker compose down --volumes --remove-orphans
+
 ---------- INFO FRONTEND & BACKEND ----------
 
 Backend disponibile a http://localhost:3000

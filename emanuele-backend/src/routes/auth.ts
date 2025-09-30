@@ -37,7 +37,7 @@ export default async function authRoutes(app: FastifyInstance) {
           password_hash: hash,
           password_salt: salt,
           online: false,
-          profile: { create: { bio: '', gdpr: false } },
+          profile: { create: { bio: '', gdpr: false, alias: username } },
           stats: { create: {
             botWins: 0,
             botLosses: 0,
