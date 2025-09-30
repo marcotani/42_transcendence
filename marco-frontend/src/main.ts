@@ -193,6 +193,43 @@ const routes: { [key: string]: string } = {
     </div>
     <button id='back-home-pong' class='mt-8 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
   </div>`,
+  'friends': `<div class='max-w-4xl mx-auto mt-8 p-6 bg-gray-900 rounded-lg shadow-lg'>
+    <h2 class='text-3xl font-bold mb-6 text-center'>Friends</h2>
+    
+    <!-- Send Friend Request Section -->
+    <div class='mb-8 p-4 bg-gray-800 rounded-lg'>
+      <h3 class='text-xl font-semibold mb-4'>Send Friend Request</h3>
+      <form id='send-friend-request-form' class='flex space-x-2'>
+        <input type='text' id='friend-username' placeholder='Enter username' class='flex-1 px-3 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-400' required />
+        <button type='submit' class='px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-purple-400'>Send Request</button>
+      </form>
+      <div id='send-request-status' class='mt-2 text-sm'></div>
+    </div>
+
+    <!-- Pending Friend Requests Section -->
+    <div class='mb-8 p-4 bg-gray-800 rounded-lg'>
+      <h3 class='text-xl font-semibold mb-4'>Pending Requests</h3>
+      <div id='pending-requests'>
+        <div class='text-center py-4'>
+          <div class='inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-white'></div>
+          <p class='mt-2 text-gray-400'>Loading requests...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Friends List Section -->
+    <div class='p-4 bg-gray-800 rounded-lg'>
+      <h3 class='text-xl font-semibold mb-4'>Your Friends</h3>
+      <div id='friends-list'>
+        <div class='text-center py-4'>
+          <div class='inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-white'></div>
+          <p class='mt-2 text-gray-400'>Loading friends...</p>
+        </div>
+      </div>
+    </div>
+
+    <button id='back-home-friends' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`,
   'edit-profile': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
     <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Edit Profile</h2>
   <form id='edit-profile-form' class='space-y-4' method='POST' enctype='multipart/form-data'>
@@ -278,6 +315,12 @@ function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRen
   if (username) {
     localStorage.setItem('loggedInUser', username);
     
+    // Start heartbeat for logged-in user
+    startHeartbeat();
+    
+    // Update friends count
+    setTimeout(() => updateFriendsCount(), 1000);
+    
     // If a new avatar URL is explicitly provided, use it immediately
     if (newAvatarUrl !== undefined) {
       loggedInUserAvatar = newAvatarUrl;
@@ -310,9 +353,56 @@ function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRen
         render(window.location.hash.replace('#', ''));
       });
   } else {
+    // Stop heartbeat when logging out
+    stopHeartbeat();
     localStorage.removeItem('loggedInUser');
     localStorage.removeItem('loggedInUserAvatar');
     loggedInUserAvatar = null;
+  }
+}
+
+// Heartbeat functionality for tracking online status
+let heartbeatInterval: number | null = null;
+const HEARTBEAT_INTERVAL_MS = 30000; // 30 seconds
+
+async function sendHeartbeat() {
+  if (!loggedInUser) return;
+  
+  try {
+    // First get the user ID
+    const userRes = await fetch(`${API_BASE}/users/${loggedInUser}`);
+    const user = await userRes.json();
+    if (!user || !user.id) return;
+    
+    // Send heartbeat
+    await fetch(`${API_BASE}/api/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id })
+    });
+  } catch (error) {
+    console.error('Failed to send heartbeat:', error);
+  }
+}
+
+function startHeartbeat() {
+  if (heartbeatInterval) return; // Already running
+  
+  if (loggedInUser) {
+    // Send initial heartbeat immediately
+    sendHeartbeat();
+    
+    // Set up periodic heartbeat
+    heartbeatInterval = window.setInterval(() => {
+      sendHeartbeat();
+    }, HEARTBEAT_INTERVAL_MS);
+  }
+}
+
+function stopHeartbeat() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
   }
 }
 
@@ -398,6 +488,290 @@ function initializeOptionsPage(): void {
   }
 }
 
+// Friends page functionality
+async function initializeFriendsPage() {
+  if (!loggedInUser) return;
+
+  // Load initial data
+  loadPendingRequests();
+  loadFriendsList();
+  updateFriendsCount();
+
+  // Set up form listeners
+  const sendRequestForm = document.getElementById('send-friend-request-form') as HTMLFormElement;
+  const backButton = document.getElementById('back-home-friends') as HTMLButtonElement;
+
+  if (sendRequestForm) {
+    sendRequestForm.addEventListener('submit', handleSendFriendRequest);
+  }
+
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      window.location.hash = '';
+    });
+  }
+}
+
+async function handleSendFriendRequest(e: Event) {
+  e.preventDefault();
+  if (!loggedInUser) return;
+
+  const form = e.target as HTMLFormElement;
+  const usernameInput = document.getElementById('friend-username') as HTMLInputElement;
+  const statusDiv = document.getElementById('send-request-status') as HTMLDivElement;
+  const toUsername = usernameInput.value.trim();
+
+  if (!toUsername) {
+    showStatus(statusDiv, 'Please enter a username', 'error');
+    return;
+  }
+
+  try {
+    // Get current user's password (we'll need a simpler auth method in the future)
+    const password = prompt('Enter your password to send friend request:');
+    if (!password) return;
+
+    const response = await fetch(`${API_BASE}/friends/requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fromUsername: loggedInUser,
+        currentPassword: password,
+        toUsername: toUsername
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      showStatus(statusDiv, 'Friend request sent successfully!', 'success');
+      usernameInput.value = '';
+      loadPendingRequests(); // Refresh pending requests
+    } else {
+      showStatus(statusDiv, result.error || 'Failed to send friend request', 'error');
+    }
+  } catch (error) {
+    showStatus(statusDiv, 'Error sending friend request', 'error');
+    console.error('Error:', error);
+  }
+}
+
+async function loadPendingRequests() {
+  if (!loggedInUser) return;
+
+  const container = document.getElementById('pending-requests');
+  if (!container) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/friends/requests?for=${loggedInUser}`);
+    const data = await response.json();
+
+    if (response.ok) {
+      const { incoming, outgoing } = data;
+      let html = '';
+
+      if (incoming.length === 0 && outgoing.length === 0) {
+        html = '<p class="text-gray-400 text-center">No pending requests</p>';
+      } else {
+        if (incoming.length > 0) {
+          html += '<h4 class="font-semibold mb-2">Incoming Requests</h4>';
+          incoming.forEach((req: any) => {
+            html += `
+              <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
+                <span>${req.fromUser.username}</span>
+                <div class="space-x-2">
+                  <button class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm" onclick="acceptFriendRequest(${req.id})">Accept</button>
+                  <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm" onclick="rejectFriendRequest(${req.id})">Reject</button>
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        if (outgoing.length > 0) {
+          html += '<h4 class="font-semibold mb-2 mt-4">Outgoing Requests</h4>';
+          outgoing.forEach((req: any) => {
+            html += `
+              <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
+                <span>${req.toUser.username}</span>
+                <span class="text-gray-400 text-sm">Pending...</span>
+              </div>
+            `;
+          });
+        }
+      }
+
+      container.innerHTML = html;
+    }
+  } catch (error) {
+    console.error('Error loading pending requests:', error);
+    container.innerHTML = '<p class="text-red-400 text-center">Error loading requests</p>';
+  }
+}
+
+async function loadFriendsList() {
+  if (!loggedInUser) return;
+
+  const container = document.getElementById('friends-list');
+  if (!container) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/friends/${loggedInUser}`);
+    const data = await response.json();
+
+    if (response.ok) {
+      const { friends } = data;
+      let html = '';
+
+      if (friends.length === 0) {
+        html = '<p class="text-gray-400 text-center">No friends yet</p>';
+      } else {
+        friends.forEach((friend: any) => {
+          const avatarUrl = friend.avatarUrl 
+            ? (friend.avatarUrl.startsWith('/') ? API_BASE + friend.avatarUrl : friend.avatarUrl)
+            : `${API_BASE}/static/default_avatar.png`;
+          
+          html += `
+            <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
+              <div class="flex items-center space-x-3">
+                <img src="${avatarUrl}" alt="Avatar" class="w-8 h-8 rounded-full object-cover bg-gray-600" />
+                <div>
+                  <button class="text-blue-400 hover:text-blue-300 font-medium" onclick="viewProfile('${friend.username}')">${friend.username}</button>
+                  ${friend.alias ? `<p class="text-gray-400 text-sm">${friend.alias}</p>` : ''}
+                </div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-gray-500 rounded-full" title="Status unknown"></span>
+                <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm" onclick="removeFriend('${friend.username}')">Remove</button>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      container.innerHTML = html;
+    }
+  } catch (error) {
+    console.error('Error loading friends list:', error);
+    container.innerHTML = '<p class="text-red-400 text-center">Error loading friends</p>';
+  }
+}
+
+async function acceptFriendRequest(requestId: number) {
+  if (!loggedInUser) return;
+
+  try {
+    const password = prompt('Enter your password to accept friend request:');
+    if (!password) return;
+
+    const response = await fetch(`${API_BASE}/friends/requests/${requestId}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loggedInUser,
+        currentPassword: password
+      })
+    });
+
+    if (response.ok) {
+      loadPendingRequests(); // Refresh pending requests
+      loadFriendsList(); // Refresh friends list
+      updateFriendsCount(); // Update friends count
+    } else {
+      const error = await response.json();
+      alert(error.error || 'Failed to accept friend request');
+    }
+  } catch (error) {
+    console.error('Error accepting friend request:', error);
+    alert('Error accepting friend request');
+  }
+}
+
+function rejectFriendRequest(requestId: number) {
+  // TODO: Implement when backend endpoint is available
+  alert('Reject functionality will be available soon');
+}
+
+async function removeFriend(friendUsername: string) {
+  if (!loggedInUser) return;
+
+  const confirmed = confirm(`Are you sure you want to remove ${friendUsername} from your friends?`);
+  if (!confirmed) return;
+
+  try {
+    const password = prompt('Enter your password to remove friend:');
+    if (!password) return;
+
+    const response = await fetch(`${API_BASE}/friends/${friendUsername}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loggedInUser,
+        currentPassword: password
+      })
+    });
+
+    if (response.ok) {
+      loadFriendsList(); // Refresh friends list
+      updateFriendsCount(); // Update friends count
+    } else {
+      const error = await response.json();
+      alert(error.error || 'Failed to remove friend');
+    }
+  } catch (error) {
+    console.error('Error removing friend:', error);
+    alert('Error removing friend');
+  }
+}
+
+function viewProfile(username: string) {
+  window.location.hash = `#profile/${username}`;
+}
+
+async function updateFriendsCount() {
+  // For now, just show pending requests count
+  // Later we can enhance this to show online friends count
+  if (!loggedInUser) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/friends/requests?for=${loggedInUser}`);
+    const data = await response.json();
+    
+    if (response.ok) {
+      const pendingCount = data.incoming.length;
+      const countElement = document.getElementById('friends-count');
+      if (countElement) {
+        countElement.textContent = pendingCount > 0 ? pendingCount.toString() : '0';
+        // Change button color if there are pending requests
+        const friendsBtn = document.getElementById('friends-btn');
+        if (friendsBtn) {
+          if (pendingCount > 0) {
+            friendsBtn.className = friendsBtn.className.replace('bg-purple-600 hover:bg-purple-700', 'bg-orange-600 hover:bg-orange-700');
+          } else {
+            friendsBtn.className = friendsBtn.className.replace('bg-orange-600 hover:bg-orange-700', 'bg-purple-600 hover:bg-purple-700');
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error updating friends count:', error);
+  }
+}
+
+function showStatus(element: HTMLElement, message: string, type: 'success' | 'error') {
+  element.textContent = message;
+  element.className = type === 'success' ? 'mt-2 text-sm text-green-400' : 'mt-2 text-sm text-red-400';
+  setTimeout(() => {
+    element.textContent = '';
+  }, 3000);
+}
+
+// Make functions globally available for onclick handlers
+(window as any).acceptFriendRequest = acceptFriendRequest;
+(window as any).rejectFriendRequest = rejectFriendRequest;
+(window as any).removeFriend = removeFriend;
+(window as any).viewProfile = viewProfile;
+
 function render(route: string) {
   const lang = getLang();
   const t = translations[lang];
@@ -450,7 +824,13 @@ function render(route: string) {
       // Show SVG icon only when no avatar URL is available
       avatarImg = `<span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
     }
-    topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center'>
+    topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center space-x-2'>
+      <button id='friends-btn' class='px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded border border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-400 flex items-center' aria-label='Friends'>
+        <svg width='20' height='20' fill='currentColor' viewBox='0 0 24 24' class='mr-1'>
+          <path d='M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM4 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM12 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM21 14v3c0 1.11-.89 2-2 2H5c-1.11 0-2-.89-2-2v-3c0-1.11.89-2 2-2h14c1.11 0 2 .89 2 2z'/>
+        </svg>
+        <span id='friends-count'>0</span>
+      </button>
       <div class='relative'>
         <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400 flex items-center' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${avatarImg}<span>${loggedInUser}</span></button>
         <div id='user-dropdown-menu' class='absolute right-0 top-full mt-1 w-40 bg-gray-900 border border-gray-700 rounded shadow-lg hidden' role='menu' aria-label='User menu'>
@@ -498,6 +878,10 @@ function attachPageSpecificListeners(route: string) {
     attachedListeners.add('options');
     setTimeout(() => initializeOptionsPage(), 0);
   }
+  if (route === 'friends' && !attachedListeners.has('friends')) {
+    attachedListeners.add('friends');
+    setTimeout(() => initializeFriendsPage(), 0);
+  }
 }
 
 function clearPageSpecificListeners() {
@@ -516,6 +900,9 @@ function attachMenuListeners() {
   });
   document.getElementById('leaderboard')?.addEventListener('click', () => {
     window.location.hash = '#leaderboard';
+  });
+  document.getElementById('friends-btn')?.addEventListener('click', () => {
+    window.location.hash = '#friends';
   });
   document.getElementById('login-btn')?.addEventListener('click', () => {
     window.location.hash = '#login';
@@ -1777,5 +2164,18 @@ window.addEventListener('hashchange', () => {
   render(newRoute);
   // Note: attachPageSpecificListeners is now called within render(), so no need to duplicate here
 });
+
+// Cleanup heartbeat on page unload
+window.addEventListener('beforeunload', () => {
+  stopHeartbeat();
+});
+
+// Start heartbeat if user is already logged in
+if (loggedInUser) {
+  startHeartbeat();
+  // Update friends count after a short delay to ensure UI is loaded
+  setTimeout(() => updateFriendsCount(), 1500);
+}
+
 // Initial render
 render(window.location.hash.replace('#', ''));
