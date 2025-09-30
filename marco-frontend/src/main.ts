@@ -310,6 +310,10 @@ let loggedInUser: string | null = localStorage.getItem('loggedInUser');
 // Store avatar URL for logged-in user
 let loggedInUserAvatar: string | null = localStorage.getItem('loggedInUserAvatar');
 
+// Store current friends counts to avoid flashing 0s during page navigation
+let currentOnlineFriendsCount: number = parseInt(localStorage.getItem('currentOnlineFriendsCount') || '0');
+let currentPendingRequestsCount: number = parseInt(localStorage.getItem('currentPendingRequestsCount') || '0');
+
 function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRender: boolean = false) {
   loggedInUser = username;
   if (username) {
@@ -357,7 +361,11 @@ function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRen
     stopHeartbeat();
     localStorage.removeItem('loggedInUser');
     localStorage.removeItem('loggedInUserAvatar');
+    localStorage.removeItem('currentOnlineFriendsCount');
+    localStorage.removeItem('currentPendingRequestsCount');
     loggedInUserAvatar = null;
+    currentOnlineFriendsCount = 0;
+    currentPendingRequestsCount = 0;
   }
 }
 
@@ -380,6 +388,9 @@ async function sendHeartbeat() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: user.id })
     });
+    
+    // Update friends count to keep the button updated across all pages
+    updateFriendsCount();
   } catch (error) {
     console.error('Failed to send heartbeat:', error);
   }
@@ -594,7 +605,10 @@ async function loadPendingRequests() {
             html += `
               <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
                 <span>${req.toUser.username}</span>
-                <span class="text-gray-400 text-sm">Pending...</span>
+                <div class="flex items-center space-x-2">
+                  <span class="text-gray-400 text-sm">Pending...</span>
+                  <button class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm" onclick="cancelFriendRequest(${req.id})">Cancel</button>
+                </div>
               </div>
             `;
           });
@@ -626,10 +640,35 @@ async function loadFriendsList() {
       if (friends.length === 0) {
         html = '<p class="text-gray-400 text-center">No friends yet</p>';
       } else {
-        friends.forEach((friend: any) => {
+        // Sort friends to prioritize online users first
+        const sortedFriends = friends.sort((a: any, b: any) => {
+          const isAOnline = a.online === 'online' && a.heartbeat && 
+                           new Date(a.heartbeat) > new Date(Date.now() - 2 * 60 * 1000);
+          const isBOnline = b.online === 'online' && b.heartbeat && 
+                           new Date(b.heartbeat) > new Date(Date.now() - 2 * 60 * 1000);
+          
+          // Online friends first, then offline friends
+          if (isAOnline && !isBOnline) return -1;
+          if (!isAOnline && isBOnline) return 1;
+          
+          // If both have same online status, sort alphabetically by username
+          return a.username.localeCompare(b.username);
+        });
+
+        sortedFriends.forEach((friend: any) => {
           const avatarUrl = friend.avatarUrl 
             ? (friend.avatarUrl.startsWith('/') ? API_BASE + friend.avatarUrl : friend.avatarUrl)
             : `${API_BASE}/static/default_avatar.png`;
+          
+          // Determine online status with proper logic
+          const isOnline = friend.online === 'online' && friend.heartbeat && 
+                          new Date(friend.heartbeat) > new Date(Date.now() - 2 * 60 * 1000);
+          
+          const onlineIndicator = isOnline 
+            ? '<span class="w-2 h-2 bg-green-500 rounded-full" title="Online"></span>'
+            : '<span class="w-2 h-2 bg-gray-500 rounded-full" title="Offline"></span>';
+          
+          const onlineText = isOnline ? 'Online' : 'Offline';
           
           html += `
             <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
@@ -641,7 +680,10 @@ async function loadFriendsList() {
                 </div>
               </div>
               <div class="flex items-center space-x-2">
-                <span class="w-2 h-2 bg-gray-500 rounded-full" title="Status unknown"></span>
+                <div class="flex items-center space-x-1">
+                  ${onlineIndicator}
+                  <span class="text-xs text-gray-400">${onlineText}</span>
+                </div>
                 <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm" onclick="removeFriend('${friend.username}')">Remove</button>
               </div>
             </div>
@@ -687,9 +729,68 @@ async function acceptFriendRequest(requestId: number) {
   }
 }
 
-function rejectFriendRequest(requestId: number) {
-  // TODO: Implement when backend endpoint is available
-  alert('Reject functionality will be available soon');
+async function rejectFriendRequest(requestId: number) {
+  if (!loggedInUser) return;
+
+  const confirmed = confirm('Are you sure you want to reject this friend request?');
+  if (!confirmed) return;
+
+  try {
+    const password = prompt('Enter your password to reject friend request:');
+    if (!password) return;
+
+    const response = await fetch(`${API_BASE}/friends/requests/${requestId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loggedInUser,
+        currentPassword: password
+      })
+    });
+
+    if (response.ok) {
+      loadPendingRequests(); // Refresh pending requests
+      updateFriendsCount(); // Update friends count
+    } else {
+      const error = await response.json();
+      alert(error.error || 'Failed to reject friend request');
+    }
+  } catch (error) {
+    console.error('Error rejecting friend request:', error);
+    alert('Error rejecting friend request');
+  }
+}
+
+async function cancelFriendRequest(requestId: number) {
+  if (!loggedInUser) return;
+
+  const confirmed = confirm('Are you sure you want to cancel this friend request?');
+  if (!confirmed) return;
+
+  try {
+    const password = prompt('Enter your password to cancel friend request:');
+    if (!password) return;
+
+    const response = await fetch(`${API_BASE}/friends/requests/${requestId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loggedInUser,
+        currentPassword: password
+      })
+    });
+
+    if (response.ok) {
+      loadPendingRequests(); // Refresh pending requests
+      updateFriendsCount(); // Update friends count
+    } else {
+      const error = await response.json();
+      alert(error.error || 'Failed to cancel friend request');
+    }
+  } catch (error) {
+    console.error('Error canceling friend request:', error);
+    alert('Error canceling friend request');
+  }
 }
 
 async function removeFriend(friendUsername: string) {
@@ -729,27 +830,52 @@ function viewProfile(username: string) {
 }
 
 async function updateFriendsCount() {
-  // For now, just show pending requests count
-  // Later we can enhance this to show online friends count
   if (!loggedInUser) return;
 
   try {
-    const response = await fetch(`${API_BASE}/friends/requests?for=${loggedInUser}`);
-    const data = await response.json();
+    // Get pending requests count
+    const requestsResponse = await fetch(`${API_BASE}/friends/requests?for=${loggedInUser}`);
+    const requestsData = await requestsResponse.json();
     
-    if (response.ok) {
-      const pendingCount = data.incoming.length;
-      const countElement = document.getElementById('friends-count');
-      if (countElement) {
-        countElement.textContent = pendingCount > 0 ? pendingCount.toString() : '0';
-        // Change button color if there are pending requests
-        const friendsBtn = document.getElementById('friends-btn');
-        if (friendsBtn) {
-          if (pendingCount > 0) {
-            friendsBtn.className = friendsBtn.className.replace('bg-purple-600 hover:bg-purple-700', 'bg-orange-600 hover:bg-orange-700');
-          } else {
-            friendsBtn.className = friendsBtn.className.replace('bg-orange-600 hover:bg-orange-700', 'bg-purple-600 hover:bg-purple-700');
-          }
+    // Get friends list with online status
+    const friendsResponse = await fetch(`${API_BASE}/friends/${loggedInUser}`);
+    const friendsData = await friendsResponse.json();
+    
+    if (requestsResponse.ok && friendsResponse.ok) {
+      const pendingCount = requestsData.incoming.length;
+      const friends = friendsData.friends || [];
+      
+      // Count online friends (those with recent heartbeat)
+      const onlineFriendsCount = friends.filter((friend: any) => {
+        return friend.online === 'online' && friend.heartbeat && 
+               new Date(friend.heartbeat) > new Date(Date.now() - 2 * 60 * 1000);
+      }).length;
+      
+      // Store the counts in global variables and localStorage to avoid flashing 0s
+      currentOnlineFriendsCount = onlineFriendsCount;
+      currentPendingRequestsCount = pendingCount;
+      localStorage.setItem('currentOnlineFriendsCount', onlineFriendsCount.toString());
+      localStorage.setItem('currentPendingRequestsCount', pendingCount.toString());
+      
+      // Update both counts
+      const pendingElement = document.getElementById('pending-requests-count');
+      const onlineElement = document.getElementById('friends-online-count');
+      
+      if (pendingElement) {
+        pendingElement.textContent = pendingCount.toString();
+      }
+      
+      if (onlineElement) {
+        onlineElement.textContent = onlineFriendsCount.toString();
+      }
+      
+      // Change button color if there are pending requests
+      const friendsBtn = document.getElementById('friends-btn');
+      if (friendsBtn) {
+        if (pendingCount > 0) {
+          friendsBtn.className = friendsBtn.className.replace('bg-purple-600 hover:bg-purple-700', 'bg-orange-600 hover:bg-orange-700');
+        } else {
+          friendsBtn.className = friendsBtn.className.replace('bg-orange-600 hover:bg-orange-700', 'bg-purple-600 hover:bg-purple-700');
         }
       }
     }
@@ -769,6 +895,7 @@ function showStatus(element: HTMLElement, message: string, type: 'success' | 'er
 // Make functions globally available for onclick handlers
 (window as any).acceptFriendRequest = acceptFriendRequest;
 (window as any).rejectFriendRequest = rejectFriendRequest;
+(window as any).cancelFriendRequest = cancelFriendRequest;
 (window as any).removeFriend = removeFriend;
 (window as any).viewProfile = viewProfile;
 
@@ -819,17 +946,21 @@ function render(route: string) {
         const cacheBuster = localStorage.getItem('avatarCacheBuster') || Date.now().toString();
         avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 'v=' + cacheBuster;
       }
-      avatarImg = `<img src='${avatarUrl}' alt='User Avatar' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" /><span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle; display:none;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
+      avatarImg = `<img src='${avatarUrl}' alt='' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" /><span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle; display:none;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
     } else {
       // Show SVG icon only when no avatar URL is available
       avatarImg = `<span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
     }
     topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center space-x-2'>
-      <button id='friends-btn' class='px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded border border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-400 flex items-center' aria-label='Friends'>
-        <svg width='20' height='20' fill='currentColor' viewBox='0 0 24 24' class='mr-1'>
-          <path d='M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM4 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM12 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM21 14v3c0 1.11-.89 2-2 2H5c-1.11 0-2-.89-2-2v-3c0-1.11.89-2 2-2h14c1.11 0 2 .89 2 2z'/>
-        </svg>
-        <span id='friends-count'>0</span>
+      <button id='friends-btn' class='px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded border border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-400 flex items-center space-x-2' aria-label='Friends'>
+        <div class='flex items-center space-x-1'>
+          <img src='/public/static/icons/friends_online.svg' alt='Friends' class='w-6 h-6' />
+          <span id='friends-online-count'>${currentOnlineFriendsCount}</span>
+        </div>
+        <div class='flex items-center space-x-1'>
+          <img src='/public/static/icons/notification.svg' alt='Notifications' class='w-6 h-6' />
+          <span id='pending-requests-count'>${currentPendingRequestsCount}</span>
+        </div>
       </button>
       <div class='relative'>
         <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400 flex items-center' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${avatarImg}<span>${loggedInUser}</span></button>
@@ -852,6 +983,11 @@ function render(route: string) {
   attachLoginListeners();
   attachUserDropdownListeners();
   attachPongListeners();
+  
+  // Update friends count after rendering to restore correct values
+  if (loggedInUser) {
+    setTimeout(() => updateFriendsCount(), 100);
+  }
   
   // Always check for page-specific listeners after rendering
   attachPageSpecificListeners(route);

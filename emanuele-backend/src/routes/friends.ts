@@ -109,11 +109,42 @@ export default async function friendsRoutes(app: FastifyInstance) {
     if (!request) return reply.code(404).send({ error: 'Richiesta non trovata' });
     if (request.toUserId !== me.id) return reply.code(403).send({ error: 'Non sei il destinatario' });
 
-    await app.prisma.$transaction([
-      app.prisma.friend.create({ data: { userId: request.fromUserId, friendId: request.toUserId } }),
-      app.prisma.friend.create({ data: { userId: request.toUserId, friendId: request.fromUserId } }),
-      app.prisma.friendRequest.update({ where: { id: request.id }, data: { status: 'ACCEPTED' } }),
-    ]);
+    try {
+      // First, clean up any existing ACCEPTED friend requests between these users
+      await app.prisma.friendRequest.deleteMany({
+        where: {
+          OR: [
+            { fromUserId: request.fromUserId, toUserId: request.toUserId, status: 'ACCEPTED' },
+            { fromUserId: request.toUserId, toUserId: request.fromUserId, status: 'ACCEPTED' }
+          ]
+        }
+      });
+
+      // Check if friendship already exists to avoid duplicates
+      const existingFriend1 = await app.prisma.friend.findUnique({
+        where: { userId_friendId: { userId: request.fromUserId, friendId: request.toUserId } }
+      });
+      const existingFriend2 = await app.prisma.friend.findUnique({
+        where: { userId_friendId: { userId: request.toUserId, friendId: request.fromUserId } }
+      });
+
+      const operations = [];
+      
+      if (!existingFriend1) {
+        operations.push(app.prisma.friend.create({ data: { userId: request.fromUserId, friendId: request.toUserId } }));
+      }
+      if (!existingFriend2) {
+        operations.push(app.prisma.friend.create({ data: { userId: request.toUserId, friendId: request.fromUserId } }));
+      }
+      
+      operations.push(app.prisma.friendRequest.update({ where: { id: request.id }, data: { status: 'ACCEPTED' } }));
+
+      await app.prisma.$transaction(operations);
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      console.error('Request details:', { fromUserId: request.fromUserId, toUserId: request.toUserId, requestId: request.id });
+      return reply.code(500).send({ error: 'Errore interno del server', details: error instanceof Error ? error.message : 'Unknown error' });
+    }
 
     return reply.send({ success: true });
   });
@@ -129,12 +160,23 @@ export default async function friendsRoutes(app: FastifyInstance) {
       where: { id: Number(id) },
     });
     if (!request) return reply.code(404).send({ error: 'Richiesta non trovata' });
-    if (request.fromUserId !== me.id) return reply.code(403).send({ error: 'Non sei il mittente di questa richiesta' });
-    if (request.status !== 'PENDING') return reply.code(400).send({ error: 'Puoi annullare solo richieste in attesa' });
+    
+    // Allow both sender (cancel) and recipient (reject) to delete the request
+    const isSender = request.fromUserId === me.id;
+    const isRecipient = request.toUserId === me.id;
+    
+    if (!isSender && !isRecipient) {
+      return reply.code(403).send({ error: 'Non sei autorizzato a gestire questa richiesta' });
+    }
+    
+    if (request.status !== 'PENDING') {
+      return reply.code(400).send({ error: 'Puoi gestire solo richieste in attesa' });
+    }
 
     await app.prisma.friendRequest.delete({ where: { id: Number(id) } });
 
-    return reply.send({ success: true, message: 'Richiesta di amicizia annullata' });
+    const message = isSender ? 'Richiesta di amicizia annullata' : 'Richiesta di amicizia rifiutata';
+    return reply.send({ success: true, message });
   });
 
   app.get('/friends/:username', async (req, reply) => {
