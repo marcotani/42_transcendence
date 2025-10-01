@@ -4,89 +4,32 @@ import { API_BASE, HEARTBEAT_INTERVAL_MS } from './config/constants.js';
 import { accessibilityTogglesUI } from './utils/dom-helpers.js';
 import { StorageService, Language } from './services/storage.js';
 import { HeartbeatService } from './services/heartbeat.js';
+import { UserSession } from './services/user-session.js';
 import { ProfileManager } from './features/profile.js';
 import { LanguageManager } from './features/language.js';
+import { Authentication } from './features/authentication.js';
+import { FriendsManager } from './features/friends-manager.js';
+import { LeaderboardsManager } from './features/leaderboards-manager.js';
+import { ProfileManager as UserProfileManager } from './features/profile-manager.js';
 import { PongEngine } from './game/pong-engine.js';
 import { routes } from './routing/routes.js';
 import { Router } from './routing/router.js';
 
-let loggedInUser: string | null = StorageService.getLoggedInUser();
-// Store avatar URL for logged-in user
-let loggedInUserAvatar: string | null = StorageService.getLoggedInUserAvatar();
-
-// Expose on window for other modules
-(window as any).loggedInUser = loggedInUser;
-
-// Store current friends counts to avoid flashing 0s during page navigation
-let currentOnlineFriendsCount: number = StorageService.getCurrentOnlineFriendsCount();
-let currentPendingRequestsCount: number = StorageService.getCurrentPendingRequestsCount();
-
-export function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRender: boolean = false) {
-  loggedInUser = username;
-  (window as any).loggedInUser = username; // Keep window in sync
-  if (username) {
-    StorageService.setLoggedInUser(username);
-    
-    // Start heartbeat for logged-in user
-    HeartbeatService.start(username);
-    
-    // Update friends count
-    setTimeout(() => Router.updateFriendsCount(), 1000);
-    
-    // If a new avatar URL is explicitly provided, use it immediately
-    if (newAvatarUrl !== undefined) {
-      loggedInUserAvatar = newAvatarUrl;
-      StorageService.setLoggedInUserAvatar(newAvatarUrl);
-      // Update cache buster for immediate avatar refresh
-      if (newAvatarUrl && newAvatarUrl.includes('/uploads/')) {
-        StorageService.setAvatarCacheBuster();
-      }
-      // Re-render to update avatar immediately (unless skipRender is true)
-      if (!skipRender) {
-        render(window.location.hash.replace('#', ''));
-      }
-      return;
-    }
-    
-    // Fetch avatar URL for the user with cache-busting
-    const cacheBuster = Date.now();
-    fetch(`${API_BASE}/users/${username}?_t=${cacheBuster}`)
-      .then(res => res.json())
-      .then(user => {
-        const avatarUrl = user.profile?.avatarUrl || null;
-        loggedInUserAvatar = avatarUrl;
-        StorageService.setLoggedInUserAvatar(avatarUrl);
-        // Re-render to update avatar if needed
-        render(window.location.hash.replace('#', ''));
-      })
-      .catch(() => {
-        loggedInUserAvatar = null;
-        StorageService.setLoggedInUserAvatar(null);
-        render(window.location.hash.replace('#', ''));
-      });
-  } else {
-    // Stop heartbeat when logging out
-    HeartbeatService.stop();
-    StorageService.clearUserData();
-    loggedInUserAvatar = null;
-    currentOnlineFriendsCount = 0;
-    currentPendingRequestsCount = 0;
-  }
-}
-
-// Expose setLoggedInUser on window for other modules
-(window as any).setLoggedInUser = setLoggedInUser;
-
-function generateViewProfilePage(username: string): string {
-  return Router.generateViewProfilePage(username);
-}
-
-async function loadUserProfile(username: string) {
-  return Router.loadUserProfile(username);
-}
+// Initialize UserSession and expose values for backward compatibility
+const loggedInUser = UserSession.getCurrentUser();
+const loggedInUserAvatar = UserSession.getCurrentUserAvatar();
+const currentOnlineFriendsCount = UserSession.getCurrentOnlineFriendsCount();
+const currentPendingRequestsCount = UserSession.getCurrentPendingRequestsCount();
+export const setLoggedInUser = UserSession.setLoggedInUser;
 
 function render(route: string) {
-  Router.render(route, loggedInUser, loggedInUserAvatar, currentOnlineFriendsCount, currentPendingRequestsCount);
+  // Get fresh values from UserSession
+  const currentUser = UserSession.getCurrentUser();
+  const currentAvatar = UserSession.getCurrentUserAvatar();
+  const onlineFriendsCount = UserSession.getCurrentOnlineFriendsCount();
+  const pendingRequestsCount = UserSession.getCurrentPendingRequestsCount();
+  
+  Router.render(route, currentUser, currentAvatar, onlineFriendsCount, pendingRequestsCount);
   attachMenuListeners();
   attachLangListener();
   attachAccessibilityListeners();
@@ -95,8 +38,8 @@ function render(route: string) {
   attachPongListeners();
   
   // Update friends count after rendering to restore correct values
-  if (loggedInUser) {
-    setTimeout(() => Router.updateFriendsCount(), 100);
+  if (currentUser) {
+    setTimeout(() => FriendsManager.updateFriendsCount(), 100);
   }
   
   // Always check for page-specific listeners after rendering
@@ -152,96 +95,12 @@ function attachAccessibilityListeners() {
 }
 
 function attachLoginListeners() {
-  document.getElementById('back-home-login')?.addEventListener('click', () => {
-    window.location.hash = '';
+  // Initialize authentication module
+  Authentication.setCallbacks({
+    setLoggedInUser,
+    render
   });
-  document.getElementById('back-home-edit-profile')?.addEventListener('click', () => {
-    window.location.hash = '#profile';
-  });
-  const loginForm = document.getElementById('login-form') as HTMLFormElement | null;
-  if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = (document.getElementById('login-username') as HTMLInputElement).value.trim();
-      const password = (document.getElementById('login-password') as HTMLInputElement).value;
-      const errorDiv = document.getElementById('login-error');
-      if (!username || !password) {
-        if (errorDiv) {
-          errorDiv.textContent = 'Username and password required.';
-          errorDiv.classList.remove('hidden');
-        }
-        return;
-      }
-      if (errorDiv) errorDiv.classList.add('hidden');
-      try {
-        const response = await fetch(`${API_BASE}/api/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          if (errorDiv) {
-            errorDiv.textContent = data.error || 'Authentication failed.';
-            errorDiv.classList.remove('hidden');
-          }
-          return;
-        }
-        setLoggedInUser(data.user.username);
-        alert('Logged in as ' + loggedInUser);
-        window.location.hash = '';
-        render('');
-      } catch (err) {
-        if (errorDiv) {
-          errorDiv.textContent = 'Network error.';
-          errorDiv.classList.remove('hidden');
-        }
-      }
-    });
-  }
-  document.getElementById('back-home-register')?.addEventListener('click', () => {
-    window.location.hash = '';
-  });
-  const registerForm = document.getElementById('register-form') as HTMLFormElement | null;
-  if (registerForm) {
-    registerForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = (document.getElementById('register-username') as HTMLInputElement).value.trim();
-      const email = (document.getElementById('register-email') as HTMLInputElement).value.trim();
-      const password = (document.getElementById('register-password') as HTMLInputElement).value;
-      const errorDiv = document.getElementById('register-error');
-      if (!username || !email || !password) {
-        if (errorDiv) {
-          errorDiv.textContent = 'Username, email and password required.';
-          errorDiv.classList.remove('hidden');
-        }
-        return;
-      }
-      if (errorDiv) errorDiv.classList.add('hidden');
-      try {
-        const response = await fetch(`${API_BASE}/api/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, email, password })
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          if (errorDiv) {
-            errorDiv.textContent = data.message || 'Registration failed.';
-            errorDiv.classList.remove('hidden');
-          }
-          return;
-        }
-        alert('Registered as ' + username);
-        window.location.hash = '';
-      } catch (err) {
-        if (errorDiv) {
-          errorDiv.textContent = 'Network error.';
-          errorDiv.classList.remove('hidden');
-        }
-      }
-    });
-  }
+  Authentication.initialize();
 }
 
 function attachUserDropdownListeners() {
@@ -300,13 +159,8 @@ function attachUserDropdownListeners() {
   });
 }
 
-// Function to create leaderboard table HTML
-async function loadLeaderboards() {
-  return Router.loadLeaderboards();
-}
-
 // Make loadLeaderboards available globally
-(window as any).loadLeaderboards = loadLeaderboards;
+(window as any).loadLeaderboards = LeaderboardsManager.loadLeaderboards;
 
 function attachPongListeners() {
   document.getElementById('pong')?.addEventListener('click', () => {
@@ -334,19 +188,23 @@ window.addEventListener('hashchange', () => {
   // Note: attachPageSpecificListeners is now called within render(), so no need to duplicate here
 });
 
+// Initialize UserSession
+UserSession.initialize(render);
+
 // Cleanup heartbeat on page unload
 window.addEventListener('beforeunload', () => {
   HeartbeatService.stop();
 });
 
 // Setup heartbeat callback for updateFriendsCount
-HeartbeatService.setUpdateFriendsCallback(() => Router.updateFriendsCount());
+HeartbeatService.setUpdateFriendsCallback(() => FriendsManager.updateFriendsCount());
 
 // Start heartbeat if user is already logged in
-if (loggedInUser) {
-  HeartbeatService.start(loggedInUser);
+const currentUser = UserSession.getCurrentUser();
+if (currentUser) {
+  HeartbeatService.start(currentUser);
   // Update friends count after a short delay to ensure UI is loaded
-  setTimeout(() => Router.updateFriendsCount(), 1500);
+  setTimeout(() => FriendsManager.updateFriendsCount(), 1500);
 }
 
 // Initial render
