@@ -443,18 +443,6 @@ export class ProfileManager {
       if (currentSuccessDiv) {
         currentSuccessDiv.textContent = 'Profile updated successfully!';
         currentSuccessDiv.classList.remove('hidden');
-        
-        // Ensure back button works after username change
-        setTimeout(() => {
-          const backButton = document.getElementById('back-home-edit-profile');
-          if (backButton) {
-            const newBackButton = backButton.cloneNode(true) as HTMLElement;
-            backButton.parentNode?.replaceChild(newBackButton, backButton);
-            newBackButton.addEventListener('click', () => {
-              window.location.hash = '';
-            });
-          }
-        }, 100);
       }
       if (currentErrorDiv) {
         currentErrorDiv.classList.add('hidden');
