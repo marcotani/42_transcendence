@@ -1,108 +1,14 @@
-// Multilanguage translations
-const translations: Record<'en'|'it'|'fr', {
-  title: string;
-  login: string;
-  startGame: string;
-  multiplayer: string;
-  options: string;
-  leaderboard: string;
-  startGameTitle: string;
-  startGameDesc: string;
-  multiplayerTitle: string;
-  multiplayerDesc: string;
-  optionsTitle: string;
-  optionsDesc: string;
-  leaderboardTitle: string;
-  leaderboardDesc: string;
-  langLabel: string;
-}> = {
-  en: {
-    title: "Pong Game",
-    login: "Login",
-    startGame: "Start Game",
-    multiplayer: "Multiplayer",
-    options: "Options",
-    leaderboard: "Leaderboard",
-    startGameTitle: "Start Game",
-    startGameDesc: "Game setup will go here.",
-    multiplayerTitle: "Multiplayer",
-    multiplayerDesc: "Multiplayer options will go here.",
-    optionsTitle: "Options",
-    optionsDesc: "Settings will go here.",
-    leaderboardTitle: "Leaderboard",
-    leaderboardDesc: "Leaderboard stats will go here.",
-    langLabel: "Language"
-  },
-  it: {
-    title: "Gioco Pong",
-    login: "Accedi",
-    startGame: "Inizia Gioco",
-    multiplayer: "Multigiocatore",
-    options: "Opzioni",
-    leaderboard: "Classifica",
-    startGameTitle: "Inizia Gioco",
-    startGameDesc: "La configurazione del gioco sarà qui.",
-    multiplayerTitle: "Multigiocatore",
-    multiplayerDesc: "Le opzioni multigiocatore saranno qui.",
-    optionsTitle: "Opzioni",
-    optionsDesc: "Le impostazioni saranno qui.",
-    leaderboardTitle: "Classifica",
-    leaderboardDesc: "Le statistiche della classifica saranno qui.",
-    langLabel: "Lingua"
-  },
-  fr: {
-    title: "Jeu Pong",
-    login: "Connexion",
-    startGame: "Démarrer le jeu",
-    multiplayer: "Multijoueur",
-    options: "Options",
-    leaderboard: "Classement",
-    startGameTitle: "Démarrer le jeu",
-    startGameDesc: "La configuration du jeu sera ici.",
-    multiplayerTitle: "Multijoueur",
-    multiplayerDesc: "Les options multijoueur seront ici.",
-    optionsTitle: "Options",
-    optionsDesc: "Les paramètres seront ici.",
-    leaderboardTitle: "Classement",
-    leaderboardDesc: "Les statistiques du classement seront ici.",
-    langLabel: "Langue"
-  }
-};
-
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? 'http://localhost:3000'
-  : (window.location.hostname === 'host.docker.internal' || window.location.hostname === '0.0.0.0')
-    ? 'http://host.docker.internal:3000'
-    : 'http://backend:3000';
-
-function getLang(): 'en'|'it'|'fr' {
-  const lang = localStorage.getItem('lang');
-  if (lang === 'it' || lang === 'fr') return lang;
-  return 'en';
-}
-
-function setLang(lang: 'en'|'it'|'fr') {
-  localStorage.setItem('lang', lang);
-  render(window.location.hash.replace('#', ''));
-}
-
-function langSwitcherUI(currentLang: 'en'|'it'|'fr') {
-  return `<div class='fixed top-4 left-4 z-50'>
-    <label for='lang-select' class='mr-2'>${translations[currentLang].langLabel}:</label>
-    <select id='lang-select' class='px-2 py-1 rounded bg-gray-800 text-white border border-gray-600'>
-      <option value='en' ${currentLang === 'en' ? 'selected' : ''}>English</option>
-      <option value='it' ${currentLang === 'it' ? 'selected' : ''}>Italiano</option>
-      <option value='fr' ${currentLang === 'fr' ? 'selected' : ''}>Français</option>
-    </select>
-  </div>`;
-}
-
-function accessibilityTogglesUI() {
-  return `<div class='fixed bottom-4 left-4 z-50 flex space-x-2'>
-    <button id='toggle-contrast' class='px-2 py-1 bg-black text-white rounded border border-white focus:outline-none focus:ring-2 focus:ring-white' aria-label='Toggle high contrast' tabindex='0'>🌓</button>
-    <button id='toggle-textsize' class='px-2 py-1 bg-black text-white rounded border border-white focus:outline-none focus:ring-2 focus:ring-white' aria-label='Toggle large text' tabindex='0'>A+</button>
-  </div>`;
-}
+// Import extracted modules
+import { translations } from './config/translations.js';
+import { API_BASE, HEARTBEAT_INTERVAL_MS } from './config/constants.js';
+import { showStatus, accessibilityTogglesUI } from './utils/dom-helpers.js';
+import { GameSettings, GameSettingsService } from './services/game-settings.js';
+import { StorageService, Language } from './services/storage.js';
+import { HeartbeatService } from './services/heartbeat.js';
+import { MatchHistoryManager } from './features/match-history.js';
+import { ProfileManager } from './features/profile.js';
+import { LanguageManager } from './features/language.js';
+import { PongEngine } from './game/pong-engine.js';
 
 // SPA navigation logic
 const routes: { [key: string]: string } = {
@@ -306,21 +212,25 @@ const routes: { [key: string]: string } = {
   </div>`
 };
 
-let loggedInUser: string | null = localStorage.getItem('loggedInUser');
+let loggedInUser: string | null = StorageService.getLoggedInUser();
 // Store avatar URL for logged-in user
-let loggedInUserAvatar: string | null = localStorage.getItem('loggedInUserAvatar');
+let loggedInUserAvatar: string | null = StorageService.getLoggedInUserAvatar();
+
+// Expose on window for other modules
+(window as any).loggedInUser = loggedInUser;
 
 // Store current friends counts to avoid flashing 0s during page navigation
-let currentOnlineFriendsCount: number = parseInt(localStorage.getItem('currentOnlineFriendsCount') || '0');
-let currentPendingRequestsCount: number = parseInt(localStorage.getItem('currentPendingRequestsCount') || '0');
+let currentOnlineFriendsCount: number = StorageService.getCurrentOnlineFriendsCount();
+let currentPendingRequestsCount: number = StorageService.getCurrentPendingRequestsCount();
 
-function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRender: boolean = false) {
+export function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRender: boolean = false) {
   loggedInUser = username;
+  (window as any).loggedInUser = username; // Keep window in sync
   if (username) {
-    localStorage.setItem('loggedInUser', username);
+    StorageService.setLoggedInUser(username);
     
     // Start heartbeat for logged-in user
-    startHeartbeat();
+    HeartbeatService.start(username);
     
     // Update friends count
     setTimeout(() => updateFriendsCount(), 1000);
@@ -328,10 +238,10 @@ function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRen
     // If a new avatar URL is explicitly provided, use it immediately
     if (newAvatarUrl !== undefined) {
       loggedInUserAvatar = newAvatarUrl;
-      localStorage.setItem('loggedInUserAvatar', newAvatarUrl || '');
+      StorageService.setLoggedInUserAvatar(newAvatarUrl);
       // Update cache buster for immediate avatar refresh
       if (newAvatarUrl && newAvatarUrl.includes('/uploads/')) {
-        localStorage.setItem('avatarCacheBuster', Date.now().toString());
+        StorageService.setAvatarCacheBuster();
       }
       // Re-render to update avatar immediately (unless skipRender is true)
       if (!skipRender) {
@@ -347,109 +257,30 @@ function setLoggedInUser(username: string | null, newAvatarUrl?: string, skipRen
       .then(user => {
         const avatarUrl = user.profile?.avatarUrl || null;
         loggedInUserAvatar = avatarUrl;
-        localStorage.setItem('loggedInUserAvatar', avatarUrl || '');
+        StorageService.setLoggedInUserAvatar(avatarUrl);
         // Re-render to update avatar if needed
         render(window.location.hash.replace('#', ''));
       })
       .catch(() => {
         loggedInUserAvatar = null;
-        localStorage.removeItem('loggedInUserAvatar');
+        StorageService.setLoggedInUserAvatar(null);
         render(window.location.hash.replace('#', ''));
       });
   } else {
     // Stop heartbeat when logging out
-    stopHeartbeat();
-    localStorage.removeItem('loggedInUser');
-    localStorage.removeItem('loggedInUserAvatar');
-    localStorage.removeItem('currentOnlineFriendsCount');
-    localStorage.removeItem('currentPendingRequestsCount');
+    HeartbeatService.stop();
+    StorageService.clearUserData();
     loggedInUserAvatar = null;
     currentOnlineFriendsCount = 0;
     currentPendingRequestsCount = 0;
   }
 }
 
-// Heartbeat functionality for tracking online status
-let heartbeatInterval: number | null = null;
-const HEARTBEAT_INTERVAL_MS = 30000; // 30 seconds
-
-async function sendHeartbeat() {
-  if (!loggedInUser) return;
-  
-  try {
-    // First get the user ID
-    const userRes = await fetch(`${API_BASE}/users/${loggedInUser}`);
-    const user = await userRes.json();
-    if (!user || !user.id) return;
-    
-    // Send heartbeat
-    await fetch(`${API_BASE}/api/heartbeat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id })
-    });
-    
-    // Update friends count to keep the button updated across all pages
-    updateFriendsCount();
-  } catch (error) {
-    console.error('Failed to send heartbeat:', error);
-  }
-}
-
-function startHeartbeat() {
-  if (heartbeatInterval) return; // Already running
-  
-  if (loggedInUser) {
-    // Send initial heartbeat immediately
-    sendHeartbeat();
-    
-    // Set up periodic heartbeat
-    heartbeatInterval = window.setInterval(() => {
-      sendHeartbeat();
-    }, HEARTBEAT_INTERVAL_MS);
-  }
-}
-
-function stopHeartbeat() {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = null;
-  }
-}
-
-// Game settings functions
-interface GameSettings {
-  ballSpeed: number;
-  paddleSpeed: number;
-  pointsToWin: number;
-}
-
-function getDefaultGameSettings(): GameSettings {
-  return {
-    ballSpeed: 3,
-    paddleSpeed: 5,
-    pointsToWin: 11
-  };
-}
-
-function saveGameSettings(settings: GameSettings): void {
-  localStorage.setItem('pong-game-settings', JSON.stringify(settings));
-}
-
-function loadGameSettings(): GameSettings {
-  const saved = localStorage.getItem('pong-game-settings');
-  if (saved) {
-    try {
-      return { ...getDefaultGameSettings(), ...JSON.parse(saved) };
-    } catch {
-      return getDefaultGameSettings();
-    }
-  }
-  return getDefaultGameSettings();
-}
+// Expose setLoggedInUser on window for other modules
+(window as any).setLoggedInUser = setLoggedInUser;
 
 function initializeOptionsPage(): void {
-  const settings = loadGameSettings();
+  const settings = GameSettingsService.load();
   
   const ballSpeedSlider = document.getElementById('ball-speed') as HTMLInputElement;
   const ballSpeedValue = document.getElementById('ball-speed-value') as HTMLSpanElement;
@@ -487,7 +318,7 @@ function initializeOptionsPage(): void {
         pointsToWin: parseInt(pointsSelect?.value || '11')
       };
       
-      saveGameSettings(newSettings);
+      GameSettingsService.save(newSettings);
       
       if (saveStatus) {
         saveStatus.textContent = 'Settings saved successfully!';
@@ -854,8 +685,8 @@ async function updateFriendsCount() {
       // Store the counts in global variables and localStorage to avoid flashing 0s
       currentOnlineFriendsCount = onlineFriendsCount;
       currentPendingRequestsCount = pendingCount;
-      localStorage.setItem('currentOnlineFriendsCount', onlineFriendsCount.toString());
-      localStorage.setItem('currentPendingRequestsCount', pendingCount.toString());
+      StorageService.setCurrentOnlineFriendsCount(onlineFriendsCount);
+      StorageService.setCurrentPendingRequestsCount(pendingCount);
       
       // Update both counts
       const pendingElement = document.getElementById('pending-requests-count');
@@ -882,14 +713,6 @@ async function updateFriendsCount() {
   } catch (error) {
     console.error('Error updating friends count:', error);
   }
-}
-
-function showStatus(element: HTMLElement, message: string, type: 'success' | 'error') {
-  element.textContent = message;
-  element.className = type === 'success' ? 'mt-2 text-sm text-green-400' : 'mt-2 text-sm text-red-400';
-  setTimeout(() => {
-    element.textContent = '';
-  }, 3000);
 }
 
 // Make functions globally available for onclick handlers
@@ -980,7 +803,7 @@ async function loadUserProfile(username: string) {
       ` : '';
 
       // Match History HTML
-      const matchHistoryHtml = matchHistoryData ? generateMatchHistoryHtml(matchHistoryData.matches || [], username) : '';
+      const matchHistoryHtml = matchHistoryData ? MatchHistoryManager.generateMatchHistoryHtml(matchHistoryData.matches || [], username) : '';
 
       container.innerHTML = `
         <div class='flex flex-col items-center'>
@@ -1020,7 +843,7 @@ async function loadUserProfile(username: string) {
 }
 
 function render(route: string) {
-  const lang = getLang();
+  const lang = LanguageManager.getLang();
   const t = translations[lang];
   const app = document.getElementById('app');
   if (!app) return;
@@ -1067,7 +890,7 @@ function render(route: string) {
       }
       // Add cache-busting for uploaded avatars only
       if (avatarUrl.includes('/uploads/')) {
-        const cacheBuster = localStorage.getItem('avatarCacheBuster') || Date.now().toString();
+        const cacheBuster = StorageService.getAvatarCacheBuster();
         avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 'v=' + cacheBuster;
       }
       avatarImg = `<img src='${avatarUrl}' alt='' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" /><span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle; display:none;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
@@ -1100,7 +923,7 @@ function render(route: string) {
       <button class='px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400' aria-label='Register' tabindex='0' id='register-btn'>Register</button>
     </div>`;
   }
-  app.innerHTML = langSwitcherUI(lang) + accessibilityTogglesUI() + topRightUI + content;
+  app.innerHTML = LanguageManager.langSwitcherUI(lang) + accessibilityTogglesUI() + topRightUI + content;
   attachMenuListeners();
   attachLangListener();
   attachAccessibilityListeners();
@@ -1124,11 +947,11 @@ function attachPageSpecificListeners(route: string) {
   // Attach page-specific listeners based on current route
   if (route === 'edit-profile' && !attachedListeners.has('edit-profile')) {
     attachedListeners.add('edit-profile');
-    setTimeout(() => attachEditProfileListeners(), 0);
+    setTimeout(() => ProfileManager.attachEditProfilePageListeners(), 0);
   }
   if (route === 'profile' && !attachedListeners.has('profile')) {
     attachedListeners.add('profile');
-    setTimeout(() => attachProfilePageListeners(), 0);
+    setTimeout(() => ProfileManager.attachProfilePageListeners(), 0);
   }
   if (route.startsWith('profile/') && !attachedListeners.has(`view-${route}`)) {
     attachedListeners.add(`view-${route}`);
@@ -1181,10 +1004,7 @@ function attachMenuListeners() {
 }
 
 function attachLangListener() {
-  document.getElementById('lang-select')?.addEventListener('change', (e) => {
-    const lang = (e.target as HTMLSelectElement).value as 'en'|'it'|'fr';
-    setLang(lang);
-  });
+  LanguageManager.attachLangListener(() => render(window.location.hash.replace('#', '')));
 }
 
 function attachAccessibilityListeners() {
@@ -1342,588 +1162,6 @@ function attachUserDropdownListeners() {
   });
 }
 
-function generateMatchHistoryHtml(matches: any[], username?: string): string {
-  if (!matches || matches.length === 0) {
-    return `
-      <div class='bg-gray-800 rounded-lg p-4'>
-        <h3 class='text-lg font-semibold mb-4 text-white'>Match History</h3>
-        <div class='text-gray-400 text-center py-4'>No matches played yet</div>
-      </div>
-    `;
-  }
-
-  // Use provided username or fall back to loggedInUser for backward compatibility
-  const targetUser = username || loggedInUser;
-
-  const matchesHtml = matches.map(match => {
-    const matchDate = new Date(match.matchDate).toLocaleDateString();
-    const isWin = match.userResult === 'WIN';
-    const resultColor = isWin ? 'text-green-400' : 'text-red-400';
-    const resultBg = isWin ? 'bg-green-900' : 'bg-red-900';
-    
-    // Determine opponent name
-    let opponent;
-    if (match.matchType === 'bot') {
-      // For bot matches, show the bot name or "AI"
-      opponent = match.participants.player2BotName || 'AI';
-    } else {
-      // For player matches, show the other player
-      opponent = match.participants.player1 === targetUser 
-        ? match.participants.player2 
-        : match.participants.player1;
-    }
-    
-    // Format match type
-    const typeColor = match.matchType === 'bot' ? 'text-orange-400' : 
-                     match.matchType === 'player' ? 'text-blue-400' : 'text-yellow-400';
-    
-    return `
-      <div class='${resultBg} border-l-4 ${isWin ? 'border-green-400' : 'border-red-400'} rounded-r-lg p-3 mb-2'>
-        <div class='flex justify-between items-center'>
-          <div class='flex-1'>
-            <div class='flex items-center space-x-2'>
-              <span class='${resultColor} font-bold text-sm'>${match.userResult}</span>
-              <span class='${typeColor} text-xs uppercase'>${match.matchType}</span>
-            </div>
-            <div class='text-white font-medium'>vs ${opponent}</div>
-            <div class='text-gray-300 text-sm'>${matchDate}</div>
-          </div>
-          <div class='text-right'>
-            <div class='text-white font-bold text-lg'>
-              ${match.scores.player1Score}-${match.scores.player2Score}
-            </div>
-            <div class='text-gray-400 text-xs'>
-              Winner: ${match.winner}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  return `
-    <div class='bg-gray-800 rounded-lg p-4'>
-      <h3 class='text-lg font-semibold mb-4 text-white'>Match History</h3>
-      <div class='max-h-64 overflow-y-auto'>
-        ${matchesHtml}
-      </div>
-      <div class='text-center mt-3'>
-        <small class='text-gray-400'>Last ${matches.length} matches</small>
-      </div>
-    </div>
-  `;
-}
-
-// Attach listeners and fill data for the profile page
-function attachProfilePageListeners() {
-  // Delete profile button logic
-  const deleteBtn = document.getElementById('delete-profile-btn');
-  if (deleteBtn) {
-    deleteBtn.addEventListener('click', async () => {
-      if (!confirm('Are you sure you want to delete your profile? This action cannot be undone.')) return;
-      if (!confirm('This is your last chance! Do you really want to delete your profile and all your data?')) return;
-      // Prompt for password
-      const password = prompt('Please enter your current password to confirm deletion:');
-      if (!password) return;
-      const errorDiv = document.getElementById('delete-profile-error');
-      errorDiv?.classList.add('hidden');
-      try {
-        const res = await fetch(`${API_BASE}/users/${loggedInUser}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          errorDiv!.textContent = data.error || 'Failed to delete profile.';
-          errorDiv!.classList.remove('hidden');
-        } else {
-          alert('Your profile has been deleted.');
-          setLoggedInUser(null);
-          window.location.hash = '';
-        }
-      } catch (err) {
-        errorDiv!.textContent = 'Network error.';
-        errorDiv!.classList.remove('hidden');
-      }
-    });
-  }
-  if (!loggedInUser) return;
-  // Fetch user info, stats, and match history
-  Promise.all([
-    fetch(`${API_BASE}/users/${loggedInUser}`).then(res => res.json()),
-    fetch(`${API_BASE}/stats/${loggedInUser}`).then(res => res.json()),
-    fetch(`${API_BASE}/matches/history/${loggedInUser}`).then(res => res.json())
-  ]).then(([user, stats, matchHistory]) => {
-    // Avatar
-    let avatarUrl = user.profile?.avatarUrl || '';
-    if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
-      avatarUrl = API_BASE + avatarUrl;
-    }
-    // Add cache-busting query string to force refresh after upload
-    if (avatarUrl && avatarUrl.includes('/uploads/')) {
-      const cacheBuster = localStorage.getItem('avatarCacheBuster') || Date.now().toString();
-      avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 'v=' + cacheBuster;
-    }
-    
-    // Show avatar image (default or uploaded) with SVG fallback
-    const avatarHtml = avatarUrl
-      ? `<img src='${avatarUrl}' alt='avatar' class='w-32 h-32 rounded-full border-4 border-gray-600 bg-gray-700 object-cover mb-2' onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2' style='display:none;'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`
-      : `<span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
-    document.getElementById('profile-avatar')!.innerHTML = avatarHtml;
-    // Alias
-    document.getElementById('profile-alias')!.textContent = user.profile?.alias || user.username;
-    // Username
-    document.getElementById('profile-username')!.textContent = '@' + user.username;
-    // Email (show only if emailVisible is true)
-    const emailDiv = document.getElementById('profile-email');
-    if (emailDiv) {
-      if (user.profile?.emailVisible && user.email && user.email !== '*************') {
-        emailDiv.textContent = user.email;
-        emailDiv.style.display = 'block';
-      } else {
-        emailDiv.textContent = '';
-        emailDiv.style.display = 'none';
-      }
-    }
-    // Bio
-    const bio = user.profile?.bio;
-    const bioDiv = document.getElementById('profile-bio');
-    if (bio && bio.trim()) {
-      bioDiv!.textContent = '';
-      bioDiv!.innerHTML = `<div class='whitespace-pre-line text-gray-300'>${bio}</div>`;
-    } else {
-      bioDiv!.innerHTML = '';
-    }
-    // Stats counters
-    const statsHtml = `
-      <div class='grid grid-cols-2 gap-4 mb-2'>
-        <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-          <div class='text-lg font-semibold text-green-400'>Bot</div>
-          <div class='flex space-x-4 mt-2'>
-            <div class='text-center'>
-              <div class='text-2xl font-bold'>${stats.botWins ?? 0}</div>
-              <div class='text-gray-400 text-sm'>Wins</div>
-            </div>
-            <div class='text-center'>
-              <div class='text-2xl font-bold'>${stats.botLosses ?? 0}</div>
-              <div class='text-gray-400 text-sm'>Losses</div>
-            </div>
-          </div>
-        </div>
-        <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-          <div class='text-lg font-semibold text-blue-400'>Player</div>
-          <div class='flex space-x-4 mt-2'>
-            <div class='text-center'>
-              <div class='text-2xl font-bold'>${stats.playerWins ?? 0}</div>
-              <div class='text-gray-400 text-sm'>Wins</div>
-            </div>
-            <div class='text-center'>
-              <div class='text-2xl font-bold'>${stats.playerLosses ?? 0}</div>
-              <div class='text-gray-400 text-sm'>Losses</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-        <div class='text-lg font-semibold text-yellow-400'>Tournament Wins</div>
-        <div class='text-3xl font-bold mt-2'>${stats.tournamentWins ?? 0}</div>
-      </div>
-    `;
-    document.getElementById('profile-stats-counters')!.innerHTML = statsHtml;
-    
-    // Match History
-    const matchHistoryHtml = generateMatchHistoryHtml(matchHistory.matches || []);
-    document.getElementById('profile-match-history')!.innerHTML = matchHistoryHtml;
-    
-    // Setup paddle color selector after stats are loaded
-    setTimeout(() => {
-      const skinColorSelect = document.getElementById('profile-skinColor') as HTMLSelectElement | null;
-      const skinColorConfirm = document.getElementById('profile-skinColor-confirm') as HTMLButtonElement | null;
-      if (skinColorSelect && skinColorConfirm && loggedInUser) {
-        // Set initial value from user profile  
-        if (user.profile?.skinColor) {
-          skinColorSelect.value = user.profile.skinColor;
-        }
-        skinColorConfirm.onclick = () => {
-          const newColor = skinColorSelect.value;
-          fetch(`${API_BASE}/users/${loggedInUser}/skin`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ skinColor: newColor })
-          })
-            .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
-            .then(() => {
-              document.getElementById('profile-skinColor-success')!.textContent = 'Paddle color updated!';
-              document.getElementById('profile-skinColor-success')!.classList.remove('hidden');
-              document.getElementById('profile-skinColor-error')!.classList.add('hidden');
-            })
-            .catch(err => {
-              document.getElementById('profile-skinColor-error')!.textContent = err.error || 'Failed to update color.';
-              document.getElementById('profile-skinColor-error')!.classList.remove('hidden');
-              document.getElementById('profile-skinColor-success')!.classList.add('hidden');
-            });
-        };
-      }
-    }, 0);
-  });
-  document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
-    window.location.hash = '#edit-profile';
-  });
-  document.getElementById('back-home-profile')?.addEventListener('click', () => {
-    window.location.hash = '';
-  });
-}
-
-// Global flag to prevent multiple game instances
-let isGameRunning = false;
-
-// Basic Pong game logic
-function startBasicPongGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | null) {
-  // Prevent multiple game instances
-  if (isGameRunning) {
-    console.log('Game already running, ignoring start request');
-    return;
-  }
-  
-  isGameRunning = true;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    isGameRunning = false;
-    return;
-  }
-
-  // Load game settings
-  const gameSettings = loadGameSettings();
-  
-  // Function to reset start button when game ends
-  function resetStartButton() {
-    const startBtn = document.getElementById('pong-start') as HTMLButtonElement | null;
-    if (startBtn) {
-      startBtn.disabled = false;
-      startBtn.textContent = 'Start Game';
-    }
-  }
-  let ballX = canvas.width / 2;
-  let ballY = canvas.height / 2;
-  let ballVX = gameSettings.ballSpeed;
-  let ballVY = gameSettings.ballSpeed * 0.7; // Slightly less vertical speed
-  let leftPaddleY = canvas.height / 2 - 40;
-  let rightPaddleY = canvas.height / 2 - 40;
-  const paddleHeight = 80;
-  const paddleWidth = 10;
-  const paddleSpeed = gameSettings.paddleSpeed;
-  let upPressed = false;
-  let downPressed = false;
-  let gameOver = false;
-  let gameAborted = false; // Flag to prevent sending results during navigation
-  let paddleVY = 0;
-  
-  // Score tracking
-  let leftScore = 0;
-  let rightScore = 0;
-  const pointsToWin = gameSettings.pointsToWin;
-
-  // AI simulated keyboard input
-  let aiUpPressed = false;
-  let aiDownPressed = false;
-
-  function aiDecideMove() {
-    // AI only sees the game state once per second
-    // Predict ball position and set aiUpPressed/aiDownPressed
-    const paddleCenter = rightPaddleY + paddleHeight / 2;
-    // Predict ball's future Y position (simulate bounces)
-    let predictedY = ballY;
-    let predictedVY = ballVY;
-    let predictedVX = ballVX;
-    let predictedX = ballX;
-    // Simulate ball movement until it reaches right paddle X
-    while (predictedVX > 0 && predictedX < canvas.width - 30) {
-      predictedX += predictedVX;
-      predictedY += predictedVY;
-      // Bounce off top/bottom
-      if (predictedY < 10) {
-        predictedY = 10 + (10 - predictedY);
-        predictedVY *= -1;
-      } else if (predictedY > canvas.height - 10) {
-        predictedY = (canvas.height - 10) - (predictedY - (canvas.height - 10));
-        predictedVY *= -1;
-      }
-    }
-    // Remove random error for more consistent prediction
-    // predictedY += (Math.random() - 0.5) * 5;
-    // Add a deadzone so AI doesn't constantly move
-    const deadzone = 30;
-    // Only move if paddle is far from predicted position
-    if (Math.abs(predictedY - paddleCenter) > deadzone) {
-      if (predictedY < paddleCenter) {
-        aiUpPressed = true;
-        aiDownPressed = false;
-      } else {
-        aiUpPressed = false;
-        aiDownPressed = true;
-      }
-    } else {
-      aiUpPressed = false;
-      aiDownPressed = false;
-    }
-  }
-
-  // Makes decision every second
-  let aiInterval: number;
-  function startAI() {
-    aiDecideMove();
-    aiInterval = window.setInterval(() => {
-      aiDecideMove();
-    }, 1000);
-  }
-  startAI();
-
-  function aiSimulateKey() {
-    // Simulate keyboard input for right paddle
-    if (aiUpPressed && rightPaddleY > 0) rightPaddleY -= paddleSpeed;
-    if (aiDownPressed && rightPaddleY < canvas.height - paddleHeight) rightPaddleY += paddleSpeed;
-  }
-
-  // Paddle color customization
-  let userPaddleColor = '#FFFFFF';
-  if (loggedInUser) {
-    fetch(`${API_BASE}/users/${loggedInUser}`)
-      .then(res => res.json())
-      .then(user => {
-        userPaddleColor = user.profile?.skinColor || '#FFFFFF';
-      });
-  }
-
-  function draw() {
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw scores
-    ctx.fillStyle = '#fff';
-    ctx.font = '24px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${leftScore}`, canvas.width / 4, 40);
-    ctx.fillText(`${rightScore}`, (canvas.width * 3) / 4, 40);
-    
-    // Draw center line
-    ctx.setLineDash([5, 15]);
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, 0);
-    ctx.lineTo(canvas.width / 2, canvas.height);
-    ctx.strokeStyle = '#fff';
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
-    // Use user's preferred color for left paddle
-    ctx.fillStyle = userPaddleColor;
-    ctx.fillRect(20, leftPaddleY, paddleWidth, paddleHeight);
-    // Right paddle stays white
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(canvas.width - 30, rightPaddleY, paddleWidth, paddleHeight);
-    ctx.beginPath();
-    ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.closePath();
-  }
-
-  // Helper to send match result to backend
-  async function sendMatchResult({ result, player1Score, player2Score, opponent, startedAt, endedAt, duration }: { result: 'win'|'loss', player1Score: number, player2Score: number, opponent: string, startedAt: string, endedAt: string, duration: number }) {
-    if (!loggedInUser) return;
-    // Fetch userId for loggedInUser
-    try {
-      const userRes = await fetch(`${API_BASE}/users/${loggedInUser}`);
-      const user = await userRes.json();
-      if (!user || !user.id) return;
-      
-      // Determine winner ID
-      const winnerId = result === 'win' ? user.id : null; // null for bot wins since bot doesn't have an ID
-      
-      await fetch(`${API_BASE}/matches`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          player1Id: user.id,
-          player2BotName: opponent,
-          player1Score,
-          player2Score,
-          winnerId,
-          matchType: 'bot'
-        })
-      });
-    } catch (e) {
-      console.error('Failed to send match result:', e);
-    }
-  }
-
-  function resetBall() {
-    ballX = canvas.width / 2;
-    ballY = canvas.height / 2;
-    // Randomly choose initial direction but keep the speed setting
-    ballVX = (Math.random() > 0.5 ? 1 : -1) * gameSettings.ballSpeed;
-    ballVY = (Math.random() > 0.5 ? 1 : -1) * (gameSettings.ballSpeed * 0.7);
-  }
-
-  let matchStart = new Date();
-  function update() {
-    // Early exit if game was aborted during navigation
-    if (gameAborted || gameOver) return;
-    
-    let prevPaddleY = leftPaddleY;
-    if (upPressed && leftPaddleY > 0) leftPaddleY -= paddleSpeed;
-    if (downPressed && leftPaddleY < canvas.height - paddleHeight) leftPaddleY += paddleSpeed;
-    paddleVY = leftPaddleY - prevPaddleY;
-    // Simulate AI keyboard input for right paddle
-    aiSimulateKey();
-    ballX += ballVX;
-    ballY += ballVY;
-    // Ball collision with top/bottom
-    if (ballY < 10 || ballY > canvas.height - 10) ballVY *= -1;
-    // Ball collision with left paddle
-    if (
-      ballX - 10 < 30 &&
-      ballY + 10 > leftPaddleY &&
-      ballY - 10 < leftPaddleY + paddleHeight &&
-      ballVX < 0
-    ) {
-      ballX = 30 + 10;
-      const hitPos = ((ballY - leftPaddleY) / paddleHeight) * 2 - 1;
-      let speed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
-      const angle = hitPos * Math.PI / 4;
-      ballVX = Math.abs(speed * Math.cos(angle));
-      ballVY = speed * Math.sin(angle);
-      // Add spin based on paddle movement
-      ballVY += paddleVY * 0.7; // spin factor
-      // Slightly increase speed for more dynamic play
-      const newSpeed = Math.min(Math.sqrt(ballVX * ballVX + ballVY * ballVY) * 1.05, 12);
-      const norm = newSpeed / Math.sqrt(ballVX * ballVX + ballVY * ballVY);
-      ballVX *= norm;
-      ballVY *= norm;
-    }
-    // Ball collision with right paddle
-    if (
-      ballX + 10 > canvas.width - 30 &&
-      ballY + 10 > rightPaddleY &&
-      ballY - 10 < rightPaddleY + paddleHeight &&
-      ballVX > 0
-    ) {
-      ballX = canvas.width - 30 - 10;
-      const hitPos = ((ballY - rightPaddleY) / paddleHeight) * 2 - 1;
-      let speed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
-      const angle = hitPos * Math.PI / 4;
-      ballVX = -Math.abs(speed * Math.cos(angle));
-      ballVY = speed * Math.sin(angle);
-      // Slightly increase speed for more dynamic play
-      const newSpeed = Math.min(Math.sqrt(ballVX * ballVX + ballVY * ballVY) * 1.05, 12);
-      const norm = newSpeed / Math.sqrt(ballVX * ballVX + ballVY * ballVY);
-      ballVX *= norm;
-      ballVY *= norm;
-    }
-    // Ball out of bounds - scoring
-    if (ballX < 0 && !gameAborted) {
-      rightScore++;
-      if (statusDiv) statusDiv.textContent = `Right Player scores! Score: ${leftScore} - ${rightScore}`;
-      
-      if (rightScore >= pointsToWin) {
-        gameOver = true;
-        if (statusDiv) statusDiv.textContent = `Game Over! Right player wins ${rightScore}-${leftScore}!`;
-        resetStartButton();
-        // Send match result: user lost
-        const matchEnd = new Date();
-        sendMatchResult({
-          result: 'loss',
-          player1Score: leftScore,
-          player2Score: rightScore,
-          opponent: 'AI',
-          startedAt: matchStart.toISOString(),
-          endedAt: matchEnd.toISOString(),
-          duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
-        });
-      } else {
-        resetBall();
-        setTimeout(() => {
-          if (statusDiv) statusDiv.textContent = `Score: ${leftScore} - ${rightScore}`;
-        }, 1500);
-      }
-    }
-    if (ballX > canvas.width && !gameAborted) {
-      leftScore++;
-      if (statusDiv) statusDiv.textContent = `Left Player scores! Score: ${leftScore} - ${rightScore}`;
-      
-      if (leftScore >= pointsToWin) {
-        gameOver = true;
-        if (statusDiv) statusDiv.textContent = `Game Over! Left player wins ${leftScore}-${rightScore}!`;
-        resetStartButton();
-        // Send match result: user won
-        const matchEnd = new Date();
-        sendMatchResult({
-          result: 'win',
-          player1Score: leftScore,
-          player2Score: rightScore,
-          opponent: 'AI',
-          startedAt: matchStart.toISOString(),
-          endedAt: matchEnd.toISOString(),
-          duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
-        });
-      } else {
-        resetBall();
-        setTimeout(() => {
-          if (statusDiv) statusDiv.textContent = `Score: ${leftScore} - ${rightScore}`;
-        }, 1500);
-      }
-    }
-    if (gameOver) {
-      isGameRunning = false; // Allow new games to start
-      clearInterval(aiInterval);
-    }
-  }
-
-  function gameLoop() {
-    if (gameOver) return;
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
-  }
-
-  // Keyboard controls for left paddle
-  function keyDownHandler(e: KeyboardEvent) {
-    if (e.key === 'ArrowUp') upPressed = true;
-    if (e.key === 'ArrowDown') downPressed = true;
-  }
-  function keyUpHandler(e: KeyboardEvent) {
-    if (e.key === 'ArrowUp') upPressed = false;
-    if (e.key === 'ArrowDown') downPressed = false;
-  }
-  document.addEventListener('keydown', keyDownHandler);
-  document.addEventListener('keyup', keyUpHandler);
-
-  if (statusDiv) statusDiv.textContent = `Game started! Score: ${leftScore} - ${rightScore}. Use Arrow Up/Down to move left paddle.`;
-  gameLoop();
-
-  // Clean up listeners on game over or navigation
-  window.addEventListener('hashchange', () => {
-    gameAborted = true; // Flag to prevent sending match results
-    gameOver = true; // Stop the game loop
-    isGameRunning = false; // Allow new games to start
-    resetStartButton(); // Reset the start button
-    clearInterval(aiInterval); // Stop the AI interval
-    document.removeEventListener('keydown', keyDownHandler);
-    document.removeEventListener('keyup', keyUpHandler);
-  }, { once: true });
-
-  // Clean up on page unload (refresh/close)
-  window.addEventListener('beforeunload', () => {
-    gameAborted = true;
-    gameOver = true;
-    isGameRunning = false;
-    resetStartButton();
-    clearInterval(aiInterval);
-    document.removeEventListener('keydown', keyDownHandler);
-    document.removeEventListener('keyup', keyUpHandler);
-  }, { once: true });
-}
-
 // Function to create leaderboard table HTML
 function createLeaderboardTable(title: string, data: any[], emptyMessage: string) {
   const rows = data.length > 0 
@@ -2012,423 +1250,9 @@ function attachPongListeners() {
   const statusDiv = document.getElementById('pong-status');
   if (startBtn && canvas) {
     startBtn.addEventListener('click', () => {
-      if (isGameRunning) {
-        console.log('Game already running, ignoring start request');
-        return;
-      }
       startBtn.disabled = true;
       startBtn.textContent = 'Game Running...';
-      startBasicPongGame(canvas, statusDiv);
-    });
-  }
-}
-
-function attachEditProfileListeners() {
-  // Remove any existing listeners first to prevent duplicates
-  const backButton = document.getElementById('back-home-edit-profile');
-  if (backButton) {
-    // Clone and replace to remove all event listeners
-    const newBackButton = backButton.cloneNode(true) as HTMLElement;
-    backButton.parentNode?.replaceChild(newBackButton, backButton);
-    // Attach fresh event listener
-    newBackButton.addEventListener('click', () => {
-      window.location.hash = '';
-    });
-  }
-  
-  const form = document.getElementById('edit-profile-form') as HTMLFormElement | null;
-  const avatarInput = document.getElementById('edit-avatar') as HTMLInputElement | null;
-  const avatarPreview = document.getElementById('edit-avatar-preview');
-  if (avatarInput && avatarPreview) {
-    avatarInput.addEventListener('change', () => {
-      const file = avatarInput.files && avatarInput.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = e => {
-          avatarPreview.innerHTML = `<img src='${e.target?.result}' alt='avatar preview' class='w-24 h-24 rounded-full object-cover border-2 border-gray-600' />`;
-        };
-        reader.readAsDataURL(file);
-      } else {
-        avatarPreview.innerHTML = '';
-      }
-    });
-  }
-  if (form && loggedInUser) {
-    let original = { alias: '', username: '', email: '', bio: '', skinColor: '#FFFFFF', emailVisible: true };
-    let formReady = false;
-    let isSubmitting = false; // Add submission lock
-    
-    // Initially disable submit button
-    const submitBtn = document.getElementById('edit-profile-submit') as HTMLButtonElement;
-    if (submitBtn) {
-      submitBtn.disabled = true;
-    }
-    
-    // Prefill form with current user info
-    fetch(`${API_BASE}/users/${loggedInUser}`)
-      .then(res => res.json())
-      .then(user => {
-        original = {
-          alias: user.profile?.alias || '',
-          username: user.username || '',
-          email: user.email || '',
-          bio: user.profile?.bio || '',
-          skinColor: user.profile?.skinColor || '#FFFFFF',
-          emailVisible: user.profile?.emailVisible !== false
-        };
-        (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
-        (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-        (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
-        (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
-        (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
-        formReady = true; // Mark form as ready after data is loaded
-        
-        // Enable submit button and update text
-        const submitBtn = document.getElementById('edit-profile-submit') as HTMLButtonElement;
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Update Profile';
-        }
-        
-      });
-      
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      console.log('[DEBUG] Form submit event triggered');
-      
-      console.log('[DEBUG] Form submit event triggered');
-      
-      // Prevent multiple submissions
-      if (isSubmitting) {
-        console.log('[DEBUG] Already submitting, ignoring duplicate submission');
-        return;
-      }
-      
-      // Prevent submission if form data isn't loaded yet
-      if (!formReady) {
-        console.log('[DEBUG] Form not ready yet');
-        const errorDiv = document.getElementById('edit-profile-error');
-        const successDiv = document.getElementById('edit-profile-success');
-        if (errorDiv) {
-          errorDiv.textContent = 'Please wait for form to load completely before submitting.';
-          errorDiv.classList.remove('hidden');
-        }
-        if (successDiv) {
-          successDiv.classList.add('hidden');
-        }
-        return;
-      }
-      
-      isSubmitting = true; // Lock submissions
-      
-      const alias = (document.getElementById('edit-alias') as HTMLInputElement).value.trim();
-      const username = (document.getElementById('edit-username') as HTMLInputElement).value.trim();
-      const email = (document.getElementById('edit-email') as HTMLInputElement).value.trim();
-      const bio = (document.getElementById('edit-bio') as HTMLTextAreaElement).value;
-      const password = (document.getElementById('edit-password') as HTMLInputElement).value.trim();
-      const emailVisible = (document.getElementById('edit-email-visible') as HTMLInputElement).checked;
-      
-      // More robust way to get current password
-      const currentPasswordInput = document.getElementById('edit-current-password') as HTMLInputElement;
-      const currentPassword = currentPasswordInput ? currentPasswordInput.value.trim() : '';
-      
-      // Removed edit-skinColor field, do not read its value
-      const errorDiv = document.getElementById('edit-profile-error');
-      const successDiv = document.getElementById('edit-profile-success');
-      const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-      if (errorDiv) errorDiv.classList.add('hidden');
-      if (successDiv) successDiv.classList.add('hidden');
-      let errorMsg = '';
-      // Only require current password if changing username/email/password or uploading avatar
-      const wantsUsernameChange = username && username !== original.username;
-      const wantsEmailChange = email && email !== original.email;
-      const wantsPasswordChange = !!password;
-      const wantsAvatarChange = avatarInput && avatarInput.files && avatarInput.files.length > 0;
-      const wantsBioChange = bio !== original.bio;
-      const wantsEmailVisibilityChange = emailVisible !== original.emailVisible;
-      
-      // Check if at least one field is being changed
-      if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange && !wantsBioChange && !wantsEmailVisibilityChange) {
-        errorMsg = 'At least one field must be filled.';
-      }
-      
-      // Current password only required for sensitive changes (not for alias, bio, or avatar)
-      if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange) && !currentPassword) {
-        errorMsg = 'Current password is required to change username, email, or password.';
-      }
-      if (errorMsg) {
-        if (errorDiv) {
-          errorDiv.textContent = errorMsg;
-          errorDiv.classList.remove('hidden');
-        }
-        // Hide success div when showing error
-        if (successDiv) {
-          successDiv.classList.add('hidden');
-        }
-        // Reset button state before returning
-        isSubmitting = false;
-        const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Update Profile';
-        }
-        return;
-      }
-      let ok = true;
-      let msg = '';
-      let aliasTargetUser = loggedInUser;
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Updating...';
-      }
-      try {
-        // PATCH username/email/password only if needed
-        const updateBody: any = {};
-        if (wantsUsernameChange) updateBody.newUsername = username;
-        if (wantsEmailChange) updateBody.newEmail = email;
-        if (wantsPasswordChange) updateBody.newPassword = password;
-        if (wantsUsernameChange || wantsEmailChange || wantsPasswordChange) {
-          updateBody.currentPassword = currentPassword;
-        }
-  if (Object.keys(updateBody).length > 0) {
-        // Removed PATCH for skinColor; handled in profile view only
-          try {
-            const userRes = await fetch(`${API_BASE}/users/${loggedInUser}` , {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(updateBody)
-            });
-            const userResBody = await userRes.json();
-            if (!userRes.ok) {
-              ok = false;
-              msg = userResBody.error || JSON.stringify(userResBody) || 'Failed to update profile.';
-            } else {
-              if (updateBody.newUsername) {
-                setLoggedInUser(updateBody.newUsername);
-                aliasTargetUser = updateBody.newUsername;
-                try {
-                  const newUserRes = await fetch(`${API_BASE}/users/${updateBody.newUsername}`);
-                  if (!newUserRes.ok) {
-                    console.warn('Failed to fetch updated user data after username change');
-                  } else {
-                    const newUser = await newUserRes.json();
-                    original = {
-                      alias: newUser.profile?.alias || '',
-                      username: newUser.username || '',
-                      email: newUser.email || '',
-                      bio: newUser.profile?.bio || '',
-                      skinColor: newUser.profile?.skinColor || '#FFFFFF',
-                      emailVisible: newUser.profile?.emailVisible !== false
-                    };
-                    // Preserve current password field when updating form
-                    const currentPasswordField = document.getElementById('edit-current-password') as HTMLInputElement;
-                    const currentPasswordValue = currentPasswordField?.value || '';
-                    
-                    try {
-                      (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
-                      (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-                      (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
-                      (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
-                      (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
-                      
-                      // Restore current password field
-                      if (currentPasswordField) {
-                        currentPasswordField.value = currentPasswordValue;
-                      }
-                    } catch (domError) {
-                      console.error('Error updating form fields after username change:', domError);
-                    }
-                  }
-                } catch (err) {
-                  console.warn('Error updating form after username change:', err);
-                }
-              } else if (updateBody.newEmail) {
-                try {
-                  const newUserRes = await fetch(`${API_BASE}/users/${aliasTargetUser}`);
-                  if (!newUserRes.ok) {
-                    console.warn('Failed to fetch updated user data after email change');
-                  } else {
-                    const newUser = await newUserRes.json();
-                    original = {
-                      alias: newUser.profile?.alias || '',
-                      username: newUser.username || '',
-                      email: newUser.email || '',
-                      bio: newUser.profile?.bio || '',
-                      skinColor: newUser.profile?.skinColor || '#FFFFFF',
-                      emailVisible: newUser.profile?.emailVisible !== false
-                    };
-                    // Preserve current password field when updating form
-                    const currentPasswordField = document.getElementById('edit-current-password') as HTMLInputElement;
-                    const currentPasswordValue = currentPasswordField?.value || '';
-                    
-                    (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
-                    (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-                    (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
-                    (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
-                    (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
-                    
-                    // Restore current password field
-                    if (currentPasswordField) {
-                      currentPasswordField.value = currentPasswordValue;
-                    }
-                  }
-                } catch (err) {
-                  console.warn('Error updating form after email change:', err);
-                }
-              }
-            }
-          } catch (err) {
-            ok = false;
-            msg = err instanceof Error ? err.message : 'Network error updating profile.';
-          }
-        }
-        // Avatar upload if needed
-        if (ok && wantsAvatarChange && avatarInput && avatarInput.files && avatarInput.files.length > 0) {
-          const file = avatarInput.files[0];
-          
-          console.log('[DEBUG] Avatar upload: uploading file', file.name);
-          
-          const formData = new FormData();
-          formData.append('file', file);
-          
-          try {
-            const avatarRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/avatar`, {
-              method: 'PATCH',
-              body: formData
-            });
-            const avatarResBody = await avatarRes.json();
-            if (!avatarRes.ok) {
-              ok = false;
-              msg = avatarResBody.error || JSON.stringify(avatarResBody) || 'Failed to upload avatar.';
-            } else {
-              // Pass the new avatar URL directly to avoid refetch issues, but skip render to prevent button reset
-              const newAvatarUrl = avatarResBody.avatarUrl;
-              setLoggedInUser(aliasTargetUser, newAvatarUrl, true);
-              // Clear file input and preview
-              avatarInput.value = '';
-              if (avatarPreview) avatarPreview.innerHTML = '';
-            }
-          } catch (err) {
-            ok = false;
-            msg = err instanceof Error ? err.message : 'Network error uploading avatar.';
-          }
-        }
-        // Update alias if changed (after username PATCH if needed)
-        if (ok && alias && alias !== original.alias) {
-          try {
-            const aliasRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/alias`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ alias })
-            });
-            const aliasResBody = await aliasRes.json();
-            if (!aliasRes.ok) {
-              ok = false;
-              msg = aliasResBody.error || JSON.stringify(aliasResBody) || 'Failed to update alias.';
-            }
-          } catch (err) {
-            ok = false;
-            msg = err instanceof Error ? err.message : 'Network error updating alias.';
-          }
-        }
-        // Update bio if changed
-        if (ok && bio && bio !== original.bio) {
-          try {
-            const bioRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/bio`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ bio })
-            });
-            const bioResBody = await bioRes.json();
-            if (!bioRes.ok) {
-              ok = false;
-              msg = bioResBody.error || JSON.stringify(bioResBody) || 'Failed to update biography.';
-            }
-          } catch (err) {
-            ok = false;
-            msg = err instanceof Error ? err.message : 'Network error updating biography.';
-          }
-        }
-        // Update email visibility if changed
-        if (ok && wantsEmailVisibilityChange) {
-          try {
-            const emailVisRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/email-visibility`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ emailVisible })
-            });
-            const emailVisResBody = await emailVisRes.json();
-            if (!emailVisRes.ok) {
-              ok = false;
-              msg = emailVisResBody.error || JSON.stringify(emailVisResBody) || 'Failed to update email visibility.';
-            }
-          } catch (err) {
-            ok = false;
-            msg = err instanceof Error ? err.message : 'Network error updating email visibility.';
-          }
-        }
-      } finally {
-        console.log('[DEBUG] Form submission completed');
-        
-        isSubmitting = false; // Unlock submissions
-        // Get fresh reference to submit button to ensure we have the correct element
-        const currentSubmitBtn = document.getElementById('edit-profile-submit') as HTMLButtonElement;
-        if (currentSubmitBtn) {
-          console.log('[DEBUG] Resetting button state');
-          currentSubmitBtn.disabled = false;
-          currentSubmitBtn.textContent = 'Update Profile';
-        } else {
-          console.log('[DEBUG] Submit button not found!');
-        }
-      }
-      if (ok) {
-        console.log('[DEBUG] Profile update successful, showing success message');
-        // Get fresh DOM references to ensure they're current
-        const currentSuccessDiv = document.getElementById('edit-profile-success');
-        const currentErrorDiv = document.getElementById('edit-profile-error');
-        
-        if (currentSuccessDiv) {
-          currentSuccessDiv.textContent = 'Profile updated successfully!';
-          currentSuccessDiv.classList.remove('hidden');
-          console.log('[DEBUG] Success message displayed');
-          
-          // Ensure back button is still working after username change
-          setTimeout(() => {
-            const backButton = document.getElementById('back-home-edit-profile');
-            if (backButton) {
-              console.log('[DEBUG] Ensuring back button functionality after username change');
-              // Remove any existing listeners and add a fresh one
-              const newBackButton = backButton.cloneNode(true) as HTMLElement;
-              backButton.parentNode?.replaceChild(newBackButton, backButton);
-              newBackButton.addEventListener('click', () => {
-                console.log('[DEBUG] Back button clicked after username change');
-                window.location.hash = '';
-              });
-            }
-          }, 100);
-        } else {
-          console.warn('[DEBUG] Success div not found!');
-        }
-        // Hide error div if it was previously shown
-        if (currentErrorDiv) {
-          currentErrorDiv.classList.add('hidden');
-        }
-      } else {
-        console.log('[DEBUG] Profile update failed:', msg);
-        // Get fresh DOM references
-        const currentErrorDiv = document.getElementById('edit-profile-error');
-        const currentSuccessDiv = document.getElementById('edit-profile-success');
-        
-        if (currentErrorDiv) {
-          currentErrorDiv.textContent = msg;
-          currentErrorDiv.classList.remove('hidden');
-        }
-        // Hide success div when showing error
-        if (currentSuccessDiv) {
-          currentSuccessDiv.classList.add('hidden');
-        }
-      }
+      PongEngine.startGame(canvas, statusDiv);
     });
   }
 }
@@ -2442,12 +1266,15 @@ window.addEventListener('hashchange', () => {
 
 // Cleanup heartbeat on page unload
 window.addEventListener('beforeunload', () => {
-  stopHeartbeat();
+  HeartbeatService.stop();
 });
+
+// Setup heartbeat callback for updateFriendsCount
+HeartbeatService.setUpdateFriendsCallback(() => updateFriendsCount());
 
 // Start heartbeat if user is already logged in
 if (loggedInUser) {
-  startHeartbeat();
+  HeartbeatService.start(loggedInUser);
   // Update friends count after a short delay to ensure UI is loaded
   setTimeout(() => updateFriendsCount(), 1500);
 }

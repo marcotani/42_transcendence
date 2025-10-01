@@ -1,4 +1,3 @@
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -8,89 +7,31 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-// Multilanguage translations
-const translations = {
-    en: {
-        title: "Pong Game",
-        login: "Login",
-        startGame: "Start Game",
-        multiplayer: "Multiplayer",
-        options: "Options",
-        leaderboard: "Leaderboard",
-        startGameTitle: "Start Game",
-        startGameDesc: "Game setup will go here.",
-        multiplayerTitle: "Multiplayer",
-        multiplayerDesc: "Multiplayer options will go here.",
-        optionsTitle: "Options",
-        optionsDesc: "Settings will go here.",
-        leaderboardTitle: "Leaderboard",
-        leaderboardDesc: "Leaderboard stats will go here.",
-        langLabel: "Language"
-    },
-    it: {
-        title: "Gioco Pong",
-        login: "Accedi",
-        startGame: "Inizia Gioco",
-        multiplayer: "Multigiocatore",
-        options: "Opzioni",
-        leaderboard: "Classifica",
-        startGameTitle: "Inizia Gioco",
-        startGameDesc: "La configurazione del gioco sarà qui.",
-        multiplayerTitle: "Multigiocatore",
-        multiplayerDesc: "Le opzioni multigiocatore saranno qui.",
-        optionsTitle: "Opzioni",
-        optionsDesc: "Le impostazioni saranno qui.",
-        leaderboardTitle: "Classifica",
-        leaderboardDesc: "Le statistiche della classifica saranno qui.",
-        langLabel: "Lingua"
-    },
-    fr: {
-        title: "Jeu Pong",
-        login: "Connexion",
-        startGame: "Démarrer le jeu",
-        multiplayer: "Multijoueur",
-        options: "Options",
-        leaderboard: "Classement",
-        startGameTitle: "Démarrer le jeu",
-        startGameDesc: "La configuration du jeu sera ici.",
-        multiplayerTitle: "Multijoueur",
-        multiplayerDesc: "Les options multijoueur seront ici.",
-        optionsTitle: "Options",
-        optionsDesc: "Les paramètres seront ici.",
-        leaderboardTitle: "Classement",
-        leaderboardDesc: "Les statistiques du classement seront ici.",
-        langLabel: "Langue"
-    }
-};
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:3000'
-    : (window.location.hostname === 'host.docker.internal' || window.location.hostname === '0.0.0.0')
-        ? 'http://host.docker.internal:3000'
-        : 'http://backend:3000';
+// Import extracted modules
+import { translations } from './config/translations.js';
+import { API_BASE } from './config/constants.js';
+import { showStatus, accessibilityTogglesUI } from './utils/dom-helpers.js';
+import { GameSettingsService } from './services/game-settings.js';
+import { StorageService } from './services/storage.js';
+import { HeartbeatService } from './services/heartbeat.js';
+import { MatchHistoryManager } from './features/match-history.js';
+import { ProfileManager } from './features/profile.js';
+import { PongEngine } from './game/pong-engine.js';
 function getLang() {
-    const lang = localStorage.getItem('lang');
-    if (lang === 'it' || lang === 'fr')
-        return lang;
-    return 'en';
+    return StorageService.getLang();
 }
 function setLang(lang) {
-    localStorage.setItem('lang', lang);
+    StorageService.setLangStorage(lang);
     render(window.location.hash.replace('#', ''));
 }
 function langSwitcherUI(currentLang) {
-    return `<div class='absolute top-4 left-4 z-50'>
+    return `<div class='fixed top-4 left-4 z-50'>
     <label for='lang-select' class='mr-2'>${translations[currentLang].langLabel}:</label>
     <select id='lang-select' class='px-2 py-1 rounded bg-gray-800 text-white border border-gray-600'>
       <option value='en' ${currentLang === 'en' ? 'selected' : ''}>English</option>
       <option value='it' ${currentLang === 'it' ? 'selected' : ''}>Italiano</option>
       <option value='fr' ${currentLang === 'fr' ? 'selected' : ''}>Français</option>
     </select>
-  </div>`;
-}
-function accessibilityTogglesUI() {
-    return `<div class='absolute bottom-4 left-4 z-50 flex space-x-2'>
-    <button id='toggle-contrast' class='px-2 py-1 bg-black text-white rounded border border-white focus:outline-none focus:ring-2 focus:ring-white' aria-label='Toggle high contrast' tabindex='0'>🌓</button>
-    <button id='toggle-textsize' class='px-2 py-1 bg-black text-white rounded border border-white focus:outline-none focus:ring-2 focus:ring-white' aria-label='Toggle large text' tabindex='0'>A+</button>
   </div>`;
 }
 // SPA navigation logic
@@ -107,64 +48,32 @@ const routes = {
     </div>
   </div>`,
     'multiplayer': `<h2 class="text-2xl font-bold mb-4">Multiplayer</h2><p>Multiplayer options will go here.</p>`,
-    'options': `<h2 class="text-2xl font-bold mb-4">Options</h2><p>Settings will go here.</p>`,
-    'leaderboard': `<h2 class="text-2xl font-bold mb-4">Leaderboard</h2>
-      <div class='mt-6 w-full max-w-2xl mx-auto'>
-        <div class='mb-6'>
-          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Player Stats</h3>
-          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
-            <thead class='bg-gray-700'>
-              <tr>
-                <th class='px-4 py-2'>Player</th>
-                <th class='px-4 py-2'>Wins</th>
-                <th class='px-4 py-2'>Losses</th>
-                <th class='px-4 py-2'>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class='px-4 py-2'>Alice</td>
-                <td class='px-4 py-2'>12</td>
-                <td class='px-4 py-2'>5</td>
-                <td class='px-4 py-2'>70%</td>
-              </tr>
-              <tr>
-                <td class='px-4 py-2'>Bob</td>
-                <td class='px-4 py-2'>8</td>
-                <td class='px-4 py-2'>10</td>
-                <td class='px-4 py-2'>44%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Match History</h3>
-          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
-            <thead class='bg-gray-700'>
-              <tr>
-                <th class='px-4 py-2'>Date</th>
-                <th class='px-4 py-2'>Players</th>
-                <th class='px-4 py-2'>Winner</th>
-                <th class='px-4 py-2'>Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class='px-4 py-2'>2025-08-10</td>
-                <td class='px-4 py-2'>Alice vs Bob</td>
-                <td class='px-4 py-2'>Alice</td>
-                <td class='px-4 py-2'>11-7</td>
-              </tr>
-              <tr>
-                <td class='px-4 py-2'>2025-08-09</td>
-                <td class='px-4 py-2'>Bob vs Alice</td>
-                <td class='px-4 py-2'>Bob</td>
-                <td class='px-4 py-2'>11-9</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>`,
+    'options': `
+    <h2 class="text-2xl font-bold mb-4">Options</h2>
+    <div style="max-width: 600px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; color: white;">
+      <div style="margin-bottom: 20px;">
+        <label for="ball-speed" style="display: block; margin-bottom: 5px;">Ball Speed:</label>
+        <input type="range" id="ball-speed" min="1" max="10" value="3" style="width: 100%; margin-bottom: 5px;">
+        <span id="ball-speed-value" style="font-size: 14px; color: #ccc;">3</span>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label for="paddle-speed" style="display: block; margin-bottom: 5px;">Paddle Speed:</label>
+        <input type="range" id="paddle-speed" min="1" max="10" value="5" style="width: 100%; margin-bottom: 5px;">
+        <span id="paddle-speed-value" style="font-size: 14px; color: #ccc;">5</span>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label for="points-to-win" style="display: block; margin-bottom: 5px;">Points to Win:</label>
+        <select id="points-to-win" style="width: 100%; padding: 5px; border-radius: 5px; background: #333; color: white; border: 1px solid #555;">
+          <option value="3">3 Points</option>
+          <option value="5">5 Points</option>
+          <option value="11" selected>11 Points</option>
+          <option value="21">21 Points</option>
+        </select>
+      </div>
+      <button id="save-options" style="width: 100%; padding: 10px; background: #007acc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Save Settings</button>
+      <div id="save-status" style="margin-top: 10px; text-align: center; font-size: 14px; color: #4CAF50;"></div>
+    </div>
+  `,
     'login': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
     <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Login</h2>
     <form id='login-form' class='space-y-4'>
@@ -214,9 +123,46 @@ const routes = {
     </div>
     <button id='back-home-pong' class='mt-8 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
   </div>`,
+    'friends': `<div class='max-w-4xl mx-auto mt-8 p-6 bg-gray-900 rounded-lg shadow-lg'>
+    <h2 class='text-3xl font-bold mb-6 text-center'>Friends</h2>
+    
+    <!-- Send Friend Request Section -->
+    <div class='mb-8 p-4 bg-gray-800 rounded-lg'>
+      <h3 class='text-xl font-semibold mb-4'>Send Friend Request</h3>
+      <form id='send-friend-request-form' class='flex space-x-2'>
+        <input type='text' id='friend-username' placeholder='Enter username' class='flex-1 px-3 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-400' required />
+        <button type='submit' class='px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-purple-400'>Send Request</button>
+      </form>
+      <div id='send-request-status' class='mt-2 text-sm'></div>
+    </div>
+
+    <!-- Pending Friend Requests Section -->
+    <div class='mb-8 p-4 bg-gray-800 rounded-lg'>
+      <h3 class='text-xl font-semibold mb-4'>Pending Requests</h3>
+      <div id='pending-requests'>
+        <div class='text-center py-4'>
+          <div class='inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-white'></div>
+          <p class='mt-2 text-gray-400'>Loading requests...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Friends List Section -->
+    <div class='p-4 bg-gray-800 rounded-lg'>
+      <h3 class='text-xl font-semibold mb-4'>Your Friends</h3>
+      <div id='friends-list'>
+        <div class='text-center py-4'>
+          <div class='inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-white'></div>
+          <p class='mt-2 text-gray-400'>Loading friends...</p>
+        </div>
+      </div>
+    </div>
+
+    <button id='back-home-friends' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+  </div>`,
     'edit-profile': `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
     <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>Edit Profile</h2>
-  <form id='edit-profile-form' class='space-y-4' enctype='multipart/form-data'>
+  <form id='edit-profile-form' class='space-y-4' method='POST' enctype='multipart/form-data'>
       <div>
         <label for='edit-avatar' class='block mb-1'>Avatar Image</label>
         <input type='file' id='edit-avatar' name='avatar' accept='image/png,image/jpeg,image/webp' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' />
@@ -234,6 +180,10 @@ const routes = {
         <label for='edit-email' class='block mb-1'>Email</label>
         <input type='email' id='edit-email' name='email' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' required />
       </div>
+      <div class='flex items-center space-x-2'>
+        <input type='checkbox' id='edit-email-visible' name='emailVisible' class='rounded bg-gray-800 border border-gray-700 text-green-600 focus:outline-none focus:ring-2 focus:ring-green-400' />
+        <label for='edit-email-visible' class='text-gray-300'>Show email publicly</label>
+      </div>
       <div>
         <label for='edit-bio' class='block mb-1'>Biography</label>
         <textarea id='edit-bio' name='bio' rows='3' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400'></textarea>
@@ -243,7 +193,7 @@ const routes = {
         <input type='password' id='edit-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' autocomplete='new-password' />
       </div>
       <div>
-        <label for='edit-current-password' class='block mb-1'>Current Password <span class='text-yellow-500'>*</span> <small class='text-gray-400'>(Required only for username, email, password, or avatar changes)</small></label>
+        <label for='edit-current-password' class='block mb-1'>Current Password <span class='text-yellow-500'>*</span> <small class='text-gray-400'>(Required only for username, email and password changes)</small></label>
         <input type='password' id='edit-current-password' name='currentPassword' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400' autocomplete='current-password' />
       </div>
       <button type='submit' id='edit-profile-submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 disabled:opacity-50 disabled:cursor-not-allowed'>Loading...</button>
@@ -257,9 +207,11 @@ const routes = {
     <div class='flex flex-col items-center'>
       <div id='profile-avatar' class='mb-4'></div>
       <div class='text-2xl font-bold mb-2' id='profile-alias'></div>
-      <div class='text-gray-400 mb-4' id='profile-username'></div>
+      <div class='text-gray-400 mb-2' id='profile-username'></div>
+      <div class='text-gray-400 mb-4' id='profile-email'></div>
       <div class='text-base text-white mb-6' id='profile-bio'></div>
       <div id='profile-stats-counters' class='w-full mb-6'></div>
+      <div id='profile-match-history' class='w-full mb-6'></div>
   <div class='w-full mb-6' id='profile-skinColor-container'>
         <label for='profile-skinColor' class='block mb-1'>Paddle Color</label>
         <select id='profile-skinColor' name='skinColor' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400'>
@@ -268,6 +220,7 @@ const routes = {
           <option value="#0000FF" style="color:#0000FF">Blue</option>
           <option value="#FFFF00" style="color:#FFFF00">Yellow</option>
           <option value="#FF00FF" style="color:#FF00FF">Magenta</option>
+          <option value="#FFFFFF" style="color:#FFFFFF">White</option>
         </select>
         <button id='profile-skinColor-confirm' class='mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400'>Confirm Color</button>
         <div id='profile-skinColor-success' class='text-green-500 mt-2 hidden'></div>
@@ -281,32 +234,605 @@ const routes = {
     </div>
   </div>`
 };
-let loggedInUser = localStorage.getItem('loggedInUser');
+let loggedInUser = StorageService.getLoggedInUser();
 // Store avatar URL for logged-in user
-// Paddle color change logic for profile page
-let loggedInUserAvatar = null;
-function setLoggedInUser(username) {
+let loggedInUserAvatar = StorageService.getLoggedInUserAvatar();
+// Expose on window for other modules
+window.loggedInUser = loggedInUser;
+// Store current friends counts to avoid flashing 0s during page navigation
+let currentOnlineFriendsCount = StorageService.getCurrentOnlineFriendsCount();
+let currentPendingRequestsCount = StorageService.getCurrentPendingRequestsCount();
+export function setLoggedInUser(username, newAvatarUrl, skipRender = false) {
     loggedInUser = username;
+    window.loggedInUser = username; // Keep window in sync
     if (username) {
-        localStorage.setItem('loggedInUser', username);
-        // Fetch avatar URL for the user
-        fetch(`${API_BASE}/users/${username}`)
+        StorageService.setLoggedInUser(username);
+        // Start heartbeat for logged-in user
+        HeartbeatService.start(username);
+        // Update friends count
+        setTimeout(() => updateFriendsCount(), 1000);
+        // If a new avatar URL is explicitly provided, use it immediately
+        if (newAvatarUrl !== undefined) {
+            loggedInUserAvatar = newAvatarUrl;
+            StorageService.setLoggedInUserAvatar(newAvatarUrl);
+            // Update cache buster for immediate avatar refresh
+            if (newAvatarUrl && newAvatarUrl.includes('/uploads/')) {
+                StorageService.setAvatarCacheBuster();
+            }
+            // Re-render to update avatar immediately (unless skipRender is true)
+            if (!skipRender) {
+                render(window.location.hash.replace('#', ''));
+            }
+            return;
+        }
+        // Fetch avatar URL for the user with cache-busting
+        const cacheBuster = Date.now();
+        fetch(`${API_BASE}/users/${username}?_t=${cacheBuster}`)
             .then(res => res.json())
             .then(user => {
             var _a;
-            loggedInUserAvatar = ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.avatarUrl) || null;
+            const avatarUrl = ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.avatarUrl) || null;
+            loggedInUserAvatar = avatarUrl;
+            StorageService.setLoggedInUserAvatar(avatarUrl);
             // Re-render to update avatar if needed
             render(window.location.hash.replace('#', ''));
         })
             .catch(() => {
             loggedInUserAvatar = null;
+            StorageService.setLoggedInUserAvatar(null);
             render(window.location.hash.replace('#', ''));
         });
     }
     else {
-        localStorage.removeItem('loggedInUser');
+        // Stop heartbeat when logging out
+        HeartbeatService.stop();
+        StorageService.clearUserData();
         loggedInUserAvatar = null;
+        currentOnlineFriendsCount = 0;
+        currentPendingRequestsCount = 0;
     }
+}
+// Expose setLoggedInUser on window for other modules
+window.setLoggedInUser = setLoggedInUser;
+function initializeOptionsPage() {
+    const settings = GameSettingsService.load();
+    const ballSpeedSlider = document.getElementById('ball-speed');
+    const ballSpeedValue = document.getElementById('ball-speed-value');
+    const paddleSpeedSlider = document.getElementById('paddle-speed');
+    const paddleSpeedValue = document.getElementById('paddle-speed-value');
+    const pointsSelect = document.getElementById('points-to-win');
+    const saveButton = document.getElementById('save-options');
+    const saveStatus = document.getElementById('save-status');
+    if (ballSpeedSlider && ballSpeedValue) {
+        ballSpeedSlider.value = settings.ballSpeed.toString();
+        ballSpeedValue.textContent = settings.ballSpeed.toString();
+        ballSpeedSlider.addEventListener('input', () => {
+            ballSpeedValue.textContent = ballSpeedSlider.value;
+        });
+    }
+    if (paddleSpeedSlider && paddleSpeedValue) {
+        paddleSpeedSlider.value = settings.paddleSpeed.toString();
+        paddleSpeedValue.textContent = settings.paddleSpeed.toString();
+        paddleSpeedSlider.addEventListener('input', () => {
+            paddleSpeedValue.textContent = paddleSpeedSlider.value;
+        });
+    }
+    if (pointsSelect) {
+        pointsSelect.value = settings.pointsToWin.toString();
+    }
+    if (saveButton) {
+        saveButton.addEventListener('click', () => {
+            const newSettings = {
+                ballSpeed: parseInt((ballSpeedSlider === null || ballSpeedSlider === void 0 ? void 0 : ballSpeedSlider.value) || '3'),
+                paddleSpeed: parseInt((paddleSpeedSlider === null || paddleSpeedSlider === void 0 ? void 0 : paddleSpeedSlider.value) || '5'),
+                pointsToWin: parseInt((pointsSelect === null || pointsSelect === void 0 ? void 0 : pointsSelect.value) || '11')
+            };
+            GameSettingsService.save(newSettings);
+            if (saveStatus) {
+                saveStatus.textContent = 'Settings saved successfully!';
+                setTimeout(() => {
+                    saveStatus.textContent = '';
+                }, 3000);
+            }
+        });
+    }
+}
+// Friends page functionality
+function initializeFriendsPage() {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!loggedInUser)
+            return;
+        // Load initial data
+        loadPendingRequests();
+        loadFriendsList();
+        updateFriendsCount();
+        // Set up form listeners
+        const sendRequestForm = document.getElementById('send-friend-request-form');
+        const backButton = document.getElementById('back-home-friends');
+        if (sendRequestForm) {
+            sendRequestForm.addEventListener('submit', handleSendFriendRequest);
+        }
+        if (backButton) {
+            backButton.addEventListener('click', () => {
+                window.location.hash = '';
+            });
+        }
+    });
+}
+function handleSendFriendRequest(e) {
+    return __awaiter(this, void 0, void 0, function* () {
+        e.preventDefault();
+        if (!loggedInUser)
+            return;
+        const form = e.target;
+        const usernameInput = document.getElementById('friend-username');
+        const statusDiv = document.getElementById('send-request-status');
+        const toUsername = usernameInput.value.trim();
+        if (!toUsername) {
+            showStatus(statusDiv, 'Please enter a username', 'error');
+            return;
+        }
+        try {
+            // Get current user's password (we'll need a simpler auth method in the future)
+            const password = prompt('Enter your password to send friend request:');
+            if (!password)
+                return;
+            const response = yield fetch(`${API_BASE}/friends/requests`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fromUsername: loggedInUser,
+                    currentPassword: password,
+                    toUsername: toUsername
+                })
+            });
+            const result = yield response.json();
+            if (response.ok) {
+                showStatus(statusDiv, 'Friend request sent successfully!', 'success');
+                usernameInput.value = '';
+                loadPendingRequests(); // Refresh pending requests
+            }
+            else {
+                showStatus(statusDiv, result.error || 'Failed to send friend request', 'error');
+            }
+        }
+        catch (error) {
+            showStatus(statusDiv, 'Error sending friend request', 'error');
+            console.error('Error:', error);
+        }
+    });
+}
+function loadPendingRequests() {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!loggedInUser)
+            return;
+        const container = document.getElementById('pending-requests');
+        if (!container)
+            return;
+        try {
+            const response = yield fetch(`${API_BASE}/friends/requests?for=${loggedInUser}`);
+            const data = yield response.json();
+            if (response.ok) {
+                const { incoming, outgoing } = data;
+                let html = '';
+                if (incoming.length === 0 && outgoing.length === 0) {
+                    html = '<p class="text-gray-400 text-center">No pending requests</p>';
+                }
+                else {
+                    if (incoming.length > 0) {
+                        html += '<h4 class="font-semibold mb-2">Incoming Requests</h4>';
+                        incoming.forEach((req) => {
+                            html += `
+              <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
+                <span>${req.fromUser.username}</span>
+                <div class="space-x-2">
+                  <button class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm" onclick="acceptFriendRequest(${req.id})">Accept</button>
+                  <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm" onclick="rejectFriendRequest(${req.id})">Reject</button>
+                </div>
+              </div>
+            `;
+                        });
+                    }
+                    if (outgoing.length > 0) {
+                        html += '<h4 class="font-semibold mb-2 mt-4">Outgoing Requests</h4>';
+                        outgoing.forEach((req) => {
+                            html += `
+              <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
+                <span>${req.toUser.username}</span>
+                <div class="flex items-center space-x-2">
+                  <span class="text-gray-400 text-sm">Pending...</span>
+                  <button class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm" onclick="cancelFriendRequest(${req.id})">Cancel</button>
+                </div>
+              </div>
+            `;
+                        });
+                    }
+                }
+                container.innerHTML = html;
+            }
+        }
+        catch (error) {
+            console.error('Error loading pending requests:', error);
+            container.innerHTML = '<p class="text-red-400 text-center">Error loading requests</p>';
+        }
+    });
+}
+function loadFriendsList() {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!loggedInUser)
+            return;
+        const container = document.getElementById('friends-list');
+        if (!container)
+            return;
+        try {
+            const response = yield fetch(`${API_BASE}/friends/${loggedInUser}`);
+            const data = yield response.json();
+            if (response.ok) {
+                const { friends } = data;
+                let html = '';
+                if (friends.length === 0) {
+                    html = '<p class="text-gray-400 text-center">No friends yet</p>';
+                }
+                else {
+                    // Sort friends to prioritize online users first
+                    const sortedFriends = friends.sort((a, b) => {
+                        const isAOnline = a.online === 'online' && a.heartbeat &&
+                            new Date(a.heartbeat) > new Date(Date.now() - 2 * 60 * 1000);
+                        const isBOnline = b.online === 'online' && b.heartbeat &&
+                            new Date(b.heartbeat) > new Date(Date.now() - 2 * 60 * 1000);
+                        // Online friends first, then offline friends
+                        if (isAOnline && !isBOnline)
+                            return -1;
+                        if (!isAOnline && isBOnline)
+                            return 1;
+                        // If both have same online status, sort alphabetically by username
+                        return a.username.localeCompare(b.username);
+                    });
+                    sortedFriends.forEach((friend) => {
+                        const avatarUrl = friend.avatarUrl
+                            ? (friend.avatarUrl.startsWith('/') ? API_BASE + friend.avatarUrl : friend.avatarUrl)
+                            : `${API_BASE}/static/default_avatar.png`;
+                        // Determine online status with proper logic
+                        const isOnline = friend.online === 'online' && friend.heartbeat &&
+                            new Date(friend.heartbeat) > new Date(Date.now() - 2 * 60 * 1000);
+                        const onlineIndicator = isOnline
+                            ? '<span class="w-2 h-2 bg-green-500 rounded-full" title="Online"></span>'
+                            : '<span class="w-2 h-2 bg-gray-500 rounded-full" title="Offline"></span>';
+                        const onlineText = isOnline ? 'Online' : 'Offline';
+                        html += `
+            <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
+              <div class="flex items-center space-x-3">
+                <img src="${avatarUrl}" alt="Avatar" class="w-8 h-8 rounded-full object-cover bg-gray-600" />
+                <div>
+                  <button class="text-blue-400 hover:text-blue-300 font-medium" onclick="viewProfile('${friend.username}')">${friend.username}</button>
+                  ${friend.alias ? `<p class="text-gray-400 text-sm">${friend.alias}</p>` : ''}
+                </div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-1">
+                  ${onlineIndicator}
+                  <span class="text-xs text-gray-400">${onlineText}</span>
+                </div>
+                <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm" onclick="removeFriend('${friend.username}')">Remove</button>
+              </div>
+            </div>
+          `;
+                    });
+                }
+                container.innerHTML = html;
+            }
+        }
+        catch (error) {
+            console.error('Error loading friends list:', error);
+            container.innerHTML = '<p class="text-red-400 text-center">Error loading friends</p>';
+        }
+    });
+}
+function acceptFriendRequest(requestId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!loggedInUser)
+            return;
+        try {
+            const password = prompt('Enter your password to accept friend request:');
+            if (!password)
+                return;
+            const response = yield fetch(`${API_BASE}/friends/requests/${requestId}/accept`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: loggedInUser,
+                    currentPassword: password
+                })
+            });
+            if (response.ok) {
+                loadPendingRequests(); // Refresh pending requests
+                loadFriendsList(); // Refresh friends list
+                updateFriendsCount(); // Update friends count
+            }
+            else {
+                const error = yield response.json();
+                alert(error.error || 'Failed to accept friend request');
+            }
+        }
+        catch (error) {
+            console.error('Error accepting friend request:', error);
+            alert('Error accepting friend request');
+        }
+    });
+}
+function rejectFriendRequest(requestId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!loggedInUser)
+            return;
+        const confirmed = confirm('Are you sure you want to reject this friend request?');
+        if (!confirmed)
+            return;
+        try {
+            const password = prompt('Enter your password to reject friend request:');
+            if (!password)
+                return;
+            const response = yield fetch(`${API_BASE}/friends/requests/${requestId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: loggedInUser,
+                    currentPassword: password
+                })
+            });
+            if (response.ok) {
+                loadPendingRequests(); // Refresh pending requests
+                updateFriendsCount(); // Update friends count
+            }
+            else {
+                const error = yield response.json();
+                alert(error.error || 'Failed to reject friend request');
+            }
+        }
+        catch (error) {
+            console.error('Error rejecting friend request:', error);
+            alert('Error rejecting friend request');
+        }
+    });
+}
+function cancelFriendRequest(requestId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!loggedInUser)
+            return;
+        const confirmed = confirm('Are you sure you want to cancel this friend request?');
+        if (!confirmed)
+            return;
+        try {
+            const password = prompt('Enter your password to cancel friend request:');
+            if (!password)
+                return;
+            const response = yield fetch(`${API_BASE}/friends/requests/${requestId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: loggedInUser,
+                    currentPassword: password
+                })
+            });
+            if (response.ok) {
+                loadPendingRequests(); // Refresh pending requests
+                updateFriendsCount(); // Update friends count
+            }
+            else {
+                const error = yield response.json();
+                alert(error.error || 'Failed to cancel friend request');
+            }
+        }
+        catch (error) {
+            console.error('Error canceling friend request:', error);
+            alert('Error canceling friend request');
+        }
+    });
+}
+function removeFriend(friendUsername) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!loggedInUser)
+            return;
+        const confirmed = confirm(`Are you sure you want to remove ${friendUsername} from your friends?`);
+        if (!confirmed)
+            return;
+        try {
+            const password = prompt('Enter your password to remove friend:');
+            if (!password)
+                return;
+            const response = yield fetch(`${API_BASE}/friends/${friendUsername}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: loggedInUser,
+                    currentPassword: password
+                })
+            });
+            if (response.ok) {
+                loadFriendsList(); // Refresh friends list
+                updateFriendsCount(); // Update friends count
+            }
+            else {
+                const error = yield response.json();
+                alert(error.error || 'Failed to remove friend');
+            }
+        }
+        catch (error) {
+            console.error('Error removing friend:', error);
+            alert('Error removing friend');
+        }
+    });
+}
+function viewProfile(username) {
+    window.location.hash = `#profile/${username}`;
+}
+function updateFriendsCount() {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!loggedInUser)
+            return;
+        try {
+            // Get pending requests count
+            const requestsResponse = yield fetch(`${API_BASE}/friends/requests?for=${loggedInUser}`);
+            const requestsData = yield requestsResponse.json();
+            // Get friends list with online status
+            const friendsResponse = yield fetch(`${API_BASE}/friends/${loggedInUser}`);
+            const friendsData = yield friendsResponse.json();
+            if (requestsResponse.ok && friendsResponse.ok) {
+                const pendingCount = requestsData.incoming.length;
+                const friends = friendsData.friends || [];
+                // Count online friends (those with recent heartbeat)
+                const onlineFriendsCount = friends.filter((friend) => {
+                    return friend.online === 'online' && friend.heartbeat &&
+                        new Date(friend.heartbeat) > new Date(Date.now() - 2 * 60 * 1000);
+                }).length;
+                // Store the counts in global variables and localStorage to avoid flashing 0s
+                currentOnlineFriendsCount = onlineFriendsCount;
+                currentPendingRequestsCount = pendingCount;
+                StorageService.setCurrentOnlineFriendsCount(onlineFriendsCount);
+                StorageService.setCurrentPendingRequestsCount(pendingCount);
+                // Update both counts
+                const pendingElement = document.getElementById('pending-requests-count');
+                const onlineElement = document.getElementById('friends-online-count');
+                if (pendingElement) {
+                    pendingElement.textContent = pendingCount.toString();
+                }
+                if (onlineElement) {
+                    onlineElement.textContent = onlineFriendsCount.toString();
+                }
+                // Change button color if there are pending requests
+                const friendsBtn = document.getElementById('friends-btn');
+                if (friendsBtn) {
+                    if (pendingCount > 0) {
+                        friendsBtn.className = friendsBtn.className.replace('bg-purple-600 hover:bg-purple-700', 'bg-orange-600 hover:bg-orange-700');
+                    }
+                    else {
+                        friendsBtn.className = friendsBtn.className.replace('bg-orange-600 hover:bg-orange-700', 'bg-purple-600 hover:bg-purple-700');
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.error('Error updating friends count:', error);
+        }
+    });
+}
+// Make functions globally available for onclick handlers
+window.acceptFriendRequest = acceptFriendRequest;
+window.rejectFriendRequest = rejectFriendRequest;
+window.cancelFriendRequest = cancelFriendRequest;
+window.removeFriend = removeFriend;
+window.viewProfile = viewProfile;
+function generateViewProfilePage(username) {
+    return `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg' id='view-profile-page'>
+    <div class='flex flex-col items-center'>
+      <div class='text-center py-8'>
+        <div class='inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white'></div>
+        <p class='mt-2 text-gray-400'>Loading profile...</p>
+      </div>
+      <button id='back-home-view-profile' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+    </div>
+  </div>`;
+}
+function loadUserProfile(username) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+        try {
+            // Fetch user profile, stats, and match history
+            const [userResponse, statsResponse, matchHistoryResponse] = yield Promise.all([
+                fetch(`${API_BASE}/users/${username}`),
+                fetch(`${API_BASE}/stats/${username}`),
+                fetch(`${API_BASE}/matches/history/${username}`)
+            ]);
+            if (!userResponse.ok) {
+                throw new Error('User not found');
+            }
+            const userData = yield userResponse.json();
+            const statsData = statsResponse.ok ? yield statsResponse.json() : null;
+            const matchHistoryData = matchHistoryResponse.ok ? yield matchHistoryResponse.json() : null;
+            // Update the profile page content
+            const container = document.getElementById('view-profile-page');
+            if (container) {
+                // Avatar HTML - matching the exact format from "my profile"
+                let avatarUrl = ((_a = userData.profile) === null || _a === void 0 ? void 0 : _a.avatarUrl) || '';
+                if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
+                    avatarUrl = API_BASE + avatarUrl;
+                }
+                const avatarHtml = avatarUrl
+                    ? `<img src='${avatarUrl}' alt='avatar' class='w-32 h-32 rounded-full border-4 border-gray-600 bg-gray-700 object-cover mb-2' onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2' style='display:none;'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`
+                    : `<span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
+                // Stats HTML - matching the exact format from "my profile"
+                const statsHtml = statsData ? `
+        <div class='w-full mb-6'>
+          <div class='grid grid-cols-2 gap-4 mb-2'>
+            <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
+              <div class='text-lg font-semibold text-green-400'>Bot</div>
+              <div class='flex space-x-4 mt-2'>
+                <div class='text-center'>
+                  <div class='text-2xl font-bold'>${(_b = statsData.botWins) !== null && _b !== void 0 ? _b : 0}</div>
+                  <div class='text-gray-400 text-sm'>Wins</div>
+                </div>
+                <div class='text-center'>
+                  <div class='text-2xl font-bold'>${(_c = statsData.botLosses) !== null && _c !== void 0 ? _c : 0}</div>
+                  <div class='text-gray-400 text-sm'>Losses</div>
+                </div>
+              </div>
+            </div>
+            <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
+              <div class='text-lg font-semibold text-blue-400'>Player</div>
+              <div class='flex space-x-4 mt-2'>
+                <div class='text-center'>
+                  <div class='text-2xl font-bold'>${(_d = statsData.playerWins) !== null && _d !== void 0 ? _d : 0}</div>
+                  <div class='text-gray-400 text-sm'>Wins</div>
+                </div>
+                <div class='text-center'>
+                  <div class='text-2xl font-bold'>${(_e = statsData.playerLosses) !== null && _e !== void 0 ? _e : 0}</div>
+                  <div class='text-gray-400 text-sm'>Losses</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
+            <div class='text-lg font-semibold text-yellow-400'>Tournament Wins</div>
+            <div class='text-3xl font-bold mt-2'>${(_f = statsData.tournamentWins) !== null && _f !== void 0 ? _f : 0}</div>
+          </div>
+        </div>
+      ` : '';
+                // Match History HTML
+                const matchHistoryHtml = matchHistoryData ? MatchHistoryManager.generateMatchHistoryHtml(matchHistoryData.matches || [], username) : '';
+                container.innerHTML = `
+        <div class='flex flex-col items-center'>
+          <div class='mb-4'>${avatarHtml}</div>
+          <div class='text-2xl font-bold mb-2'>${((_g = userData.profile) === null || _g === void 0 ? void 0 : _g.alias) || userData.username}</div>
+          <div class='text-gray-400 mb-2'>@${userData.username}</div>
+          ${((_h = userData.profile) === null || _h === void 0 ? void 0 : _h.emailVisible) && userData.email && userData.email !== '*************' ? `<div class='text-gray-400 mb-4'>${userData.email}</div>` : ''}
+          ${((_j = userData.profile) === null || _j === void 0 ? void 0 : _j.bio) ? `<div class='text-base text-white mb-6'>${userData.profile.bio}</div>` : ''}
+          ${statsHtml}
+          ${matchHistoryHtml}
+          <button id='back-home-view-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Friends</button>
+        </div>
+      `;
+                // Attach back button listener to go to friends page
+                (_k = document.getElementById('back-home-view-profile')) === null || _k === void 0 ? void 0 : _k.addEventListener('click', () => {
+                    window.location.hash = 'friends';
+                });
+            }
+        }
+        catch (error) {
+            console.error('Error loading user profile:', error);
+            const container = document.getElementById('view-profile-page');
+            if (container) {
+                container.innerHTML = `
+        <div class='flex flex-col items-center'>
+          <div class='text-red-400 mb-4'>Failed to load profile</div>
+          <p class='text-gray-400 mb-6 text-center'>User not found or an error occurred.</p>
+          <button id='back-home-view-profile' class='w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Friends</button>
+        </div>
+      `;
+                (_l = document.getElementById('back-home-view-profile')) === null || _l === void 0 ? void 0 : _l.addEventListener('click', () => {
+                    window.location.hash = 'friends';
+                });
+            }
+        }
+    });
 }
 function render(route) {
     const lang = getLang();
@@ -322,6 +848,11 @@ function render(route) {
     if (routes[route]) {
         content = routes[route];
     }
+    else if (route.startsWith('profile/')) {
+        // Handle viewing other user's profile
+        const username = route.split('/')[1];
+        content = generateViewProfilePage(username);
+    }
     else if (route === 'multiplayer') {
         content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.multiplayerTitle}'>${t.multiplayerTitle}</h2><p>${t.multiplayerDesc}</p>`;
     }
@@ -330,60 +861,10 @@ function render(route) {
     }
     else if (route === 'leaderboard') {
         content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.leaderboardTitle}'>${t.leaderboardTitle}</h2>
-      <div class='mt-6 w-full max-w-2xl mx-auto'>
-        <div class='mb-6'>
-          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Player Stats</h3>
-          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
-            <thead class='bg-gray-700'>
-              <tr>
-                <th class='px-4 py-2'>Player</th>
-                <th class='px-4 py-2'>Wins</th>
-                <th class='px-4 py-2'>Losses</th>
-                <th class='px-4 py-2'>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class='px-4 py-2'>Alice</td>
-                <td class='px-4 py-2'>12</td>
-                <td class='px-4 py-2'>5</td>
-                <td class='px-4 py-2'>70%</td>
-              </tr>
-              <tr>
-                <td class='px-4 py-2'>Bob</td>
-                <td class='px-4 py-2'>8</td>
-                <td class='px-4 py-2'>10</td>
-                <td class='px-4 py-2'>44%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <h3 class='text-xl font-semibold mb-2' tabindex='0'>Match History</h3>
-          <table class='w-full text-left bg-gray-800 rounded-lg overflow-hidden'>
-            <thead class='bg-gray-700'>
-              <tr>
-                <th class='px-4 py-2'>Date</th>
-                <th class='px-4 py-2'>Players</th>
-                <th class='px-4 py-2'>Winner</th>
-                <th class='px-4 py-2'>Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class='px-4 py-2'>2025-08-10</td>
-                <td class='px-4 py-2'>Alice vs Bob</td>
-                <td class='px-4 py-2'>Alice</td>
-                <td class='px-4 py-2'>11-7</td>
-              </tr>
-              <tr>
-                <td class='px-4 py-2'>2025-08-09</td>
-                <td class='px-4 py-2'>Bob vs Alice</td>
-                <td class='px-4 py-2'>Bob</td>
-                <td class='px-4 py-2'>11-9</td>
-              </tr>
-            </tbody>
-          </table>
+      <div id='leaderboard-content' class='mt-6 w-full max-w-6xl mx-auto'>
+        <div class='text-center py-8'>
+          <div class='inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white'></div>
+          <p class='mt-2 text-gray-400'>Loading leaderboards...</p>
         </div>
       </div>`;
     }
@@ -398,21 +879,35 @@ function render(route) {
     }
     let topRightUI = '';
     if (loggedInUser) {
-        // Show avatar if available, else fallback to default icon
+        // Show avatar if available, else fallback to SVG icon
         let avatarImg = '';
-        if (loggedInUserAvatar && !loggedInUserAvatar.includes('default') && loggedInUserAvatar.includes('/uploads/')) {
-            // Only show custom uploaded avatars
+        if (loggedInUserAvatar) {
             let avatarUrl = loggedInUserAvatar;
             if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
                 avatarUrl = API_BASE + avatarUrl;
             }
-            avatarImg = `<img src='${avatarUrl}' alt='User Avatar' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' />`;
+            // Add cache-busting for uploaded avatars only
+            if (avatarUrl.includes('/uploads/')) {
+                const cacheBuster = StorageService.getAvatarCacheBuster();
+                avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 'v=' + cacheBuster;
+            }
+            avatarImg = `<img src='${avatarUrl}' alt='' class='inline-block w-8 h-8 rounded-full mr-2 border border-gray-600 bg-gray-700 object-cover' style='vertical-align:middle;' onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" /><span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle; display:none;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
         }
         else {
-            // Always show default SVG icon for no avatar or default avatar
+            // Show SVG icon only when no avatar URL is available
             avatarImg = `<span class='inline-block w-8 h-8 rounded-full mr-2 bg-gray-700 border border-gray-600 flex items-center justify-center' style='vertical-align:middle;'><svg width='24' height='24' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
         }
-        topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center'>
+        topRightUI = `<div class='fixed top-4 right-4 z-50 flex items-center space-x-2'>
+      <button id='friends-btn' class='px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded border border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-400 flex items-center space-x-2' aria-label='Friends'>
+        <div class='flex items-center space-x-1'>
+          <img src='/public/static/icons/friends_online.svg' alt='Friends' class='w-6 h-6' />
+          <span id='friends-online-count'>${currentOnlineFriendsCount}</span>
+        </div>
+        <div class='flex items-center space-x-1'>
+          <img src='/public/static/icons/notification.svg' alt='Notifications' class='w-6 h-6' />
+          <span id='pending-requests-count'>${currentPendingRequestsCount}</span>
+        </div>
+      </button>
       <div class='relative'>
         <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400 flex items-center' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${avatarImg}<span>${loggedInUser}</span></button>
         <div id='user-dropdown-menu' class='absolute right-0 top-full mt-1 w-40 bg-gray-900 border border-gray-700 rounded shadow-lg hidden' role='menu' aria-label='User menu'>
@@ -435,6 +930,10 @@ function render(route) {
     attachLoginListeners();
     attachUserDropdownListeners();
     attachPongListeners();
+    // Update friends count after rendering to restore correct values
+    if (loggedInUser) {
+        setTimeout(() => updateFriendsCount(), 100);
+    }
     // Always check for page-specific listeners after rendering
     attachPageSpecificListeners(route);
 }
@@ -444,18 +943,35 @@ function attachPageSpecificListeners(route) {
     // Attach page-specific listeners based on current route
     if (route === 'edit-profile' && !attachedListeners.has('edit-profile')) {
         attachedListeners.add('edit-profile');
-        setTimeout(() => attachEditProfileListeners(), 0);
+        setTimeout(() => ProfileManager.attachEditProfilePageListeners(), 0);
     }
     if (route === 'profile' && !attachedListeners.has('profile')) {
         attachedListeners.add('profile');
-        setTimeout(() => attachProfilePageListeners(), 0);
+        setTimeout(() => ProfileManager.attachProfilePageListeners(), 0);
+    }
+    if (route.startsWith('profile/') && !attachedListeners.has(`view-${route}`)) {
+        attachedListeners.add(`view-${route}`);
+        const username = route.split('/')[1];
+        setTimeout(() => loadUserProfile(username), 0);
+    }
+    if (route === 'leaderboard' && !attachedListeners.has('leaderboard')) {
+        attachedListeners.add('leaderboard');
+        setTimeout(() => loadLeaderboards(), 0);
+    }
+    if (route === 'options' && !attachedListeners.has('options')) {
+        attachedListeners.add('options');
+        setTimeout(() => initializeOptionsPage(), 0);
+    }
+    if (route === 'friends' && !attachedListeners.has('friends')) {
+        attachedListeners.add('friends');
+        setTimeout(() => initializeFriendsPage(), 0);
     }
 }
 function clearPageSpecificListeners() {
     attachedListeners.clear();
 }
 function attachMenuListeners() {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     (_a = document.getElementById('start-game')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
         window.location.hash = '#pong';
     });
@@ -468,13 +984,16 @@ function attachMenuListeners() {
     (_d = document.getElementById('leaderboard')) === null || _d === void 0 ? void 0 : _d.addEventListener('click', () => {
         window.location.hash = '#leaderboard';
     });
-    (_e = document.getElementById('login-btn')) === null || _e === void 0 ? void 0 : _e.addEventListener('click', () => {
+    (_e = document.getElementById('friends-btn')) === null || _e === void 0 ? void 0 : _e.addEventListener('click', () => {
+        window.location.hash = '#friends';
+    });
+    (_f = document.getElementById('login-btn')) === null || _f === void 0 ? void 0 : _f.addEventListener('click', () => {
         window.location.hash = '#login';
     });
-    (_f = document.getElementById('register-btn')) === null || _f === void 0 ? void 0 : _f.addEventListener('click', () => {
+    (_g = document.getElementById('register-btn')) === null || _g === void 0 ? void 0 : _g.addEventListener('click', () => {
         window.location.hash = '#register';
     });
-    (_g = document.getElementById('edit-profile-btn')) === null || _g === void 0 ? void 0 : _g.addEventListener('click', () => {
+    (_h = document.getElementById('edit-profile-btn')) === null || _h === void 0 ? void 0 : _h.addEventListener('click', () => {
         window.location.hash = '#edit-profile';
     });
 }
@@ -650,411 +1169,78 @@ function attachUserDropdownListeners() {
         render('');
     });
 }
-// Attach listeners and fill data for the profile page
-function attachProfilePageListeners() {
-    var _a, _b;
-    // Delete profile button logic
-    const deleteBtn = document.getElementById('delete-profile-btn');
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
-            if (!confirm('Are you sure you want to delete your profile? This action cannot be undone.'))
-                return;
-            if (!confirm('This is your last chance! Do you really want to delete your profile and all your data?'))
-                return;
-            // Prompt for password
-            const password = prompt('Please enter your current password to confirm deletion:');
-            if (!password)
-                return;
-            const errorDiv = document.getElementById('delete-profile-error');
-            errorDiv === null || errorDiv === void 0 ? void 0 : errorDiv.classList.add('hidden');
-            try {
-                const res = yield fetch(`${API_BASE}/users/${loggedInUser}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                });
-                const data = yield res.json();
-                if (!res.ok) {
-                    errorDiv.textContent = data.error || 'Failed to delete profile.';
-                    errorDiv.classList.remove('hidden');
-                }
-                else {
-                    alert('Your profile has been deleted.');
-                    setLoggedInUser(null);
-                    window.location.hash = '';
-                }
-            }
-            catch (err) {
-                errorDiv.textContent = 'Network error.';
-                errorDiv.classList.remove('hidden');
-            }
-        }));
-    }
-    if (!loggedInUser)
-        return;
-    // Fetch user info and stats
-    Promise.all([
-        fetch(`${API_BASE}/users/${loggedInUser}`).then(res => res.json()),
-        fetch(`${API_BASE}/stats/${loggedInUser}`).then(res => res.json())
-    ]).then(([user, stats]) => {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
-        // Avatar
-        let avatarUrl = ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.avatarUrl) || '';
-        if (avatarUrl.startsWith('/uploads') || avatarUrl.startsWith('/static')) {
-            avatarUrl = API_BASE + avatarUrl;
-        }
-        // Add cache-busting query string to force refresh after upload
-        if (avatarUrl && avatarUrl.includes('/uploads/')) {
-            avatarUrl += (avatarUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
-        }
-        // Use the same logic as the dropdown avatar for consistency
-        const avatarHtml = avatarUrl && !avatarUrl.includes('default-avatar.png')
-            ? `<img src='${avatarUrl}' alt='avatar' class='w-32 h-32 rounded-full border-4 border-gray-600 bg-gray-700 object-cover mb-2' onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2' style='display:none;'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`
-            : `<span class='w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-600 flex items-center justify-center mb-2'><svg width='64' height='64' fill='none' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4' fill='#bbb'/><ellipse cx='12' cy='18' rx='7' ry='4' fill='#bbb'/></svg></span>`;
-        document.getElementById('profile-avatar').innerHTML = avatarHtml;
-        // Alias
-        document.getElementById('profile-alias').textContent = ((_b = user.profile) === null || _b === void 0 ? void 0 : _b.alias) || user.username;
-        // Username
-        document.getElementById('profile-username').textContent = '@' + user.username;
-        // Bio
-        const bio = (_c = user.profile) === null || _c === void 0 ? void 0 : _c.bio;
-        const bioDiv = document.getElementById('profile-bio');
-        if (bio && bio.trim()) {
-            bioDiv.textContent = '';
-            bioDiv.innerHTML = `<div class='whitespace-pre-line text-gray-300'>${bio}</div>`;
-        }
-        else {
-            bioDiv.innerHTML = '';
-        }
-        // Stats counters
-        const statsHtml = `
-      <div class='grid grid-cols-2 gap-4 mb-2'>
-        <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-          <div class='text-lg font-semibold text-green-400'>Bot</div>
-          <div class='flex space-x-4 mt-2'>
-            <div class='text-center'>
-              <div class='text-2xl font-bold'>${(_d = stats.botWins) !== null && _d !== void 0 ? _d : 0}</div>
-              <div class='text-gray-400 text-sm'>Wins</div>
-            </div>
-            <div class='text-center'>
-              <div class='text-2xl font-bold'>${(_e = stats.botLosses) !== null && _e !== void 0 ? _e : 0}</div>
-              <div class='text-gray-400 text-sm'>Losses</div>
-            </div>
-          </div>
-        </div>
-        <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-          <div class='text-lg font-semibold text-blue-400'>Player</div>
-          <div class='flex space-x-4 mt-2'>
-            <div class='text-center'>
-              <div class='text-2xl font-bold'>${(_f = stats.playerWins) !== null && _f !== void 0 ? _f : 0}</div>
-              <div class='text-gray-400 text-sm'>Wins</div>
-            </div>
-            <div class='text-center'>
-              <div class='text-2xl font-bold'>${(_g = stats.playerLosses) !== null && _g !== void 0 ? _g : 0}</div>
-              <div class='text-gray-400 text-sm'>Losses</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-        <div class='text-lg font-semibold text-yellow-400'>Tournament Wins</div>
-        <div class='text-3xl font-bold mt-2'>${(_h = stats.tournamentWins) !== null && _h !== void 0 ? _h : 0}</div>
+// Function to create leaderboard table HTML
+function createLeaderboardTable(title, data, emptyMessage) {
+    const rows = data.length > 0
+        ? data.map(item => `
+        <tr class='hover:bg-gray-700 transition-colors'>
+          <td class='px-4 py-3 text-yellow-400 font-semibold'>#${item.rank}</td>
+          <td class='px-4 py-3'>${item.displayName}</td>
+          <td class='px-4 py-3 text-green-400 font-semibold'>${item.wins}</td>
+        </tr>
+      `).join('')
+        : `<tr><td colspan='3' class='px-4 py-6 text-center text-gray-400'>${emptyMessage}</td></tr>`;
+    return `
+    <div class='bg-gray-800 rounded-lg overflow-hidden'>
+      <h3 class='text-xl font-semibold p-4 bg-gray-700 text-center'>${title}</h3>
+      <table class='w-full text-left'>
+        <thead class='bg-gray-600'>
+          <tr>
+            <th class='px-4 py-3 text-yellow-400'>Rank</th>
+            <th class='px-4 py-3'>Player</th>
+            <th class='px-4 py-3 text-green-400'>Wins</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+// Function to load and display leaderboards
+function loadLeaderboards() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const contentDiv = document.getElementById('leaderboard-content');
+        if (!contentDiv)
+            return;
+        try {
+            // Fetch all three leaderboards in parallel
+            const [botWinsRes, playerWinsRes, tournamentWinsRes] = yield Promise.all([
+                fetch(`${API_BASE}/stats/leaderboard/bot-wins`),
+                fetch(`${API_BASE}/stats/leaderboard/player-wins`),
+                fetch(`${API_BASE}/stats/leaderboard/tournament-wins`)
+            ]);
+            const [botWinsData, playerWinsData, tournamentWinsData] = yield Promise.all([
+                botWinsRes.json(),
+                playerWinsRes.json(),
+                tournamentWinsRes.json()
+            ]);
+            // Create the three-column layout
+            const leaderboardHtml = `
+      <div class='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+        ${createLeaderboardTable('🤖 Bot Wins', botWinsData, 'No bot matches played yet')}
+        ${createLeaderboardTable('👥 Player Wins', playerWinsData, 'No player matches played yet')}
+        ${createLeaderboardTable('🏆 Tournament Wins', tournamentWinsData, 'No tournaments won yet')}
       </div>
     `;
-        document.getElementById('profile-stats-counters').innerHTML = statsHtml;
-        // Setup paddle color selector after stats are loaded
-        setTimeout(() => {
-            var _a;
-            const skinColorSelect = document.getElementById('profile-skinColor');
-            const skinColorConfirm = document.getElementById('profile-skinColor-confirm');
-            if (skinColorSelect && skinColorConfirm && loggedInUser) {
-                // Set initial value from user profile  
-                if ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.skinColor) {
-                    skinColorSelect.value = user.profile.skinColor;
-                }
-                skinColorConfirm.onclick = () => {
-                    const newColor = skinColorSelect.value;
-                    fetch(`${API_BASE}/users/${loggedInUser}/skin`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ skinColor: newColor })
-                    })
-                        .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
-                        .then(() => {
-                        document.getElementById('profile-skinColor-success').textContent = 'Paddle color updated!';
-                        document.getElementById('profile-skinColor-success').classList.remove('hidden');
-                        document.getElementById('profile-skinColor-error').classList.add('hidden');
-                    })
-                        .catch(err => {
-                        document.getElementById('profile-skinColor-error').textContent = err.error || 'Failed to update color.';
-                        document.getElementById('profile-skinColor-error').classList.remove('hidden');
-                        document.getElementById('profile-skinColor-success').classList.add('hidden');
-                    });
-                };
-            }
-        }, 0);
-    });
-    (_a = document.getElementById('edit-profile-btn')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
-        window.location.hash = '#edit-profile';
-    });
-    (_b = document.getElementById('back-home-profile')) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
-        window.location.hash = '';
+            contentDiv.innerHTML = leaderboardHtml;
+        }
+        catch (error) {
+            console.error('Failed to load leaderboards:', error);
+            contentDiv.innerHTML = `
+      <div class='text-center py-8'>
+        <p class='text-red-400 mb-2'>Failed to load leaderboards</p>
+        <button onclick='window.loadLeaderboards()' class='px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-purple-400'>
+          Try Again
+        </button>
+      </div>
+    `;
+        }
     });
 }
-// Basic Pong game logic
-function startBasicPongGame(canvas, statusDiv) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx)
-        return;
-    let ballX = canvas.width / 2;
-    let ballY = canvas.height / 2;
-    let ballVX = 3;
-    let ballVY = 2;
-    let leftPaddleY = canvas.height / 2 - 40;
-    let rightPaddleY = canvas.height / 2 - 40;
-    const paddleHeight = 80;
-    const paddleWidth = 10;
-    const paddleSpeed = 5;
-    let upPressed = false;
-    let downPressed = false;
-    let gameOver = false;
-    let paddleVY = 0;
-    // AI simulated keyboard input
-    let aiUpPressed = false;
-    let aiDownPressed = false;
-    function aiDecideMove() {
-        // AI only sees the game state once per second
-        // Predict ball position and set aiUpPressed/aiDownPressed
-        const paddleCenter = rightPaddleY + paddleHeight / 2;
-        // Predict ball's future Y position (simulate bounces)
-        let predictedY = ballY;
-        let predictedVY = ballVY;
-        let predictedVX = ballVX;
-        let predictedX = ballX;
-        // Simulate ball movement until it reaches right paddle X
-        while (predictedVX > 0 && predictedX < canvas.width - 30) {
-            predictedX += predictedVX;
-            predictedY += predictedVY;
-            // Bounce off top/bottom
-            if (predictedY < 10) {
-                predictedY = 10 + (10 - predictedY);
-                predictedVY *= -1;
-            }
-            else if (predictedY > canvas.height - 10) {
-                predictedY = (canvas.height - 10) - (predictedY - (canvas.height - 10));
-                predictedVY *= -1;
-            }
-        }
-        // Remove random error for more consistent prediction
-        // predictedY += (Math.random() - 0.5) * 5;
-        // Add a deadzone so AI doesn't constantly move
-        const deadzone = 30;
-        // Only move if paddle is far from predicted position
-        if (Math.abs(predictedY - paddleCenter) > deadzone) {
-            if (predictedY < paddleCenter) {
-                aiUpPressed = true;
-                aiDownPressed = false;
-            }
-            else {
-                aiUpPressed = false;
-                aiDownPressed = true;
-            }
-        }
-        else {
-            aiUpPressed = false;
-            aiDownPressed = false;
-        }
-    }
-    // Makes decision every second
-    let aiInterval;
-    function startAI() {
-        aiDecideMove();
-        aiInterval = window.setInterval(() => {
-            aiDecideMove();
-        }, 1000);
-    }
-    startAI();
-    function aiSimulateKey() {
-        // Simulate keyboard input for right paddle
-        if (aiUpPressed && rightPaddleY > 0)
-            rightPaddleY -= paddleSpeed;
-        if (aiDownPressed && rightPaddleY < canvas.height - paddleHeight)
-            rightPaddleY += paddleSpeed;
-    }
-    // Paddle color customization
-    let userPaddleColor = '#FFFFFF';
-    if (loggedInUser) {
-        fetch(`${API_BASE}/users/${loggedInUser}`)
-            .then(res => res.json())
-            .then(user => {
-            var _a;
-            userPaddleColor = ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.skinColor) || '#FFFFFF';
-        });
-    }
-    function draw() {
-        if (!ctx)
-            return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // Use user's preferred color for left paddle
-        ctx.fillStyle = userPaddleColor;
-        ctx.fillRect(20, leftPaddleY, paddleWidth, paddleHeight);
-        // Right paddle stays white
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(canvas.width - 30, rightPaddleY, paddleWidth, paddleHeight);
-        ctx.beginPath();
-        ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.closePath();
-    }
-    // Helper to send match result to backend
-    function sendMatchResult(_a) {
-        return __awaiter(this, arguments, void 0, function* ({ result, score, opponent, startedAt, endedAt, duration }) {
-            if (!loggedInUser)
-                return;
-            // Fetch userId for loggedInUser
-            try {
-                const userRes = yield fetch(`${API_BASE}/users/${loggedInUser}`);
-                const user = yield userRes.json();
-                if (!user || !user.id)
-                    return;
-                yield fetch(`${API_BASE}/stats/update`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: user.id,
-                        result,
-                        type: 'bot',
-                        score,
-                        opponent,
-                        startedAt,
-                        endedAt,
-                        duration
-                    })
-                });
-            }
-            catch (e) {
-                // Ignore errors for now
-            }
-        });
-    }
-    let matchStart = new Date();
-    function update() {
-        let prevPaddleY = leftPaddleY;
-        if (upPressed && leftPaddleY > 0)
-            leftPaddleY -= paddleSpeed;
-        if (downPressed && leftPaddleY < canvas.height - paddleHeight)
-            leftPaddleY += paddleSpeed;
-        paddleVY = leftPaddleY - prevPaddleY;
-        // Simulate AI keyboard input for right paddle
-        aiSimulateKey();
-        ballX += ballVX;
-        ballY += ballVY;
-        // Ball collision with top/bottom
-        if (ballY < 10 || ballY > canvas.height - 10)
-            ballVY *= -1;
-        // Ball collision with left paddle
-        if (ballX - 10 < 30 &&
-            ballY + 10 > leftPaddleY &&
-            ballY - 10 < leftPaddleY + paddleHeight &&
-            ballVX < 0) {
-            ballX = 30 + 10;
-            const hitPos = ((ballY - leftPaddleY) / paddleHeight) * 2 - 1;
-            let speed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
-            const angle = hitPos * Math.PI / 4;
-            ballVX = Math.abs(speed * Math.cos(angle));
-            ballVY = speed * Math.sin(angle);
-            // Add spin based on paddle movement
-            ballVY += paddleVY * 0.7; // spin factor
-            // Slightly increase speed for more dynamic play
-            const newSpeed = Math.min(Math.sqrt(ballVX * ballVX + ballVY * ballVY) * 1.05, 12);
-            const norm = newSpeed / Math.sqrt(ballVX * ballVX + ballVY * ballVY);
-            ballVX *= norm;
-            ballVY *= norm;
-        }
-        // Ball collision with right paddle
-        if (ballX + 10 > canvas.width - 30 &&
-            ballY + 10 > rightPaddleY &&
-            ballY - 10 < rightPaddleY + paddleHeight &&
-            ballVX > 0) {
-            ballX = canvas.width - 30 - 10;
-            const hitPos = ((ballY - rightPaddleY) / paddleHeight) * 2 - 1;
-            let speed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
-            const angle = hitPos * Math.PI / 4;
-            ballVX = -Math.abs(speed * Math.cos(angle));
-            ballVY = speed * Math.sin(angle);
-            // Slightly increase speed for more dynamic play
-            const newSpeed = Math.min(Math.sqrt(ballVX * ballVX + ballVY * ballVY) * 1.05, 12);
-            const norm = newSpeed / Math.sqrt(ballVX * ballVX + ballVY * ballVY);
-            ballVX *= norm;
-            ballVY *= norm;
-        }
-        // Ball out of bounds
-        if (ballX < 0) {
-            gameOver = true;
-            if (statusDiv)
-                statusDiv.textContent = 'Game Over! Right player wins.';
-            // Send match result: user lost
-            const matchEnd = new Date();
-            sendMatchResult({
-                result: 'loss',
-                score: '0-1',
-                opponent: 'AI',
-                startedAt: matchStart.toISOString(),
-                endedAt: matchEnd.toISOString(),
-                duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
-            });
-        }
-        if (ballX > canvas.width) {
-            gameOver = true;
-            if (statusDiv)
-                statusDiv.textContent = 'Game Over! Left player wins.';
-            // Send match result: user won
-            const matchEnd = new Date();
-            sendMatchResult({
-                result: 'win',
-                score: '1-0',
-                opponent: 'AI',
-                startedAt: matchStart.toISOString(),
-                endedAt: matchEnd.toISOString(),
-                duration: Math.round((matchEnd.getTime() - matchStart.getTime()) / 1000)
-            });
-        }
-        if (gameOver) {
-            clearInterval(aiInterval);
-        }
-    }
-    function gameLoop() {
-        if (gameOver)
-            return;
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
-    }
-    // Keyboard controls for left paddle
-    function keyDownHandler(e) {
-        if (e.key === 'ArrowUp')
-            upPressed = true;
-        if (e.key === 'ArrowDown')
-            downPressed = true;
-    }
-    function keyUpHandler(e) {
-        if (e.key === 'ArrowUp')
-            upPressed = false;
-        if (e.key === 'ArrowDown')
-            downPressed = false;
-    }
-    document.addEventListener('keydown', keyDownHandler);
-    document.addEventListener('keyup', keyUpHandler);
-    if (statusDiv)
-        statusDiv.textContent = 'Game started! Use Arrow Up/Down to move left paddle.';
-    gameLoop();
-    // Clean up listeners on game over or navigation
-    window.addEventListener('hashchange', () => {
-        document.removeEventListener('keydown', keyDownHandler);
-        document.removeEventListener('keyup', keyUpHandler);
-    }, { once: true });
-}
+// Make loadLeaderboards available globally
+window.loadLeaderboards = loadLeaderboards;
 function attachPongListeners() {
     var _a, _b;
     (_a = document.getElementById('pong')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
@@ -1068,307 +1254,10 @@ function attachPongListeners() {
     const statusDiv = document.getElementById('pong-status');
     if (startBtn && canvas) {
         startBtn.addEventListener('click', () => {
-            startBasicPongGame(canvas, statusDiv);
+            startBtn.disabled = true;
+            startBtn.textContent = 'Game Running...';
+            PongEngine.startGame(canvas, statusDiv);
         });
-    }
-}
-function attachEditProfileListeners() {
-    var _a;
-    (_a = document.getElementById('back-home-edit-profile')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
-        window.location.hash = '';
-    });
-    const form = document.getElementById('edit-profile-form');
-    const avatarInput = document.getElementById('edit-avatar');
-    const avatarPreview = document.getElementById('edit-avatar-preview');
-    if (avatarInput && avatarPreview) {
-        avatarInput.addEventListener('change', () => {
-            const file = avatarInput.files && avatarInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    var _a;
-                    avatarPreview.innerHTML = `<img src='${(_a = e.target) === null || _a === void 0 ? void 0 : _a.result}' alt='avatar preview' class='w-24 h-24 rounded-full object-cover border-2 border-gray-600' />`;
-                };
-                reader.readAsDataURL(file);
-            }
-            else {
-                avatarPreview.innerHTML = '';
-            }
-        });
-    }
-    if (form && loggedInUser) {
-        let original = { alias: '', username: '', email: '', bio: '', skinColor: '#FFFFFF' };
-        let formReady = false;
-        let isSubmitting = false; // Add submission lock
-        // Initially disable submit button
-        const submitBtn = document.getElementById('edit-profile-submit');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-        }
-        // Prefill form with current user info
-        fetch(`${API_BASE}/users/${loggedInUser}`)
-            .then(res => res.json())
-            .then(user => {
-            var _a, _b, _c;
-            original = {
-                alias: ((_a = user.profile) === null || _a === void 0 ? void 0 : _a.alias) || '',
-                username: user.username || '',
-                email: user.email || '',
-                bio: ((_b = user.profile) === null || _b === void 0 ? void 0 : _b.bio) || '',
-                skinColor: ((_c = user.profile) === null || _c === void 0 ? void 0 : _c.skinColor) || '#FFFFFF'
-            };
-            document.getElementById('edit-alias').value = original.alias;
-            document.getElementById('edit-username').value = original.username;
-            document.getElementById('edit-email').value = original.email;
-            document.getElementById('edit-bio').value = original.bio;
-            formReady = true; // Mark form as ready after data is loaded
-            // Enable submit button and update text
-            const submitBtn = document.getElementById('edit-profile-submit');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Update Profile';
-            }
-        });
-        form.addEventListener('submit', (e) => __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e, _f;
-            e.preventDefault();
-            console.log('[DEBUG] Form submit event triggered');
-            console.log('[DEBUG] Form submit event triggered');
-            // Prevent multiple submissions
-            if (isSubmitting) {
-                console.log('[DEBUG] Already submitting, ignoring duplicate submission');
-                return;
-            }
-            // Prevent submission if form data isn't loaded yet
-            if (!formReady) {
-                console.log('[DEBUG] Form not ready yet');
-                const errorDiv = document.getElementById('edit-profile-error');
-                if (errorDiv) {
-                    errorDiv.textContent = 'Please wait for form to load completely before submitting.';
-                    errorDiv.classList.remove('hidden');
-                }
-                return;
-            }
-            isSubmitting = true; // Lock submissions
-            const alias = document.getElementById('edit-alias').value.trim();
-            const username = document.getElementById('edit-username').value.trim();
-            const email = document.getElementById('edit-email').value.trim();
-            const bio = document.getElementById('edit-bio').value;
-            const password = document.getElementById('edit-password').value.trim();
-            // More robust way to get current password
-            const currentPasswordInput = document.getElementById('edit-current-password');
-            const currentPassword = currentPasswordInput ? currentPasswordInput.value.trim() : '';
-            // Removed edit-skinColor field, do not read its value
-            const errorDiv = document.getElementById('edit-profile-error');
-            const successDiv = document.getElementById('edit-profile-success');
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (errorDiv)
-                errorDiv.classList.add('hidden');
-            if (successDiv)
-                successDiv.classList.add('hidden');
-            let errorMsg = '';
-            // Only require current password if changing username/email/password or uploading avatar
-            const wantsUsernameChange = username && username !== original.username;
-            const wantsEmailChange = email && email !== original.email;
-            const wantsPasswordChange = !!password;
-            const wantsAvatarChange = avatarInput && avatarInput.files && avatarInput.files.length > 0;
-            const wantsBioChange = bio !== original.bio;
-            // Check if at least one field is being changed
-            if (!alias && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange && !wantsBioChange) {
-                errorMsg = 'At least one field must be filled.';
-            }
-            // Current password only required for sensitive changes (not for alias, bio, or avatar)
-            if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange) && !currentPassword) {
-                errorMsg = 'Current password is required to change username, email, or password.';
-            }
-            if (errorMsg) {
-                if (errorDiv) {
-                    errorDiv.textContent = errorMsg;
-                    errorDiv.classList.remove('hidden');
-                }
-                return;
-            }
-            let ok = true;
-            let msg = '';
-            let aliasTargetUser = loggedInUser;
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Updating...';
-            }
-            try {
-                // PATCH username/email/password only if needed
-                const updateBody = {};
-                if (wantsUsernameChange)
-                    updateBody.newUsername = username;
-                if (wantsEmailChange)
-                    updateBody.newEmail = email;
-                if (wantsPasswordChange)
-                    updateBody.newPassword = password;
-                if (wantsUsernameChange || wantsEmailChange || wantsPasswordChange) {
-                    updateBody.currentPassword = currentPassword;
-                }
-                if (Object.keys(updateBody).length > 0) {
-                    // Removed PATCH for skinColor; handled in profile view only
-                    try {
-                        const userRes = yield fetch(`${API_BASE}/users/${loggedInUser}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(updateBody)
-                        });
-                        const userResBody = yield userRes.json();
-                        if (!userRes.ok) {
-                            ok = false;
-                            msg = userResBody.error || JSON.stringify(userResBody) || 'Failed to update profile.';
-                        }
-                        else {
-                            if (updateBody.newUsername) {
-                                setLoggedInUser(updateBody.newUsername);
-                                aliasTargetUser = updateBody.newUsername;
-                                try {
-                                    const newUserRes = yield fetch(`${API_BASE}/users/${updateBody.newUsername}`);
-                                    const newUser = yield newUserRes.json();
-                                    original = {
-                                        alias: ((_a = newUser.profile) === null || _a === void 0 ? void 0 : _a.alias) || '',
-                                        username: newUser.username || '',
-                                        email: newUser.email || '',
-                                        bio: ((_b = newUser.profile) === null || _b === void 0 ? void 0 : _b.bio) || '',
-                                        skinColor: ((_c = newUser.profile) === null || _c === void 0 ? void 0 : _c.skinColor) || '#FFFFFF'
-                                    };
-                                    // Preserve current password field when updating form
-                                    const currentPasswordField = document.getElementById('edit-current-password');
-                                    const currentPasswordValue = (currentPasswordField === null || currentPasswordField === void 0 ? void 0 : currentPasswordField.value) || '';
-                                    document.getElementById('edit-alias').value = original.alias;
-                                    document.getElementById('edit-username').value = original.username;
-                                    document.getElementById('edit-email').value = original.email;
-                                    document.getElementById('edit-bio').value = original.bio;
-                                    // Restore current password field
-                                    if (currentPasswordField) {
-                                        currentPasswordField.value = currentPasswordValue;
-                                    }
-                                }
-                                catch (_g) { }
-                            }
-                            else if (updateBody.newEmail) {
-                                try {
-                                    const newUserRes = yield fetch(`${API_BASE}/users/${aliasTargetUser}`);
-                                    const newUser = yield newUserRes.json();
-                                    original = {
-                                        alias: ((_d = newUser.profile) === null || _d === void 0 ? void 0 : _d.alias) || '',
-                                        username: newUser.username || '',
-                                        email: newUser.email || '',
-                                        bio: ((_e = newUser.profile) === null || _e === void 0 ? void 0 : _e.bio) || '',
-                                        skinColor: ((_f = newUser.profile) === null || _f === void 0 ? void 0 : _f.skinColor) || '#FFFFFF'
-                                    };
-                                    // Preserve current password field when updating form
-                                    const currentPasswordField = document.getElementById('edit-current-password');
-                                    const currentPasswordValue = (currentPasswordField === null || currentPasswordField === void 0 ? void 0 : currentPasswordField.value) || '';
-                                    document.getElementById('edit-alias').value = original.alias;
-                                    document.getElementById('edit-username').value = original.username;
-                                    document.getElementById('edit-email').value = original.email;
-                                    document.getElementById('edit-bio').value = original.bio;
-                                    // Restore current password field
-                                    if (currentPasswordField) {
-                                        currentPasswordField.value = currentPasswordValue;
-                                    }
-                                }
-                                catch (_h) { }
-                            }
-                        }
-                    }
-                    catch (err) {
-                        ok = false;
-                        msg = err instanceof Error ? err.message : 'Network error updating profile.';
-                    }
-                }
-                // Avatar upload if needed
-                if (ok && wantsAvatarChange && avatarInput && avatarInput.files && avatarInput.files.length > 0) {
-                    const file = avatarInput.files[0];
-                    console.log('[DEBUG] Avatar upload: uploading file', file.name);
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    try {
-                        const avatarRes = yield fetch(`${API_BASE}/users/${aliasTargetUser}/avatar`, {
-                            method: 'PATCH',
-                            body: formData
-                        });
-                        const avatarResBody = yield avatarRes.json();
-                        if (!avatarRes.ok) {
-                            ok = false;
-                            msg = avatarResBody.error || JSON.stringify(avatarResBody) || 'Failed to upload avatar.';
-                        }
-                        else {
-                            setLoggedInUser(aliasTargetUser);
-                            // Clear file input and preview
-                            avatarInput.value = '';
-                            if (avatarPreview)
-                                avatarPreview.innerHTML = '';
-                        }
-                    }
-                    catch (err) {
-                        ok = false;
-                        msg = err instanceof Error ? err.message : 'Network error uploading avatar.';
-                    }
-                }
-                // Update alias if changed (after username PATCH if needed)
-                if (ok && alias && alias !== original.alias) {
-                    try {
-                        const aliasRes = yield fetch(`${API_BASE}/users/${aliasTargetUser}/alias`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ alias })
-                        });
-                        const aliasResBody = yield aliasRes.json();
-                        if (!aliasRes.ok) {
-                            ok = false;
-                            msg = aliasResBody.error || JSON.stringify(aliasResBody) || 'Failed to update alias.';
-                        }
-                    }
-                    catch (err) {
-                        ok = false;
-                        msg = err instanceof Error ? err.message : 'Network error updating alias.';
-                    }
-                }
-                // Update bio if changed
-                if (ok && bio && bio !== original.bio) {
-                    try {
-                        const bioRes = yield fetch(`${API_BASE}/users/${aliasTargetUser}/bio`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ bio })
-                        });
-                        const bioResBody = yield bioRes.json();
-                        if (!bioRes.ok) {
-                            ok = false;
-                            msg = bioResBody.error || JSON.stringify(bioResBody) || 'Failed to update biography.';
-                        }
-                    }
-                    catch (err) {
-                        ok = false;
-                        msg = err instanceof Error ? err.message : 'Network error updating biography.';
-                    }
-                }
-            }
-            finally {
-                console.log('[DEBUG] Form submission completed');
-                isSubmitting = false; // Unlock submissions
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Update Profile';
-                }
-            }
-            if (ok) {
-                if (successDiv) {
-                    successDiv.textContent = 'Profile updated successfully!';
-                    successDiv.classList.remove('hidden');
-                }
-            }
-            else {
-                if (errorDiv) {
-                    errorDiv.textContent = msg;
-                    errorDiv.classList.remove('hidden');
-                }
-            }
-        }));
     }
 }
 window.addEventListener('hashchange', () => {
@@ -1377,5 +1266,17 @@ window.addEventListener('hashchange', () => {
     render(newRoute);
     // Note: attachPageSpecificListeners is now called within render(), so no need to duplicate here
 });
+// Cleanup heartbeat on page unload
+window.addEventListener('beforeunload', () => {
+    HeartbeatService.stop();
+});
+// Setup heartbeat callback for updateFriendsCount
+HeartbeatService.setUpdateFriendsCallback(() => updateFriendsCount());
+// Start heartbeat if user is already logged in
+if (loggedInUser) {
+    HeartbeatService.start(loggedInUser);
+    // Update friends count after a short delay to ensure UI is loaded
+    setTimeout(() => updateFriendsCount(), 1500);
+}
 // Initial render
 render(window.location.hash.replace('#', ''));
