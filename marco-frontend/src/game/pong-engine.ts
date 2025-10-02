@@ -87,13 +87,19 @@ export class PongEngine {
     
     switch (powerUp.type) {
       case PowerUpType.EXTENDED_PADDLE:
-        if (side === 'left') {
-          gameState.leftPaddleHeight = gameState.basePaddleHeight * 1.5;
-          PongEngine.addActiveEffect(gameState, { type: powerUp.type, side: 'left' }, effectDuration);
-        } else if (side === 'right') {
-          gameState.rightPaddleHeight = gameState.basePaddleHeight * 1.5;
-          PongEngine.addActiveEffect(gameState, { type: powerUp.type, side: 'right' }, effectDuration);
+        // Check if extended paddle is already active for this side
+        const hasExtendedPaddle = gameState.activeEffects.some((effect: ActiveEffect) => 
+          effect.type === PowerUpType.EXTENDED_PADDLE && effect.side === side
+        );
+        
+        if (!hasExtendedPaddle) {
+          if (side === 'left') {
+            gameState.leftPaddleHeight = gameState.basePaddleHeight * 1.5;
+          } else if (side === 'right') {
+            gameState.rightPaddleHeight = gameState.basePaddleHeight * 1.5;
+          }
         }
+        PongEngine.addActiveEffect(gameState, { type: powerUp.type, side }, effectDuration);
         break;
         
       case PowerUpType.MULTI_BALL:
@@ -110,21 +116,29 @@ export class PongEngine {
         break;
         
       case PowerUpType.SPEED_BOOST:
-        // Increase main ball speed temporarily - more pronounced effect
-        const speedMultiplier = 2.0; // Increased from 1.5 to 2.0
-        gameState.ballVX *= speedMultiplier;
-        gameState.ballVY *= speedMultiplier;
+        // Check if speed boost is already active
+        const hasSpeedBoost = gameState.activeEffects.some((effect: ActiveEffect) => effect.type === PowerUpType.SPEED_BOOST);
+        if (!hasSpeedBoost) {
+          // Increase main ball speed temporarily - more pronounced effect
+          const speedMultiplier = 2.0; // Increased from 1.5 to 2.0
+          gameState.ballVX *= speedMultiplier;
+          gameState.ballVY *= speedMultiplier;
+        }
         PongEngine.addActiveEffect(gameState, { type: powerUp.type }, effectDuration);
         break;
         
       case PowerUpType.SLOW_MOTION:
-        // Slow down everything temporarily - more pronounced effect
-        gameState.ballVX *= 0.4; // Reduced from 0.6 to 0.4
-        gameState.ballVY *= 0.4;
-        gameState.activeBalls.forEach((ball: any) => {
-          ball.vx *= 0.4;
-          ball.vy *= 0.4;
-        });
+        // Check if slow motion is already active
+        const hasSlowMotion = gameState.activeEffects.some((effect: ActiveEffect) => effect.type === PowerUpType.SLOW_MOTION);
+        if (!hasSlowMotion) {
+          // Slow down everything temporarily - more pronounced effect
+          gameState.ballVX *= 0.4; // Reduced from 0.6 to 0.4
+          gameState.ballVY *= 0.4;
+          gameState.activeBalls.forEach((ball: any) => {
+            ball.vx *= 0.4;
+            ball.vy *= 0.4;
+          });
+        }
         PongEngine.addActiveEffect(gameState, { type: powerUp.type }, effectDuration);
         break;
     }
@@ -134,12 +148,26 @@ export class PongEngine {
    * Add active effect
    */
   private static addActiveEffect(gameState: any, effectData: { type: PowerUpType; side?: 'left' | 'right' }, duration: number): void {
-    gameState.activeEffects.push({
-      type: effectData.type,
-      side: effectData.side,
-      duration,
-      startTime: Date.now()
-    });
+    // Check if there's already an active effect of the same type and side
+    const existingEffectIndex = gameState.activeEffects.findIndex((effect: ActiveEffect) => 
+      effect.type === effectData.type && effect.side === effectData.side
+    );
+    
+    if (existingEffectIndex !== -1) {
+      // Extend the duration of the existing effect
+      const existingEffect = gameState.activeEffects[existingEffectIndex];
+      const remainingTime = Math.max(0, existingEffect.duration - (Date.now() - existingEffect.startTime));
+      existingEffect.startTime = Date.now();
+      existingEffect.duration = duration + remainingTime; // Add remaining time to new duration
+    } else {
+      // Create new effect if none exists
+      gameState.activeEffects.push({
+        type: effectData.type,
+        side: effectData.side,
+        duration,
+        startTime: Date.now()
+      });
+    }
   }
 
   /**
