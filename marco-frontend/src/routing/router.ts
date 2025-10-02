@@ -171,6 +171,10 @@ export class Router {
     const paddleSpeedSlider = document.getElementById('paddle-speed') as HTMLInputElement;
     const paddleSpeedValue = document.getElementById('paddle-speed-value') as HTMLSpanElement;
     const pointsSelect = document.getElementById('points-to-win') as HTMLSelectElement;
+    const powerUpsCheckbox = document.getElementById('power-ups-enabled') as HTMLInputElement;
+    const powerUpIntervalSlider = document.getElementById('power-up-interval') as HTMLInputElement;
+    const powerUpIntervalValue = document.getElementById('power-up-interval-value') as HTMLSpanElement;
+    const powerUpSettings = document.getElementById('power-up-settings') as HTMLDivElement;
     const saveButton = document.getElementById('save-options') as HTMLButtonElement;
     const saveStatus = document.getElementById('save-status') as HTMLDivElement;
     
@@ -194,12 +198,32 @@ export class Router {
       pointsSelect.value = settings.pointsToWin.toString();
     }
     
+    // Power-up settings
+    if (powerUpsCheckbox && powerUpSettings) {
+      powerUpsCheckbox.checked = settings.powerUpsEnabled;
+      powerUpSettings.style.display = settings.powerUpsEnabled ? 'block' : 'none';
+      
+      powerUpsCheckbox.addEventListener('change', () => {
+        powerUpSettings.style.display = powerUpsCheckbox.checked ? 'block' : 'none';
+      });
+    }
+    
+    if (powerUpIntervalSlider && powerUpIntervalValue) {
+      powerUpIntervalSlider.value = settings.powerUpSpawnInterval.toString();
+      powerUpIntervalValue.textContent = settings.powerUpSpawnInterval.toString();
+      powerUpIntervalSlider.addEventListener('input', () => {
+        powerUpIntervalValue.textContent = powerUpIntervalSlider.value;
+      });
+    }
+    
     if (saveButton) {
       saveButton.addEventListener('click', () => {
         const newSettings: GameSettings = {
           ballSpeed: parseInt(ballSpeedSlider?.value || '3'),
           paddleSpeed: parseInt(paddleSpeedSlider?.value || '5'),
-          pointsToWin: parseInt(pointsSelect?.value || '11')
+          pointsToWin: parseInt(pointsSelect?.value || '11'),
+          powerUpsEnabled: powerUpsCheckbox?.checked || false,
+          powerUpSpawnInterval: parseInt(powerUpIntervalSlider?.value || '15')
         };
         
         GameSettingsService.save(newSettings);
