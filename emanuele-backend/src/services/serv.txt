@@ -1,8 +1,0 @@
-implementare logica dell'app
-
-es.
-
-src/services/
-├── authService.ts    → login, register
-├── userService.ts    → findUserById, updateProfile
-├── pongService.ts    → gestione partita, punteggio

@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import path from 'node:path';
+import fs from 'node:fs';
 
 // Plugins personalizzati
 import prismaPlugin from './plugins/prisma';
@@ -15,7 +16,16 @@ import statsRoute from './routes/stats';
 import heartbeatRoutes from './routes/heartbeat';
 import matchesRoute from './routes/matches';
 
-const app = Fastify({ logger: false }); // Disattiva il logger automatico di Fastify, evita spam di messaggi
+// Configurazione HTTPS
+const httpsOptions = {
+  key: fs.readFileSync('/app/services/TLS/server.key'),
+  cert: fs.readFileSync('/app/services/TLS/server.crt')
+};
+
+const app = Fastify({ 
+  logger: false, // Disattiva il logger automatico di Fastify, evita spam di messaggi
+  https: httpsOptions // Abilita HTTPS
+});
 
 async function buildServer() {
   // Abilita CORS per il frontend
@@ -25,9 +35,13 @@ async function buildServer() {
       if (!origin) return cb(null, true);
       if (
         origin.startsWith('http://localhost:8080') ||
+        origin.startsWith('https://localhost:8080') ||
         origin.startsWith('http://127.0.0.1:8080') ||
+        origin.startsWith('https://127.0.0.1:8080') ||
         origin.startsWith('http://localhost:5173') ||
-        origin.startsWith('http://127.0.0.1:5173')
+        origin.startsWith('https://localhost:5173') ||
+        origin.startsWith('http://127.0.0.1:5173') ||
+        origin.startsWith('https://127.0.0.1:5173')
       ) {
         return cb(null, true);
       }
@@ -76,7 +90,7 @@ async function buildServer() {
   // Avvia il server
   try {
     await app.listen({ port: 3000, host: '0.0.0.0' }); // 0.0.0.0 per Docker
-    console.log(`Server avviato su http://localhost:3000`);
+    console.log(`Server avviato su https://localhost:3000`);
   } catch (err) {
     console.error(err);
     process.exit(1);

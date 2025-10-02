@@ -10,13 +10,13 @@ Se succedono cose strane: sudo docker compose down --volumes --remove-orphans
 
 ---------- INFO FRONTEND & BACKEND ----------
 
-Backend disponibile a http://localhost:3000
-Frontend disponibile a http://localhost:8080
+Backend disponibile a https://localhost:3000
+Frontend disponibile a https://localhost:8080
 
 ---------- COMANDI REGISTRAZIONE UTENTE ----------
 
 Registrazione utente
-curl -X POST http://localhost:3000/api/register \
+curl -k -X POST https://localhost:3000/api/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -25,7 +25,7 @@ curl -X POST http://localhost:3000/api/register \
   }'
 
 Login utente
-curl -X POST http://localhost:3000/api/login \
+curl -k -X POST https://localhost:3000/api/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -35,12 +35,12 @@ curl -X POST http://localhost:3000/api/login \
 ---------- COMANDI MODIFICA UTENTE ----------
 
 Modifica alias utente
-curl -X PATCH http://localhost:3000/users/"nome_utente"/alias \
+curl -k -X PATCH https://localhost:3000/users/"nome_utente"/alias \
   -H "Content-Type: application/json" \
   -d '{"alias": "new_alias"}'
 
 Modifica username utente
-curl -X PATCH http://localhost:3000/users/vecchioUsername \
+curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",
@@ -48,7 +48,7 @@ curl -X PATCH http://localhost:3000/users/vecchioUsername \
   }'
 
 Modifica email utente
-curl -X PATCH http://localhost:3000/users/vecchioUsername \
+curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",
@@ -56,7 +56,7 @@ curl -X PATCH http://localhost:3000/users/vecchioUsername \
   }'
 
 Modifica password utente
-curl -X PATCH http://localhost:3000/users/vecchioUsername \
+curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",
@@ -64,16 +64,16 @@ curl -X PATCH http://localhost:3000/users/vecchioUsername \
   }'
 
 Attivazione gdpr
-curl -X PATCH http://localhost:3000/users/nome_utente/gdpr \
+curl -k -X PATCH https://localhost:3000/users/nome_utente/gdpr \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
 Attivazione/Disattivazione 2FA
-curl -X PATCH http://localhost:3000/users/nome_utente/2fa \
+curl -k -X PATCH https://localhost:3000/users/nome_utente/2fa \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
-curl -X POST http://localhost:3000/users/nome_utente/2fa/verify \
+curl -k -X POST https://localhost:3000/users/nome_utente/2fa/verify \
   -H "Content-Type: application/json" \
   -d '{"code": "codice_6_cifre"}'
 
