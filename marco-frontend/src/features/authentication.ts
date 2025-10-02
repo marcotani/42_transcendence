@@ -1,5 +1,7 @@
 // Authentication Module - Handles login and register form functionality
 import { API_BASE } from '../config/constants.js';
+import { TokenManager } from '../services/token-manager.js';
+import { TwoFactorAuth, TwoFactorAuthCallbacks } from './two-factor-auth.js';
 
 // Callback functions to be set by main.ts to avoid circular imports
 type AuthCallbacks = {
@@ -15,6 +17,27 @@ export class Authentication {
    */
   static setCallbacks(callbacks: AuthCallbacks) {
     Authentication.callbacks = callbacks;
+    
+    // Set up 2FA callbacks
+    const twoFactorCallbacks: TwoFactorAuthCallbacks = {
+      onTwoFactorSuccess: (token: string, userId: number, username: string) => {
+        // Store JWT token
+        TokenManager.storeToken(token, userId, username);
+        
+        // Update UI state
+        if (Authentication.callbacks) {
+          Authentication.callbacks.setLoggedInUser(username);
+          alert('Logged in successfully with 2FA!');
+          window.location.hash = '';
+          Authentication.callbacks.render('');
+        }
+      },
+      onTwoFactorError: (error: string) => {
+        alert('2FA Error: ' + error);
+      }
+    };
+    
+    TwoFactorAuth.setCallbacks(twoFactorCallbacks);
   }
 
   /**
@@ -95,12 +118,25 @@ export class Authentication {
         return;
       }
 
-      // Use callbacks to avoid circular imports
-      if (Authentication.callbacks) {
-        Authentication.callbacks.setLoggedInUser(data.user.username);
-        alert('Logged in as ' + data.user.username);
-        window.location.hash = '';
-        Authentication.callbacks.render('');
+      // Check if user has 2FA enabled
+      if (data.user && data.user.twoFactorEnabled) {
+        // Show 2FA verification modal
+        TwoFactorAuth.showTwoFactorVerification(username);
+      } else {
+        // For users without 2FA, we still need to get a JWT token
+        // This will require backend modification to issue JWT on regular login
+        if (data.token) {
+          // Store JWT token
+          TokenManager.storeToken(data.token, data.user.id, data.user.username);
+        }
+        
+        // Use callbacks to avoid circular imports
+        if (Authentication.callbacks) {
+          Authentication.callbacks.setLoggedInUser(data.user.username);
+          alert('Logged in as ' + data.user.username);
+          window.location.hash = '';
+          Authentication.callbacks.render('');
+        }
       }
 
     } catch (err) {
@@ -166,5 +202,33 @@ export class Authentication {
     if (errorDiv) {
       errorDiv.classList.add('hidden');
     }
+  }
+
+  /**
+   * Logout user and clear JWT token
+   */
+  static logout() {
+    TokenManager.clearToken();
+    
+    if (Authentication.callbacks) {
+      // Clear user session and redirect to home
+      (window as any).loggedInUser = null;
+      window.location.hash = '';
+      Authentication.callbacks.render('');
+    }
+  }
+
+  /**
+   * Check if user is currently authenticated
+   */
+  static isAuthenticated(): boolean {
+    return TokenManager.isAuthenticated();
+  }
+
+  /**
+   * Get current authenticated user info
+   */
+  static getCurrentUser() {
+    return TokenManager.getTokenData();
   }
 }

@@ -14,6 +14,27 @@ import { ProfileManager as UserProfileManager } from './features/profile-manager
 import { PongEngine } from './game/pong-engine.js';
 import { routes } from './routing/routes.js';
 import { Router } from './routing/router.js';
+import { TokenManager } from './services/token-manager.js';
+
+// Check for JWT migration - if user is logged in but has no JWT token, clear session
+const migrationCheck = () => {
+  const loggedInUser = StorageService.getLoggedInUser();
+  const hasJWTToken = TokenManager.isAuthenticated();
+  
+  if (loggedInUser && !hasJWTToken) {
+    console.log('Migrating to JWT authentication - clearing old session');
+    // Clear old session data
+    StorageService.setLoggedInUser(null);
+    StorageService.setLoggedInUserAvatar(null);
+    
+    // Show migration message
+    alert('Security upgrade: Please log in again to continue using the application.');
+    window.location.hash = '#login';
+  }
+};
+
+// Run migration check before initializing
+migrationCheck();
 
 // Initialize UserSession and expose values for backward compatibility
 const loggedInUser = UserSession.getCurrentUser();

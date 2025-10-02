@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
+import { authenticateJWT } from './auth';
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
@@ -181,43 +182,102 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     return reply.send({ success: true, message: 'GDPR flag set to true' });
   });
 
-  // Rotta per abilitare/disabilitare 2FA
-  app.patch('/users/:username/2fa', async (req, reply) => {
+  // Rotta per abilitare 2FA (ora protetta da JWT)
+  app.post('/users/:username/2fa/enable', { preHandler: authenticateJWT }, async (req, reply) => {
     const { username } = req.params as { username: string };
-    const { password } = req.body as { password?: string };
-    if (!password)
-      return reply.code(400).send({ error: 'Password is required' });
-  const user = await app.prisma.user.findUnique({ where: { username } });
-    if (!user)
-      return reply.code(404).send({ error: 'User not found' });
-    const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
-    if (!verifyPassword(password, user.password_salt, user.password_hash))
-      return reply.code(401).send({ error: 'Invalid password' });
-    if (!user.twoFactorEnabled)
-    {
-      const { generate2FASecret } = await import('../leonardo-security/plugins/two-factors-authentication');
-      const secret = generate2FASecret();
-      await app.prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true, twoFactorSecret: secret } });
-      return reply.send({ success: true, message: '2FA enabled successfully', secret });
+    
+    // Verify user matches token
+    if ((req as any).user.username !== username) {
+      return reply.code(403).send({ error: 'Access denied' });
     }
-    await app.prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false, twoFactorSecret: null } });
+    
+    const user = await app.prisma.user.findUnique({ where: { username } });
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    
+    if (user.twoFactorEnabled) {
+      return reply.code(400).send({ error: '2FA is already enabled' });
+    }
+    
+    const { generate2FASecret } = await import('../leonardo-security/plugins/two-factors-authentication');
+    const secret = generate2FASecret();
+    
+    // Store the secret in the database for verification, but don't enable 2FA yet
+    await app.prisma.user.update({
+      where: { id: user.id },
+      data: { 
+        twoFactorSecret: secret,
+        twoFactorEnabled: false // Keep disabled until verification
+      }
+    });
+    
+    // Generate proper QR code for TOTP
+    const QRCode = require('qrcode');
+    const appName = 'Transcendence'; // Your app name
+    const issuer = 'Transcendence'; // Your organization/service name
+    const otpUrl = `otpauth://totp/${issuer}:${user.username}?secret=${secret}&issuer=${issuer}&algorithm=SHA1&digits=6&period=30`;
+    
+    const qrcode = await QRCode.toDataURL(otpUrl);
+    
+    // Return the secret for setup
+    return reply.send({ 
+      success: true, 
+      secret, 
+      qrcode,
+      message: 'Scan QR code and verify with authenticator app' 
+    });
+  });
+
+  // Rotta per disabilitare 2FA (ora protetta da JWT)
+  app.post('/users/:username/2fa/disable', { preHandler: authenticateJWT }, async (req, reply) => {
+    const { username } = req.params as { username: string };
+    
+    // Verify user matches token
+    if ((req as any).user.username !== username) {
+      return reply.code(403).send({ error: 'Access denied' });
+    }
+    
+    const user = await app.prisma.user.findUnique({ where: { username } });
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    
+    if (!user.twoFactorEnabled) {
+      return reply.code(400).send({ error: '2FA is not enabled' });
+    }
+    
+    await app.prisma.user.update({ 
+      where: { id: user.id }, 
+      data: { twoFactorEnabled: false, twoFactorSecret: null } 
+    });
+    
     return reply.send({ success: true, message: '2FA disabled successfully' });
   });
 
-  // Rotta per ferificare il codice TOTP di un utente
+  // Rotta per verificare il codice TOTP di un utente (e abilitare 2FA se setup)
   app.post('/users/:username/2fa/verify', async (req, reply) => {
     const { username } = req.params as { username: string };
     const { code } = req.body as { code: string };
     const user = await app.prisma.user.findUnique({ where: { username } });
-    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret)
-      return reply.code(400).send({ error: '2FA not enabled or user not found' });
+    if (!user || !user.twoFactorSecret)
+      return reply.code(400).send({ error: '2FA secret not found or user not found' });
+    
     const { verifyTOTP } = await import('../leonardo-security/plugins/two-factors-authentication');
     if (verifyTOTP(user.twoFactorSecret, code))
     {
+      // If 2FA isn't enabled yet, enable it now (for setup process)
+      if (!user.twoFactorEnabled) {
+        await app.prisma.user.update({ 
+          where: { id: user.id }, 
+          data: { twoFactorEnabled: true } 
+        });
+      }
+      
       // Invia il JWT
       const { generateJWT } = await import('../leonardo-security/plugins/jwt');
       const jwtSecret = process.env.JWT_SECRET || 'your-very-secret-key';
-      const token = generateJWT({ userId: user.id, username: user.username }, jwtSecret);
+      const token = generateJWT({ userId: user.id, username: user.username }, jwtSecret, 86400);
       return reply.send({ success: true, token });
     }
     else

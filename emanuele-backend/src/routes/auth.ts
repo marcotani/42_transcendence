@@ -1,6 +1,30 @@
 import { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { hashPassword, verifyPassword } from '../leonardo-security/plugins/password-hash';
+import { generateJWT, verifyJWT } from '../leonardo-security/plugins/jwt';
+
+// JWT Middleware for protected routes
+export const authenticateJWT = async (request: any, reply: any) => {
+  try {
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return reply.code(401).send({ error: 'JWT token required' });
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const jwtSecret = process.env.JWT_SECRET || 'your-very-secret-key';
+    const payload = verifyJWT(token, jwtSecret);
+
+    if (!payload) {
+      return reply.code(401).send({ error: 'Invalid or expired token' });
+    }
+
+    // Add user info to request for use in route handlers
+    request.user = payload;
+  } catch (error) {
+    return reply.code(401).send({ error: 'Invalid token' });
+  }
+};
 
 export default async function authRoutes(app: FastifyInstance) {
   // POST /api/register
@@ -75,7 +99,7 @@ export default async function authRoutes(app: FastifyInstance) {
     }
   });
 
-  // POST /api/login 
+  // POST /api/login
   app.post('/api/login', async (request, reply) => {
     const { username, password } = request.body as {
       username: string;
@@ -91,7 +115,16 @@ export default async function authRoutes(app: FastifyInstance) {
 
     const user = await app.prisma.user.findUnique({
       where: { username },
-      select: { id: true, username: true, email: true, password_hash: true, password_salt: true, createdAt: true },
+      select: { 
+        id: true, 
+        username: true, 
+        email: true, 
+        password_hash: true, 
+        password_salt: true, 
+        createdAt: true,
+        twoFactorEnabled: true,
+        twoFactorSecret: true
+      },
     });
 
     if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
@@ -107,11 +140,30 @@ export default async function authRoutes(app: FastifyInstance) {
       data: { online: true }
     });
 
-    const { password_hash: _omit, ...safeUser } = user as any;
-    return reply.send({ success: true, user: { ...safeUser, online: true } });
-  });
+    const { password_hash: _omit, password_salt: _omit2, twoFactorSecret: _omit3, ...safeUser } = user as any;
+    const userResponse = { ...safeUser, online: true };
 
-  // GET /api/users 
+    // Check if user has 2FA enabled
+    if (user.twoFactorEnabled) {
+      // For 2FA users, don't issue JWT yet - they need to verify 2FA first
+      return reply.send({ 
+        success: true, 
+        user: userResponse,
+        requiresTwoFactor: true
+      });
+    } else {
+      // For non-2FA users, issue JWT token immediately
+      const jwtSecret = process.env.JWT_SECRET || 'your-very-secret-key';
+      const token = generateJWT({ userId: user.id, username: user.username }, jwtSecret, 86400);
+      
+      return reply.send({ 
+        success: true, 
+        user: userResponse,
+        token: token,
+        requiresTwoFactor: false
+      });
+    }
+  });  // GET /api/users 
   app.get('/api/users', async () => {
     return app.prisma.user.findMany({
       select: { id: true, username: true, email: true, createdAt: true },

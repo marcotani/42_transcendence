@@ -1,6 +1,7 @@
 // Friends Manager - Handles friends-related functionality
 // Starting with incremental extraction approach
 import { API_BASE } from '../config/constants.js';
+import { ApiClient } from '../services/api-client.js';
 import { StorageService } from '../services/storage.js';
 import { showStatus } from '../utils/dom-helpers.js';
 
@@ -15,7 +16,7 @@ export class FriendsManager {
   /**
    * Accept a friend request
    */
-  static async acceptFriendRequest(requestId: number, refreshCallbacks?: {
+  static async acceptFriendRequest(requestId: string, refreshCallbacks: {
     loadPendingRequests?: () => void;
     loadFriendsList?: () => void;
     updateFriendsCount?: () => void;
@@ -23,20 +24,18 @@ export class FriendsManager {
     const loggedInUser = (window as any).loggedInUser;
     if (!loggedInUser) return;
 
-    try {
-      const password = prompt('Enter your password to accept friend request:');
-      if (!password) return;
+    if (!ApiClient.isAuthenticated()) {
+      alert('Your session has expired. Please log in again to continue.');
+      window.location.hash = '#login';
+      return;
+    }
 
-      const response = await fetch(`${API_BASE}/friends/requests/${requestId}/accept`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: loggedInUser,
-          currentPassword: password
-        })
+    try {
+      const response = await ApiClient.post(`/friends/requests/${requestId}/accept`, {
+        username: loggedInUser
       });
 
-      if (response.ok) {
+      if (response.success) {
         // Call provided refresh callbacks
         if (refreshCallbacks?.loadPendingRequests) {
           refreshCallbacks.loadPendingRequests();
@@ -48,12 +47,12 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to accept friend request');
+        alert('Failed to accept friend request: ' + (response.error || 'Unknown error'));
       }
+
     } catch (error) {
       console.error('Error accepting friend request:', error);
-      alert('Error accepting friend request');
+      alert('Error accepting friend request.');
     }
   }
 
@@ -67,23 +66,19 @@ export class FriendsManager {
     const loggedInUser = (window as any).loggedInUser;
     if (!loggedInUser) return;
 
+    if (!ApiClient.isAuthenticated()) {
+      alert('Your session has expired. Please log in again to continue.');
+      window.location.hash = '#login';
+      return;
+    }
+
     const confirmed = confirm('Are you sure you want to reject this friend request?');
     if (!confirmed) return;
 
     try {
-      const password = prompt('Enter your password to reject friend request:');
-      if (!password) return;
+      const response = await ApiClient.delete(`/friends/requests/${requestId}`);
 
-      const response = await fetch(`${API_BASE}/friends/requests/${requestId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: loggedInUser,
-          currentPassword: password
-        })
-      });
-
-      if (response.ok) {
+      if (response.success) {
         // Call provided refresh callbacks
         if (refreshCallbacks?.loadPendingRequests) {
           refreshCallbacks.loadPendingRequests();
@@ -92,8 +87,7 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to reject friend request');
+        alert('Failed to reject friend request: ' + (response.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error rejecting friend request:', error);
@@ -111,23 +105,19 @@ export class FriendsManager {
     const loggedInUser = (window as any).loggedInUser;
     if (!loggedInUser) return;
 
+    if (!ApiClient.isAuthenticated()) {
+      alert('Your session has expired. Please log in again to continue.');
+      window.location.hash = '#login';
+      return;
+    }
+
     const confirmed = confirm(`Are you sure you want to remove ${friendUsername} from your friends?`);
     if (!confirmed) return;
 
     try {
-      const password = prompt('Enter your password to remove friend:');
-      if (!password) return;
+      const response = await ApiClient.delete(`/friends/${friendUsername}`);
 
-      const response = await fetch(`${API_BASE}/friends/${friendUsername}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: loggedInUser,
-          currentPassword: password
-        })
-      });
-
-      if (response.ok) {
+      if (response.success) {
         // Call provided refresh callbacks
         if (refreshCallbacks?.loadFriendsList) {
           refreshCallbacks.loadFriendsList();
@@ -136,8 +126,7 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to remove friend');
+        alert('Failed to remove friend: ' + (response.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error removing friend:', error);
@@ -212,6 +201,15 @@ export class FriendsManager {
     const loggedInUser = (window as any).loggedInUser;
     if (!loggedInUser) return;
 
+    if (!ApiClient.isAuthenticated()) {
+      const statusDiv = document.getElementById('send-request-status') as HTMLDivElement;
+      showStatus(statusDiv, 'Session expired. Please log in again.', 'error');
+      setTimeout(() => {
+        window.location.hash = '#login';
+      }, 2000);
+      return;
+    }
+
     const form = e.target as HTMLFormElement;
     const usernameInput = document.getElementById('friend-username') as HTMLInputElement;
     const statusDiv = document.getElementById('send-request-status') as HTMLDivElement;
@@ -223,30 +221,19 @@ export class FriendsManager {
     }
 
     try {
-      // Get current user's password (we'll need a simpler auth method in the future)
-      const password = prompt('Enter your password to send friend request:');
-      if (!password) return;
-
-      const response = await fetch(`${API_BASE}/friends/requests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fromUsername: loggedInUser,
-          currentPassword: password,
-          toUsername: toUsername
-        })
+      const response = await ApiClient.post('/friends/requests', {
+        fromUsername: loggedInUser,
+        toUsername: toUsername
       });
 
-      const result = await response.json();
-
-      if (response.ok) {
+      if (response.success) {
         showStatus(statusDiv, 'Friend request sent successfully!', 'success');
         usernameInput.value = '';
         if (refreshCallback) {
           refreshCallback(); // Refresh pending requests
         }
       } else {
-        showStatus(statusDiv, result.error || 'Failed to send friend request', 'error');
+        showStatus(statusDiv, response.error || 'Failed to send friend request', 'error');
       }
     } catch (error) {
       showStatus(statusDiv, 'Error sending friend request', 'error');
@@ -408,19 +395,9 @@ export class FriendsManager {
     if (!confirmed) return;
 
     try {
-      const password = prompt('Enter your password to cancel friend request:');
-      if (!password) return;
+      const response = await ApiClient.delete(`/friends/requests/${requestId}`);
 
-      const response = await fetch(`${API_BASE}/friends/requests/${requestId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: loggedInUser,
-          currentPassword: password
-        })
-      });
-
-      if (response.ok) {
+      if (response.success) {
         // Call provided refresh callbacks
         if (refreshCallbacks?.loadPendingRequests) {
           refreshCallbacks.loadPendingRequests();
@@ -429,8 +406,7 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to cancel friend request');
+        alert(response.error || 'Failed to cancel friend request');
       }
     } catch (error) {
       console.error('Error canceling friend request:', error);

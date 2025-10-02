@@ -1,36 +1,33 @@
 import { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
+import { authenticateJWT } from './auth';
 
 export default async function friendsRoutes(app: FastifyInstance) {
 
-  async function authByUsernameAndPassword(username: string, password: string) {
-    if (!username || !password) return null;
-    const user = await app.prisma.user.findUnique({
-      where: { username },
-      select: { id: true, username: true, password_hash: true, password_salt: true },
-    });
-    if (!user) return null;
-    const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
-    if (!verifyPassword(password, user.password_salt, user.password_hash)) return null;
-    return user;
-  }
-
-  app.post('/friends/requests', async (req, reply) => {
-    const { fromUsername, currentPassword, toUsername } = req.body as {
+  app.post('/friends/requests', { preHandler: authenticateJWT }, async (req, reply) => {
+    const { fromUsername, toUsername } = req.body as {
       fromUsername: string;
-      currentPassword: string;
       toUsername: string;
     };
 
-    if (!fromUsername || !currentPassword || !toUsername) {
+    if (!fromUsername || !toUsername) {
       return reply.code(400).send({ error: 'Campi mancanti' });
     }
     if (fromUsername === toUsername) {
       return reply.code(400).send({ error: 'Non puoi aggiungere te stesso' });
     }
 
-    const fromUser = await authByUsernameAndPassword(fromUsername, currentPassword);
-    if (!fromUser) return reply.code(401).send({ error: 'Credenziali non valide' });
+    // Verify the authenticated user matches the fromUsername
+    const authenticatedUser = (req as any).user;
+    if (authenticatedUser.username !== fromUsername) {
+      return reply.code(403).send({ error: 'Non autorizzato' });
+    }
+
+    const fromUser = await app.prisma.user.findUnique({
+      where: { username: fromUsername },
+      select: { id: true, username: true }
+    });
+    if (!fromUser) return reply.code(404).send({ error: 'Utente non trovato' });
 
     const toUser = await app.prisma.user.findUnique({
       where: { username: toUsername },
@@ -96,12 +93,21 @@ export default async function friendsRoutes(app: FastifyInstance) {
     return reply.send({ incoming, outgoing });
   });
 
-  app.post('/friends/requests/:id/accept', async (req, reply) => {
+  app.post('/friends/requests/:id/accept', { preHandler: authenticateJWT }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { username, currentPassword } = req.body as { username: string; currentPassword: string };
+    const { username } = req.body as { username: string };
 
-    const me = await authByUsernameAndPassword(username, currentPassword);
-    if (!me) return reply.code(401).send({ error: 'Credenziali non valide' });
+    // Verify the authenticated user matches the username
+    const authenticatedUser = (req as any).user;
+    if (authenticatedUser.username !== username) {
+      return reply.code(403).send({ error: 'Non autorizzato' });
+    }
+
+    const me = await app.prisma.user.findUnique({
+      where: { username },
+      select: { id: true, username: true }
+    });
+    if (!me) return reply.code(404).send({ error: 'Utente non trovato' });
 
     const request = await app.prisma.friendRequest.findUnique({
       where: { id: Number(id) },
@@ -149,12 +155,18 @@ export default async function friendsRoutes(app: FastifyInstance) {
     return reply.send({ success: true });
   });
 
-  app.delete('/friends/requests/:id', async (req, reply) => {
+  app.delete('/friends/requests/:id', { preHandler: authenticateJWT }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { username, currentPassword } = req.body as { username: string; currentPassword: string };
+    
+    // Get username from JWT token
+    const authenticatedUser = (req as any).user;
+    const username = authenticatedUser.username;
 
-    const me = await authByUsernameAndPassword(username, currentPassword);
-    if (!me) return reply.code(401).send({ error: 'Credenziali non valide' });
+    const me = await app.prisma.user.findUnique({
+      where: { username },
+      select: { id: true, username: true }
+    });
+    if (!me) return reply.code(404).send({ error: 'Utente non trovato' });
 
     const request = await app.prisma.friendRequest.findUnique({
       where: { id: Number(id) },
@@ -201,12 +213,18 @@ export default async function friendsRoutes(app: FastifyInstance) {
     return reply.send({ friends });
   });
 
-  app.delete('/friends/:usernameToRemove', async (req, reply) => {
+  app.delete('/friends/:usernameToRemove', { preHandler: authenticateJWT }, async (req, reply) => {
     const { usernameToRemove } = req.params as { usernameToRemove: string };
-    const { username, currentPassword } = req.body as { username: string; currentPassword: string };
+    
+    // Get username from JWT token
+    const authenticatedUser = (req as any).user;
+    const username = authenticatedUser.username;
 
-    const me = await authByUsernameAndPassword(username, currentPassword);
-    if (!me) return reply.code(401).send({ error: 'Credenziali non valide' });
+    const me = await app.prisma.user.findUnique({
+      where: { username },
+      select: { id: true, username: true }
+    });
+    if (!me) return reply.code(404).send({ error: 'Utente non trovato' });
 
     const other = await app.prisma.user.findUnique({ where: { username: usernameToRemove } });
     if (!other) return reply.code(404).send({ error: 'Utente non trovato' });

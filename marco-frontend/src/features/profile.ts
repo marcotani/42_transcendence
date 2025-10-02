@@ -1,6 +1,7 @@
 import { API_BASE } from '../config/constants.js';
 import { StorageService } from '../services/storage.js';
 import { MatchHistoryManager } from './match-history.js';
+import { TwoFactorAuth } from './two-factor-auth.js';
 
 // Declare global window extensions
 declare global {
@@ -225,9 +226,33 @@ export class ProfileManager {
       });
     }
 
+    // Add 2FA setup listeners
+    ProfileManager.setup2FAListeners();
+
     const loggedInUser = window.loggedInUser;
     if (form && loggedInUser) {
       ProfileManager.setupEditProfileForm(form, avatarInput, avatarPreview);
+    }
+  }
+
+  /**
+   * Setup 2FA management listeners
+   */
+  private static setup2FAListeners(): void {
+    // Enable 2FA button
+    const enable2FABtn = document.getElementById('enable-2fa-btn');
+    if (enable2FABtn) {
+      enable2FABtn.addEventListener('click', () => {
+        TwoFactorAuth.showTwoFactorSetup();
+      });
+    }
+
+    // Disable 2FA button
+    const disable2FABtn = document.getElementById('disable-2fa-btn');
+    if (disable2FABtn) {
+      disable2FABtn.addEventListener('click', () => {
+        TwoFactorAuth.disableTwoFactor();
+      });
     }
   }
 
@@ -264,6 +289,10 @@ export class ProfileManager {
         (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
         (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
         (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
+        
+        // Update 2FA status display
+        ProfileManager.update2FAStatus(user.twoFactorEnabled || false);
+        
         formReady = true;
         
         // Enable submit button and update text
@@ -678,6 +707,21 @@ export class ProfileManager {
       }
     } catch (err) {
       console.warn('Error updating form after email change:', err);
+    }
+  }
+
+  static update2FAStatus(isEnabled: boolean): void {
+    const enabledDiv = document.getElementById('2fa-enabled') as HTMLElement;
+    const disabledDiv = document.getElementById('2fa-disabled') as HTMLElement;
+    
+    if (enabledDiv && disabledDiv) {
+      if (isEnabled) {
+        enabledDiv.classList.remove('hidden');
+        disabledDiv.classList.add('hidden');
+      } else {
+        enabledDiv.classList.add('hidden');
+        disabledDiv.classList.remove('hidden');
+      }
     }
   }
 }

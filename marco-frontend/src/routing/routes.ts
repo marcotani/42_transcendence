@@ -152,6 +152,35 @@ export const routes: { [key: string]: string } = {
         <label for='edit-bio' class='block mb-1'>Biography</label>
         <textarea id='edit-bio' name='bio' rows='3' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400'></textarea>
       </div>
+      
+      <!-- Two-Factor Authentication Section -->
+      <div class='border-t border-gray-700 pt-4 mt-6'>
+        <h3 class='text-lg font-semibold mb-3 text-blue-400'>🔐 Two-Factor Authentication</h3>
+        <p class='text-sm text-gray-400 mb-4'>Add an extra layer of security to your account with TOTP-based 2FA using apps like Google Authenticator or Authy.</p>
+        
+        <div id='2fa-status' class='mb-4'>
+          <div id='2fa-disabled' class='hidden'>
+            <div class='flex items-center space-x-2 mb-3'>
+              <span class='text-red-400'>❌</span>
+              <span class='text-gray-300'>Two-Factor Authentication is <strong>disabled</strong></span>
+            </div>
+            <button type='button' id='enable-2fa-btn' class='w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400'>
+              Enable 2FA
+            </button>
+          </div>
+          
+          <div id='2fa-enabled' class='hidden'>
+            <div class='flex items-center space-x-2 mb-3'>
+              <span class='text-green-400'>✅</span>
+              <span class='text-gray-300'>Two-Factor Authentication is <strong>enabled</strong></span>
+            </div>
+            <button type='button' id='disable-2fa-btn' class='w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-red-400'>
+              Disable 2FA
+            </button>
+          </div>
+        </div>
+      </div>
+      
       <div>
         <label for='edit-password' class='block mb-1'>New Password</label>
         <input type='password' id='edit-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' autocomplete='new-password' />

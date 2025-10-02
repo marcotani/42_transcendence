@@ -275,7 +275,7 @@ export class Router {
   }
 
   static async acceptFriendRequest(requestId: number): Promise<void> {
-    await FriendsManager.acceptFriendRequest(requestId, {
+    await FriendsManager.acceptFriendRequest(requestId.toString(), {
       loadPendingRequests: () => FriendsManager.loadPendingRequests(),
       loadFriendsList: () => FriendsManager.loadFriendsList(),
       updateFriendsCount: () => FriendsManager.updateFriendsCount()

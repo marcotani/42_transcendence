@@ -4,7 +4,7 @@ function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
-export function generateJWT(payload: object, secret: string, expiresInSec = 3600): string {
+export function generateJWT(payload: object, secret: string, expiresInSec = 86400): string {
   const header = { alg: 'HS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
   const body = { ...payload, iat: now, exp: now + expiresInSec };
