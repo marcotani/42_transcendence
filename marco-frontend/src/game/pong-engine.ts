@@ -28,8 +28,8 @@ export class PongEngine {
     const gameState = {
       ballX: canvas.width / 2,
       ballY: canvas.height / 2,
-      ballVX: gameSettings.ballSpeed,
-      ballVY: gameSettings.ballSpeed * 0.7,
+      ballVX: 0, // Start stationary for initial 1-second delay
+      ballVY: 0,
       leftPaddleY: canvas.height / 2 - 40,
       rightPaddleY: canvas.height / 2 - 40,
       paddleHeight: 80,
@@ -46,8 +46,18 @@ export class PongEngine {
       aiUpPressed: false,
       aiDownPressed: false,
       userPaddleColor: '#FFFFFF',
-      matchStart: new Date()
+      matchStart: new Date(),
+      ballRespawning: true // Flag to indicate ball is in respawn state
     };
+
+    // Start ball movement after initial 1-second delay
+    setTimeout(() => {
+      if (!gameState.gameOver && !gameState.gameAborted) {
+        gameState.ballRespawning = false;
+        gameState.ballVX = (Math.random() > 0.5 ? 1 : -1) * gameSettings.ballSpeed;
+        gameState.ballVY = 0; // Start horizontal only
+      }
+    }, 1000);
 
     // Initialize user paddle color
     const loggedInUser = (window as any).loggedInUser;
@@ -186,33 +196,38 @@ export class PongEngine {
       gameState.rightPaddleY += gameState.paddleSpeed;
     }
     
-    // Update ball position
-    gameState.ballX += gameState.ballVX;
-    gameState.ballY += gameState.ballVY;
-    
-    // Ball collision with top/bottom
-    if (gameState.ballY < 10 || gameState.ballY > canvas.height - 10) {
-      gameState.ballVY *= -1;
+    // Update ball position (only if not respawning)
+    if (!gameState.ballRespawning) {
+      gameState.ballX += gameState.ballVX;
+      gameState.ballY += gameState.ballVY;
+      
+      // Ball collision with top/bottom
+      if (gameState.ballY < 10 || gameState.ballY > canvas.height - 10) {
+        gameState.ballVY *= -1;
+      }
     }
     
-    // Ball collision with left paddle
-    if (
-      gameState.ballX - 10 < 30 &&
-      gameState.ballY + 10 > gameState.leftPaddleY &&
-      gameState.ballY - 10 < gameState.leftPaddleY + gameState.paddleHeight &&
-      gameState.ballVX < 0
-    ) {
-      PongEngine.handlePaddleCollision(gameState, canvas, 'left');
-    }
-    
-    // Ball collision with right paddle
-    if (
-      gameState.ballX + 10 > canvas.width - 30 &&
-      gameState.ballY + 10 > gameState.rightPaddleY &&
-      gameState.ballY - 10 < gameState.rightPaddleY + gameState.paddleHeight &&
-      gameState.ballVX > 0
-    ) {
-      PongEngine.handlePaddleCollision(gameState, canvas, 'right');
+    // Ball collision with paddles (only if not respawning)
+    if (!gameState.ballRespawning) {
+      // Ball collision with left paddle
+      if (
+        gameState.ballX - 10 < 30 &&
+        gameState.ballY + 10 > gameState.leftPaddleY &&
+        gameState.ballY - 10 < gameState.leftPaddleY + gameState.paddleHeight &&
+        gameState.ballVX < 0
+      ) {
+        PongEngine.handlePaddleCollision(gameState, canvas, 'left');
+      }
+      
+      // Ball collision with right paddle
+      if (
+        gameState.ballX + 10 > canvas.width - 30 &&
+        gameState.ballY + 10 > gameState.rightPaddleY &&
+        gameState.ballY - 10 < gameState.rightPaddleY + gameState.paddleHeight &&
+        gameState.ballVX > 0
+      ) {
+        PongEngine.handlePaddleCollision(gameState, canvas, 'right');
+      }
     }
     
     // Check for scoring
@@ -267,11 +282,14 @@ export class PongEngine {
         PongEngine.endGame(gameState, 'loss', statusDiv, aiInterval);
       } else {
         PongEngine.resetBall(gameState, canvas);
+        if (statusDiv) {
+          statusDiv.textContent = `Ball respawning...`;
+        }
         setTimeout(() => {
           if (statusDiv) {
             statusDiv.textContent = `Score: ${gameState.leftScore} - ${gameState.rightScore}`;
           }
-        }, 1500);
+        }, 1200); // Slightly longer than respawn delay
       }
     }
     
@@ -286,11 +304,14 @@ export class PongEngine {
         PongEngine.endGame(gameState, 'win', statusDiv, aiInterval);
       } else {
         PongEngine.resetBall(gameState, canvas);
+        if (statusDiv) {
+          statusDiv.textContent = `Ball respawning...`;
+        }
         setTimeout(() => {
           if (statusDiv) {
             statusDiv.textContent = `Score: ${gameState.leftScore} - ${gameState.rightScore}`;
           }
-        }, 1500);
+        }, 1200); // Slightly longer than respawn delay
       }
     }
   }
@@ -334,10 +355,27 @@ export class PongEngine {
    */
   private static resetBall(gameState: any, canvas: HTMLCanvasElement): void {
     const gameSettings = GameSettingsService.load();
+    
+    // Reset ball to center
     gameState.ballX = canvas.width / 2;
     gameState.ballY = canvas.height / 2;
-    gameState.ballVX = (Math.random() > 0.5 ? 1 : -1) * gameSettings.ballSpeed;
-    gameState.ballVY = (Math.random() > 0.5 ? 1 : -1) * (gameSettings.ballSpeed * 0.7);
+    
+    // Stop ball movement initially
+    gameState.ballVX = 0;
+    gameState.ballVY = 0;
+    
+    // Add ball respawn delay flag
+    gameState.ballRespawning = true;
+    
+    // After 1 second, start ball movement horizontally
+    setTimeout(() => {
+      if (!gameState.gameOver && !gameState.gameAborted) {
+        gameState.ballRespawning = false;
+        // Start with purely horizontal movement (no vertical component)
+        gameState.ballVX = (Math.random() > 0.5 ? 1 : -1) * gameSettings.ballSpeed;
+        gameState.ballVY = 0; // Start horizontal only
+      }
+    }, 1000);
   }
 
   /**
@@ -371,8 +409,20 @@ export class PongEngine {
     // Draw ball
     ctx.beginPath();
     ctx.arc(gameState.ballX, gameState.ballY, 10, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
+    
+    // Different visual style when respawning
+    if (gameState.ballRespawning) {
+      // Blinking effect during respawn (use time-based blinking)
+      const blinkRate = 300; // milliseconds
+      const shouldShow = Math.floor(Date.now() / blinkRate) % 2 === 0;
+      if (shouldShow) {
+        ctx.fillStyle = '#ff6b6b'; // Red color to indicate respawn
+        ctx.fill();
+      }
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+    }
     ctx.closePath();
   }
 
