@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { authenticateJWT } from './auth';
+import { sanitizeUsername } from '../utils/sanitizer';
 
 export default async function friendsRoutes(app: FastifyInstance) {
 
@@ -13,7 +14,16 @@ export default async function friendsRoutes(app: FastifyInstance) {
     if (!fromUsername || !toUsername) {
       return reply.code(400).send({ error: 'Campi mancanti' });
     }
-    if (fromUsername === toUsername) {
+
+    // Sanitizzazione username
+    const cleanFromUsername = sanitizeUsername(fromUsername);
+    const cleanToUsername = sanitizeUsername(toUsername);
+    
+    if (!cleanFromUsername || !cleanToUsername) {
+      return reply.code(400).send({ error: 'Username non validi' });
+    }
+
+    if (cleanFromUsername === cleanToUsername) {
       return reply.code(400).send({ error: 'Non puoi aggiungere te stesso' });
     }
 
@@ -30,7 +40,7 @@ export default async function friendsRoutes(app: FastifyInstance) {
     if (!fromUser) return reply.code(404).send({ error: 'Utente non trovato' });
 
     const toUser = await app.prisma.user.findUnique({
-      where: { username: toUsername },
+      where: { username: cleanToUsername },
       select: { id: true, username: true },
     });
     if (!toUser) return reply.code(404).send({ error: 'Utente destinatario non trovato' });

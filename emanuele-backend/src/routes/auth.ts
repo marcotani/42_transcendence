@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { hashPassword, verifyPassword } from '../leonardo-security/plugins/password-hash';
 import { generateJWT, verifyJWT } from '../leonardo-security/plugins/jwt';
+import { sanitizeUsername, sanitizeHtml } from '../utils/sanitizer';
 
 // JWT Middleware for protected routes
 export const authenticateJWT = async (request: any, reply: any) => {
@@ -43,9 +44,20 @@ export default async function authRoutes(app: FastifyInstance) {
       });
     }
 
+    // Sanitizzazione input
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Username non valido. Usa solo lettere, numeri, _ e - (max 15 caratteri)'
+      });
+    }
+
+    const cleanEmail = sanitizeHtml(email.trim().toLowerCase());
+
     // Controllo formato email (RFC 5322 compliant)
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(cleanEmail)) {
       return reply.code(400).send({
         success: false,
         error: 'Formato email non valido'
@@ -56,12 +68,12 @@ export default async function authRoutes(app: FastifyInstance) {
       const { hash, salt } = hashPassword(password);
       const newUser = await app.prisma.user.create({
         data: {
-          username,
-          email,
+          username: cleanUsername,
+          email: cleanEmail,
           password_hash: hash,
           password_salt: salt,
           online: false,
-          profile: { create: { bio: '', gdpr: false, alias: username } },
+          profile: { create: { bio: '', gdpr: false, alias: cleanUsername } },
           stats: { create: {
             botWins: 0,
             botLosses: 0,
@@ -113,8 +125,17 @@ export default async function authRoutes(app: FastifyInstance) {
       });
     }
 
+    // Sanitizzazione username per login
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Username non valido'
+      });
+    }
+
     const user = await app.prisma.user.findUnique({
-      where: { username },
+      where: { cleanUsername },
       select: { 
         id: true, 
         username: true, 

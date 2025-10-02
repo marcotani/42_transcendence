@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { authenticateJWT } from './auth';
+import { sanitizeUsername, sanitizeAlias, sanitizeBio, sanitizeHtml } from '../utils/sanitizer';
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
@@ -120,9 +121,20 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     if (!alias || alias.trim() === '') {
       return reply.code(400).send({ error: 'Alias is required' });
     }
+
+    // Sanitizzazione username e alias
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ error: 'Invalid username' });
+    }
+
+    const cleanAlias = sanitizeAlias(alias);
+    if (!cleanAlias) {
+      return reply.code(400).send({ error: 'Invalid alias. Max 15 characters, only letters, numbers, spaces, _ and - are allowed' });
+    }
     
     const user = await app.prisma.user.findUnique({
-      where: { username },
+      where: { username: cleanUsername },
       include: { profile: true }
     });
     
@@ -132,10 +144,10 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     
     await app.prisma.profile.update({
       where: { userId: user.id },
-      data: { alias }
+      data: { alias: cleanAlias }
     });
     
-    return reply.send({ message: `Alias updated successfully for ${username}`, alias });
+    return reply.send({ message: `Alias updated successfully for ${cleanUsername}`, alias: cleanAlias });
   });
 
   // PATCH per cambiare solo la skin (colore) del player
@@ -441,18 +453,32 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   app.patch('/users/:username/bio', async (req, reply) => {
     const { username } = req.params as { username: string };
     const { bio } = req.body as { bio?: string };
-    if (typeof bio !== 'string' || bio.trim() === '') {
-      return reply.code(400).send({ error: 'Bio is required' });
+    
+    if (typeof bio !== 'string') {
+      return reply.code(400).send({ error: 'Bio must be a string' });
     }
-    const user = await app.prisma.user.findUnique({ where: { username }, select: { id: true } });
+
+    // Sanitizzazione username
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ error: 'Username non valido' });
+    }
+
+    // Sanitizzazione bio (può essere vuota)
+    const cleanBio = sanitizeBio(bio);
+    if (cleanBio === null) {
+      return reply.code(400).send({ error: 'Invalid bio. Max 50 characters, punctuation allowed' });
+    }
+
+    const user = await app.prisma.user.findUnique({ where: { username: cleanUsername }, select: { id: true } });
     if (!user) {
       return reply.code(404).send({ error: 'User not found' });
     }
     await app.prisma.profile.update({
       where: { userId: user.id },
-      data: { bio: bio.trim() }
+      data: { bio: cleanBio }
     });
-    return reply.send({ success: true, bio: bio.trim() });
+    return reply.send({ success: true, bio: cleanBio });
   });
 
   // Update email visibility
