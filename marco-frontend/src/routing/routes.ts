@@ -34,6 +34,17 @@ export const routes: { [key: string]: string } = {
           <option value="21">21 Points</option>
         </select>
       </div>
+      <div style="margin-bottom: 20px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="power-ups-enabled" style="margin-right: 10px; transform: scale(1.2);">
+          <span>Enable Power-ups</span>
+        </label>
+        <div id="power-up-settings" style="margin-top: 10px; margin-left: 30px;">
+          <label for="power-up-interval" style="display: block; margin-bottom: 5px;">Power-up Spawn Interval (seconds):</label>
+          <input type="range" id="power-up-interval" min="5" max="30" value="15" style="width: 100%; margin-bottom: 5px;">
+          <span id="power-up-interval-value" style="font-size: 14px; color: #ccc;">15</span>
+        </div>
+      </div>
       <button id="save-options" style="width: 100%; padding: 10px; background: #007acc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Save Settings</button>
       <div id="save-status" style="margin-top: 10px; text-align: center; font-size: 14px; color: #4CAF50;"></div>
     </div>
