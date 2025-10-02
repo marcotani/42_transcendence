@@ -58,13 +58,18 @@ export class PongEngine {
     };
 
     const config = powerUpConfig[type];
+    
+    // Ensure horizontal movement - minimum 1.5 speed horizontally
+    const horizontalSpeed = (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random() * 2); // 1.5 to 3.5
+    const verticalSpeed = (Math.random() - 0.5) * 3; // -1.5 to 1.5
+    
     const powerUp: PowerUp = {
       id: gameState.powerUpIdCounter++,
       type,
       x: Math.random() * (canvas.width - 200) + 100, // Keep away from edges
       y: Math.random() * (canvas.height - 100) + 50,
-      vx: (Math.random() - 0.5) * 2, // Slow horizontal movement
-      vy: (Math.random() - 0.5) * 2, // Slow vertical movement
+      vx: horizontalSpeed,
+      vy: verticalSpeed,
       active: true,
       color: config.color,
       name: config.name,
@@ -105,20 +110,20 @@ export class PongEngine {
         break;
         
       case PowerUpType.SPEED_BOOST:
-        // Increase main ball speed temporarily
-        const speedMultiplier = 1.5;
+        // Increase main ball speed temporarily - more pronounced effect
+        const speedMultiplier = 2.0; // Increased from 1.5 to 2.0
         gameState.ballVX *= speedMultiplier;
         gameState.ballVY *= speedMultiplier;
         PongEngine.addActiveEffect(gameState, { type: powerUp.type }, effectDuration);
         break;
         
       case PowerUpType.SLOW_MOTION:
-        // Slow down everything temporarily
-        gameState.ballVX *= 0.6;
-        gameState.ballVY *= 0.6;
+        // Slow down everything temporarily - more pronounced effect
+        gameState.ballVX *= 0.4; // Reduced from 0.6 to 0.4
+        gameState.ballVY *= 0.4;
         gameState.activeBalls.forEach((ball: any) => {
-          ball.vx *= 0.6;
-          ball.vy *= 0.6;
+          ball.vx *= 0.4;
+          ball.vy *= 0.4;
         });
         PongEngine.addActiveEffect(gameState, { type: powerUp.type }, effectDuration);
         break;
