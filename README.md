@@ -10,13 +10,15 @@ Se succedono cose strane: sudo docker compose down --volumes --remove-orphans
 
 ---------- INFO FRONTEND & BACKEND ----------
 
-Backend disponibile a https://localhost:3000
-Frontend disponibile a https://localhost:8080
+Frontend disponibile a https://localhost:8080 (HTTPS)
+Backend disponibile a http://localhost:3000 (HTTP)
+
+IMPORTANTE: Accedi sempre al frontend tramite HTTPS per evitare problemi di mixed content!
 
 ---------- COMANDI REGISTRAZIONE UTENTE ----------
 
 Registrazione utente
-curl -k -X POST https://localhost:3000/api/register \
+curl -X POST http://localhost:3000/api/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -25,7 +27,7 @@ curl -k -X POST https://localhost:3000/api/register \
   }'
 
 Login utente
-curl -k -X POST https://localhost:3000/api/login \
+curl -X POST http://localhost:3000/api/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -35,12 +37,12 @@ curl -k -X POST https://localhost:3000/api/login \
 ---------- COMANDI MODIFICA UTENTE ----------
 
 Modifica alias utente
-curl -k -X PATCH https://localhost:3000/users/"nome_utente"/alias \
+curl -X PATCH http://localhost:3000/users/"nome_utente"/alias \
   -H "Content-Type: application/json" \
   -d '{"alias": "new_alias"}'
 
 Modifica username utente
-curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
+curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",
@@ -48,7 +50,7 @@ curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
   }'
 
 Modifica email utente
-curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
+curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",
@@ -56,7 +58,7 @@ curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
   }'
 
 Modifica password utente
-curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
+curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",
@@ -64,21 +66,21 @@ curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
   }'
 
 Attivazione gdpr
-curl -k -X PATCH https://localhost:3000/users/nome_utente/gdpr \
+curl -X PATCH http://localhost:3000/users/nome_utente/gdpr \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
 Attivazione/Disattivazione 2FA
-curl -k -X PATCH https://localhost:3000/users/nome_utente/2fa \
+curl -X PATCH http://localhost:3000/users/nome_utente/2fa \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
-curl -k -X POST https://localhost:3000/users/nome_utente/2fa/verify \
+curl -X POST http://localhost:3000/users/nome_utente/2fa/verify \
   -H "Content-Type: application/json" \
   -d '{"code": "codice_6_cifre"}'
 
 Modifica multi-campo utente
-curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
+curl -X PATCH http://localhost:3000/users/vecchioUsername \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",
@@ -88,23 +90,23 @@ curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
   }'
 
 Modifica icona profilo utente
-curl -k -X PATCH https://localhost:3000/users/nome utente/avatar \
+curl -X PATCH http://localhost:3000/users/nome utente/avatar \
   -H "Content-Type: multipart/form-data" \
   -F "currentPassword=password_corrente" \
   -F "file=@emanuele-backend/uploads/nome file.png"
 
 Resetta icona profilo utente
-curl -k -X PATCH https://localhost:3000/users/nome utente/avatar/reset \
+curl -X PATCH http://localhost:3000/users/nome utente/avatar/reset \
   -H "Content-Type: application/json" \
   -d '{"currentPassword":"password_corrente"}'
 
 Cambia biografia
-curl -k -X PATCH https://localhost:3000/users/nome_utente/bio \
+curl -X PATCH http://localhost:3000/users/nome_utente/bio \
   -H "Content-Type: application/json" \
   -d '{"bio":"Questa è la nuova biografia!"}'
 
 Cambia colore skin
-curl -k -X PATCH https://localhost:3000/users/nome-utente/skin \
+curl -X PATCH http://localhost:3000/users/nome-utente/skin \
   -H "Content-Type: application/json" \
   -d '{"skinColor":"codice_colore"}'
 
@@ -116,14 +118,14 @@ Colori disponibili:
   '#FF00FF'  // magenta
 
 Aggiorna l'Heartbeat dell'utente
-curl -k -X POST https://localhost:3000/api/heartbeat \
+curl -X POST http://localhost:3000/api/heartbeat \
   -H "Content-Type: application/json" \
   -d '{"userId": 1}'
 
 ---------- COMANDI LISTA AMICI ----------
 
 Inviare una richiesta di amicizia
-curl -k -X POST https://localhost:3000/friends/requests \
+curl -X POST http://localhost:3000/friends/requests \
   -H "Content-Type: application/json" \
   -d '{
     "fromUsername": "username_profilo",
@@ -132,7 +134,7 @@ curl -k -X POST https://localhost:3000/friends/requests \
   }' | jq
 
 Accetta una richiesta di amicizia in attesa
-curl -k -X POST https://localhost:3000/friends/requests/"id_della_richiesta"/accept \
+curl -X POST http://localhost:3000/friends/requests/"id_della_richiesta"/accept \
   -H "Content-Type: application/json" \
   -d '{
     "username": "nome_utente",
@@ -140,7 +142,7 @@ curl -k -X POST https://localhost:3000/friends/requests/"id_della_richiesta"/acc
   }' | jq
 
 Rifiuta una richiesta di amicizia in attesa
-curl -k -X DELETE https://localhost:3000/friends/requests/"id_della_richiesta" \
+curl -X DELETE http://localhost:3000/friends/requests/"id_della_richiesta" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "nome_utente",
@@ -148,7 +150,7 @@ curl -k -X DELETE https://localhost:3000/friends/requests/"id_della_richiesta" \
   }'
 
 Rimuovi un utente dalla lista amici
-curl -k -X DELETE https://localhost:3000/friends/nome_utente_da_rimuovere \
+curl -X DELETE http://localhost:3000/friends/nome_utente_da_rimuovere \
   -H "Content-Type: application/json" \
   -d '{
     "username": "nome_utente",
@@ -156,51 +158,51 @@ curl -k -X DELETE https://localhost:3000/friends/nome_utente_da_rimuovere \
   }' | jq
 
 Visualizza le richieste di amicizia in attesa 
-curl -k -X GET "https://localhost:3000/friends/requests?for=nomeutente" | jq
+curl -X GET "http://localhost:3000/friends/requests?for=nomeutente" | jq
 
 Visualizza gli amici dell'utente
-curl -k -X GET https://localhost:3000/friends/nome_utente | jq
+curl -X GET http://localhost:3000/friends/nome_utente | jq
 
 ---------- COMANDI VISUALIZZAZIONE DATEBASE ----------
 
 Aggiorna statistiche vittorie/sconfitte
-curl -k -X POST https://localhost:3000/stats/update -H "Content-Type: application/json" -d \
+curl -X POST http://localhost:3000/stats/update -H "Content-Type: application/json" -d \
 "{\"userId\":1,\"result\":\"win_or_loss\",\"type\":\"bot_player_tournament\"}"
 
 Visualizza tutti gli utenti
-curl -k https://localhost:3000/api/users | jq
+curl http://localhost:3000/api/users | jq
 
 Visualizza le stats di tutti gli utenti
-curl -k https://localhost:3000/stats
+curl http://localhost:3000/stats
 
 Visualizza tutte le credenziali degli utenti
-curl -k -X GET https://localhost:3000/users | jq
+curl -X GET http://localhost:3000/users | jq
 
 Visualizza un utente specifico
-curl -k -X GET https://localhost:3000/users/"nome_utente" | jq
+curl -X GET http://localhost:3000/users/"nome_utente" | jq
 
 Visualizza le stast di un utente specifico
-curl -k https://localhost:3000/stats/"nome_utente"
+curl http://localhost:3000/stats/"nome_utente"
 
 ---------- COMANDI ELIMINAZIONE DATABASE ----------
 
 Cancella tutte le utenze nel database
-curl -k -X DELETE https://localhost:3000/users
+curl -X DELETE http://localhost:3000/users
 
 Elimina un utente specifico
-curl -k -X DELETE https://localhost:3000/users/"nome_utente" \
+curl -X DELETE http://localhost:3000/users/"nome_utente" \
   -H "Content-Type: application/json" \
   -d '{"password": "password_utente"}'
 
 ---------- COMANDI CRONOLOGIA PARTITE ----------
 
 Visualizza la cronologia di un utente
-curl -k -X GET https://localhost:3000/matches/history/nome_utente | jq
+curl -X GET http://localhost:3000/matches/history/nome_utente | jq
 
 Registra una partita contro il BOT o un player
 
 BOT
-  curl -k -X POST https://localhost:3000/matches \
+  curl -X POST http://localhost:3000/matches \
     -H "Content-Type: application/json" \
     -d '{
       "player1Id": 1,
@@ -212,7 +214,7 @@ BOT
     }' | jq
 
 PLAYER
-  curl -k -X POST https://localhost:3000/matches \
+  curl -X POST http://localhost:3000/matches \
     -H "Content-Type: application/json" \
     -d '{
       "player1Id": 1,
