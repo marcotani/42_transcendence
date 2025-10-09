@@ -274,8 +274,8 @@ export class PongEngine {
     
     if (statusDiv) {
       const controlsText = gameState.gameConfig.mode === 'player' 
-        ? 'Player 1: ↑↓ | Player 2: WS'
-        : 'Use Arrow Up/Down to move left paddle.';
+        ? 'Player 1: WS | Player 2: ↑↓'
+        : 'Use W/S to move left paddle.';
       statusDiv.textContent = `Game started! Score: ${gameState.leftScore} - ${gameState.rightScore}. ${controlsText}`;
     }
     
@@ -332,26 +332,26 @@ export class PongEngine {
    */
   private static initializeControls(gameState: any): void {
     const keyDownHandler = (e: KeyboardEvent) => {
-      // Player 1 controls (arrow keys)
-      if (e.key === 'ArrowUp') gameState.upPressed = true;
-      if (e.key === 'ArrowDown') gameState.downPressed = true;
+      // Player 1 controls (WASD)
+      if (e.key === 'w' || e.key === 'W') gameState.wPressed = true;
+      if (e.key === 's' || e.key === 'S') gameState.sPressed = true;
       
-      // Player 2 controls (WASD) - only for player vs player mode
+      // Player 2 controls (arrow keys) - only for player vs player mode
       if (gameState.gameConfig.mode === 'player') {
-        if (e.key === 'w' || e.key === 'W') gameState.wPressed = true;
-        if (e.key === 's' || e.key === 'S') gameState.sPressed = true;
+        if (e.key === 'ArrowUp') gameState.upPressed = true;
+        if (e.key === 'ArrowDown') gameState.downPressed = true;
       }
     };
     
     const keyUpHandler = (e: KeyboardEvent) => {
-      // Player 1 controls (arrow keys)
-      if (e.key === 'ArrowUp') gameState.upPressed = false;
-      if (e.key === 'ArrowDown') gameState.downPressed = false;
+      // Player 1 controls (WASD)
+      if (e.key === 'w' || e.key === 'W') gameState.wPressed = false;
+      if (e.key === 's' || e.key === 'S') gameState.sPressed = false;
       
-      // Player 2 controls (WASD) - only for player vs player mode
+      // Player 2 controls (arrow keys) - only for player vs player mode
       if (gameState.gameConfig.mode === 'player') {
-        if (e.key === 'w' || e.key === 'W') gameState.wPressed = false;
-        if (e.key === 's' || e.key === 'S') gameState.sPressed = false;
+        if (e.key === 'ArrowUp') gameState.upPressed = false;
+        if (e.key === 'ArrowDown') gameState.downPressed = false;
       }
     };
     
@@ -396,21 +396,21 @@ export class PongEngine {
     
     // Update left paddle
     const prevPaddleY = gameState.leftPaddleY;
-    if (gameState.upPressed && gameState.leftPaddleY > 0) {
+    if (gameState.wPressed && gameState.leftPaddleY > 0) {
       gameState.leftPaddleY -= gameState.paddleSpeed;
     }
-    if (gameState.downPressed && gameState.leftPaddleY < canvas.height - gameState.leftPaddleHeight) {
+    if (gameState.sPressed && gameState.leftPaddleY < canvas.height - gameState.leftPaddleHeight) {
       gameState.leftPaddleY += gameState.paddleSpeed;
     }
     gameState.paddleVY = gameState.leftPaddleY - prevPaddleY;
     
     // Update right paddle (AI or Player 2)
     if (gameState.gameConfig.mode === 'player') {
-      // Player 2 controls (WASD)
-      if (gameState.wPressed && gameState.rightPaddleY > 0) {
+      // Player 2 controls (arrow keys)
+      if (gameState.upPressed && gameState.rightPaddleY > 0) {
         gameState.rightPaddleY -= gameState.paddleSpeed;
       }
-      if (gameState.sPressed && gameState.rightPaddleY < canvas.height - gameState.rightPaddleHeight) {
+      if (gameState.downPressed && gameState.rightPaddleY < canvas.height - gameState.rightPaddleHeight) {
         gameState.rightPaddleY += gameState.paddleSpeed;
       }
     } else {

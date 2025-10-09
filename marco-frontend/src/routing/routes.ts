@@ -142,7 +142,7 @@ export const routes: { [key: string]: string } = {
           <div class='text-left'>
             <div class='text-lg font-semibold text-blue-400'>Player 1</div>
             <div id='player1-name' class='text-sm text-gray-300'></div>
-            <div class='text-xs text-gray-400'>Controls: ↑ ↓</div>
+            <div class='text-xs text-gray-400'>Controls: W S</div>
           </div>
           <div class='text-center text-2xl font-bold'>VS</div>
           <div class='text-right'>

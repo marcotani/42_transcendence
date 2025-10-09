@@ -283,7 +283,7 @@ function attachPongListeners() {
     } else {
       if (player2Info) player2Info.textContent = 'Player 2';
       if (player2Name) player2Name.textContent = player2Data?.username || 'Unknown';
-      if (player2Controls) player2Controls.textContent = 'Controls: W S';
+      if (player2Controls) player2Controls.textContent = 'Controls: ↑ ↓';
     }
   }
   
