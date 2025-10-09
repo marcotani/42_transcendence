@@ -236,7 +236,10 @@ function attachPongListeners() {
       
       if (response.ok) {
         const userData = await response.json();
-        player2Data = { username, id: userData.id };
+        console.log('Player 2 login response:', userData);
+        console.log('userData.user.id:', userData.user?.id);
+        player2Data = { username, id: userData.user?.id };
+        console.log('player2Data set to:', player2Data);
         setupGameArea('player');
         errorDiv?.classList.add('hidden');
       } else {

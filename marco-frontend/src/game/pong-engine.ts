@@ -220,6 +220,7 @@ export class PongEngine {
       aiUpPressed: false,
       aiDownPressed: false,
       userPaddleColor: '#FFFFFF',
+      player2PaddleColor: '#FFFFFF', // Player 2 paddle color
       matchStart: new Date(),
       ballRespawning: true, // Flag to indicate ball is in respawn state
       
@@ -248,13 +249,22 @@ export class PongEngine {
       }
     }, 1000);
 
-    // Initialize user paddle color
+    // Initialize paddle colors
     const loggedInUser = (window as any).loggedInUser;
     if (loggedInUser) {
       fetch(`${API_BASE}/users/${loggedInUser}`)
         .then(res => res.json())
         .then(user => {
           gameState.userPaddleColor = user.profile?.skinColor || '#FFFFFF';
+        });
+    }
+    
+    // Initialize Player 2 paddle color for player vs player mode
+    if (gameState.gameConfig.mode === 'player' && gameState.gameConfig.player2) {
+      fetch(`${API_BASE}/users/${gameState.gameConfig.player2.username}`)
+        .then(res => res.json())
+        .then(user => {
+          gameState.player2PaddleColor = user.profile?.skinColor || '#FFFFFF';
         });
     }
 
@@ -559,6 +569,11 @@ export class PongEngine {
     statusDiv: HTMLElement | null,
     aiInterval: number
   ): void {
+    console.log('=== GAME ENDED ===');
+    console.log('Game result:', result);
+    console.log('Game config:', gameState.gameConfig);
+    console.log('Final scores:', { left: gameState.leftScore, right: gameState.rightScore });
+    
     gameState.gameOver = true;
     PongEngine.isGameRunning = false;
     if (aiInterval) clearInterval(aiInterval); // Only clear if there's an AI interval
@@ -566,6 +581,11 @@ export class PongEngine {
     const isPlayerVsPlayer = gameState.gameConfig.mode === 'player';
     const player1Name = gameState.gameConfig.player1.username;
     const player2Name = isPlayerVsPlayer ? gameState.gameConfig.player2?.username : 'AI';
+    
+    console.log('Is player vs player:', isPlayerVsPlayer);
+    console.log('Player 1:', player1Name);
+    console.log('Player 2:', player2Name);
+    console.log('Player 2 data:', gameState.gameConfig.player2);
     
     const message = result === 'win' 
       ? `Game Over! ${player1Name} wins ${gameState.leftScore}-${gameState.rightScore}!`
@@ -579,6 +599,7 @@ export class PongEngine {
     const matchEnd = new Date();
     
     if (isPlayerVsPlayer) {
+      console.log('Sending player vs player match result...');
       // Send results for both players in player vs player mode
       PongEngine.sendPlayerVsPlayerMatchResult({
         player1: gameState.gameConfig.player1,
@@ -591,6 +612,7 @@ export class PongEngine {
         duration: Math.round((matchEnd.getTime() - gameState.matchStart.getTime()) / 1000)
       });
     } else {
+      console.log('Sending bot match result...');
       // Send result for single player vs AI
       PongEngine.sendMatchResult({
         result,
@@ -657,7 +679,9 @@ export class PongEngine {
     // Draw paddles
     ctx.fillStyle = gameState.userPaddleColor;
     ctx.fillRect(20, gameState.leftPaddleY, gameState.paddleWidth, gameState.leftPaddleHeight);
-    ctx.fillStyle = '#fff';
+    
+    // Use player 2 color for player vs player mode, otherwise white for AI
+    ctx.fillStyle = gameState.gameConfig.mode === 'player' ? gameState.player2PaddleColor : '#fff';
     ctx.fillRect(canvas.width - 30, gameState.rightPaddleY, gameState.paddleWidth, gameState.rightPaddleHeight);
     
     // Draw ball
@@ -777,27 +801,57 @@ export class PongEngine {
     endedAt: string;
     duration: number;
   }): Promise<void> {
+    console.log('=== sendPlayerVsPlayerMatchResult called ===');
+    console.log('Full params object:', params);
+    console.log('params.player1:', params.player1);
+    console.log('params.player2:', params.player2);
+    console.log('params.player2?.id:', params.player2?.id);
+    
     try {
+      // Check if player2 is valid
+      if (!params.player2 || !params.player2.id) {
+        console.error('ERROR: player2 is missing or has no ID!', params.player2);
+        return;
+      }
+      
       // Get player 1 ID
+      console.log('Fetching player 1 data for username:', params.player1.username);
       const player1Res = await fetch(`${API_BASE}/users/${params.player1.username}`);
       const player1Data = await player1Res.json();
-      if (!player1Data || !player1Data.id) return;
+      console.log('Player 1 API response:', player1Data);
+      
+      if (!player1Data || !player1Data.id) {
+        console.error('Player 1 data not found:', player1Data);
+        return;
+      }
       
       const winnerId = params.winnerId === 1 ? player1Data.id : params.player2.id;
       
+      const matchPayload = {
+        player1Id: player1Data.id,
+        player2Id: params.player2.id,
+        player1Score: params.player1Score,
+        player2Score: params.player2Score,
+        winnerId,
+        matchType: 'player'
+      };
+      
+      console.log('=== Final match payload being sent ===');
+      console.log('Match payload:', matchPayload);
+      
       // Record the match
-      await fetch(`${API_BASE}/matches`, {
+      const response = await fetch(`${API_BASE}/matches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          player1Id: player1Data.id,
-          player2Id: params.player2.id,
-          player1Score: params.player1Score,
-          player2Score: params.player2Score,
-          winnerId,
-          matchType: 'player'
-        })
+        body: JSON.stringify(matchPayload)
       });
+      
+      const result = await response.json();
+      console.log('Match recording result:', result);
+      
+      if (!response.ok) {
+        console.error('Failed to record match:', result);
+      }
     } catch (e) {
       console.error('Failed to send player vs player match result:', e);
     }

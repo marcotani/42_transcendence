@@ -29,6 +29,9 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
 
   // Crea una nuova partita e aggiorna le statistiche utente
   app.post('/matches', async (req, reply) => {
+    console.log('=== POST /matches endpoint called ===');
+    console.log('Request body:', req.body);
+    
     const body = req.body as {
       player1Id: number;
       player2Id?: number;
@@ -40,6 +43,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
     };
 
     if (!body || !body.player1Id || body.player1Score === undefined || body.player2Score === undefined || !body.matchType) {
+      console.log('Missing required fields in request body');
       return reply.code(400).send({ error: 'Missing required fields' });
     }
 
@@ -49,9 +53,11 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
       const matchType = body.matchType.toLowerCase();
       
       if (!validTypes.includes(matchType)) {
+        console.log('Invalid match type:', matchType);
         return reply.code(400).send({ error: 'Invalid match type' });
       }
 
+      console.log('Creating match with type:', matchType);
       const matchData: MatchData = {
         player1Id: body.player1Id,
         player2Id: body.player2Id,
@@ -62,12 +68,16 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
         matchType: matchType
       };
 
+      console.log('Match data being passed to service:', matchData);
       const match = await MatchService.createMatch(matchData);
+      console.log('Match created successfully, returning response');
       return reply.send({ success: true, match });
     } catch (err) {
       if (err instanceof Error && err.message.includes('Tournament matches')) {
+        console.log('Tournament match error:', err.message);
         return reply.code(400).send({ error: err.message });
       }
+      console.error('Error creating match:', err);
       app.log.error(err);
       return reply.code(500).send({ error: 'Internal server error' });
     }

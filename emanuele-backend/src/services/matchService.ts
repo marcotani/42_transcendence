@@ -15,8 +15,11 @@ export interface MatchData {
 export class MatchService {
   static async updateUserStats(matchData: MatchData): Promise<void> {
     try {
+      console.log('updateUserStats called with:', matchData);
+      
       // Update stats for player1
       const player1IsWinner = matchData.winnerId === matchData.player1Id;
+      console.log(`Player 1 (ID: ${matchData.player1Id}) is winner: ${player1IsWinner}`);
       
       // Check if user stats exist, create if not
       const player1Stats = await prisma.userStat.findUnique({
@@ -24,6 +27,7 @@ export class MatchService {
       });
       
       if (!player1Stats) {
+        console.log('Creating new stats record for player 1');
         // Create initial stats record
         const initialStats = {
           userId: matchData.player1Id,
@@ -39,24 +43,30 @@ export class MatchService {
         Object.assign(initialStats, player1Update);
         
         await prisma.userStat.create({ data: initialStats });
+        console.log('Player 1 stats created:', initialStats);
       } else {
+        console.log('Updating existing stats for player 1');
         // Update existing stats
         const player1Update = this.getStatsUpdateIncrement(matchData.matchType, player1IsWinner);
         await prisma.userStat.update({
           where: { userId: matchData.player1Id },
           data: player1Update
         });
+        console.log('Player 1 stats update:', player1Update);
       }
 
       // Update stats for player2 if it's not a bot
       if (matchData.player2Id) {
+        console.log(`Processing stats for player 2 (ID: ${matchData.player2Id})`);
         const player2IsWinner = matchData.winnerId === matchData.player2Id;
+        console.log(`Player 2 is winner: ${player2IsWinner}`);
         
         const player2Stats = await prisma.userStat.findUnique({
           where: { userId: matchData.player2Id }
         });
         
         if (!player2Stats) {
+          console.log('Creating new stats record for player 2');
           // Create initial stats record
           const initialStats = {
             userId: matchData.player2Id,
@@ -72,14 +82,19 @@ export class MatchService {
           Object.assign(initialStats, player2Update);
           
           await prisma.userStat.create({ data: initialStats });
+          console.log('Player 2 stats created:', initialStats);
         } else {
+          console.log('Updating existing stats for player 2');
           // Update existing stats
           const player2Update = this.getStatsUpdateIncrement(matchData.matchType, player2IsWinner);
           await prisma.userStat.update({
             where: { userId: matchData.player2Id },
             data: player2Update
           });
+          console.log('Player 2 stats update:', player2Update);
         }
+      } else {
+        console.log('No player 2 ID provided, skipping player 2 stats update');
       }
     } catch (error) {
       console.error('Error updating user stats:', error);
@@ -129,13 +144,17 @@ export class MatchService {
 
   static async createMatch(matchData: MatchData): Promise<any> {
     try {
+      console.log('Creating match with data:', matchData);
+      
       // Verifica che non sia un torneo, temporaneo
       if (matchData.matchType.toLowerCase() === 'tournament') {
         throw new Error('Tournament matches should not be added to history');
       }
 
       // Update user statistics first
+      console.log('Updating user statistics...');
       await this.updateUserStats(matchData);
+      console.log('User statistics updated successfully');
 
       // Controllo delle partite salvate
       const player1MatchCount = await prisma.match.count({
@@ -169,6 +188,7 @@ export class MatchService {
       }
 
       // Crea il nuovo match
+      console.log('Creating match in database...');
       const match = await prisma.match.create({
         data: matchData,
         include: {
@@ -176,6 +196,16 @@ export class MatchService {
           player2: { select: { username: true } },
           winner: { select: { username: true } }
         }
+      });
+      
+      console.log('Match created successfully:', {
+        id: match.id,
+        player1: match.player1?.username,
+        player2: match.player2?.username,
+        player1Id: match.player1Id,
+        player2Id: match.player2Id,
+        player2BotName: match.player2BotName,
+        matchType: match.matchType
       });
 
       return match;
@@ -213,6 +243,7 @@ export class MatchService {
 
   static async getUserMatchHistory(userId: number): Promise<any[]> {
     try {
+      console.log(`Getting match history for user ID: ${userId}`);
       const matches = await prisma.match.findMany({
         where: {
           OR: [
@@ -231,6 +262,20 @@ export class MatchService {
         take: 10
       });
 
+      console.log(`Found ${matches.length} matches for user ${userId}`);
+      matches.forEach((match: any, index: number) => {
+        console.log(`Match ${index + 1}:`, {
+          id: match.id,
+          player1Id: match.player1Id,
+          player2Id: match.player2Id,
+          player1Username: match.player1?.username,
+          player2Username: match.player2?.username,
+          player2BotName: match.player2BotName,
+          matchType: match.matchType,
+          winnerId: match.winnerId
+        });
+      });
+
       // Formatta i risultati per migliore leggibilità
       return matches.map((match: any) => ({
         id: match.id,
@@ -242,7 +287,7 @@ export class MatchService {
           player1Score: match.player1Score,
           player2Score: match.player2Score
         },
-        winner: match.winner?.username || (match.winnerId === match.player1Id ? match.player1.username : (match.player2?.username || 'BOT')),
+        winner: match.winner?.username || (match.winnerId === match.player1Id ? match.player1.username : (match.player2?.username || match.player2BotName || 'BOT')),
         matchDate: match.matchDate,
         matchType: match.matchType,
         userResult: userId === match.winnerId ? 'WIN' : 'LOSS'
