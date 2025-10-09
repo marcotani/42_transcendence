@@ -227,6 +227,16 @@ function attachPongListeners() {
     const password = (document.getElementById('player2-password') as HTMLInputElement).value;
     const errorDiv = document.getElementById('player2-login-error');
     
+    // Check if player 2 is trying to use the same account as player 1
+    const currentUser = UserSession.getCurrentUser();
+    if (currentUser && username === currentUser) {
+      if (errorDiv) {
+        errorDiv.textContent = 'User already logged in';
+        errorDiv.style.visibility = 'visible';
+      }
+      return;
+    }
+    
     try {
       const response = await fetch(`${API_BASE}/api/login`, {
         method: 'POST',
@@ -241,18 +251,18 @@ function attachPongListeners() {
         player2Data = { username, id: userData.user?.id };
         console.log('player2Data set to:', player2Data);
         setupGameArea('player');
-        errorDiv?.classList.add('hidden');
+        if (errorDiv) errorDiv.style.visibility = 'hidden';
       } else {
         const error = await response.json();
         if (errorDiv) {
           errorDiv.textContent = error.message || 'Login failed';
-          errorDiv.classList.remove('hidden');
+          errorDiv.style.visibility = 'visible';
         }
       }
     } catch (error) {
       if (errorDiv) {
         errorDiv.textContent = 'Network error occurred';
-        errorDiv.classList.remove('hidden');
+        errorDiv.style.visibility = 'visible';
       }
     }
   });
@@ -263,7 +273,8 @@ function attachPongListeners() {
     // Clear form
     (document.getElementById('player2-username') as HTMLInputElement).value = '';
     (document.getElementById('player2-password') as HTMLInputElement).value = '';
-    document.getElementById('player2-login-error')?.classList.add('hidden');
+    const errorDiv = document.getElementById('player2-login-error');
+    if (errorDiv) errorDiv.style.visibility = 'hidden';
   });
   
   function setupGameArea(mode: 'ai' | 'player') {

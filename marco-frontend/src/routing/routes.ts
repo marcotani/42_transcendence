@@ -127,12 +127,12 @@ export const routes: { [key: string]: string } = {
           <label for='player2-password' class='block mb-1'>Password</label>
           <input type='password' id='player2-password' class='w-full px-3 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-400' required />
         </div>
+        <div id='player2-login-error' class='text-red-500 text-sm min-h-[20px] flex items-center' style='visibility: hidden;'></div>
         <div class='flex space-x-2'>
           <button type='submit' class='flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>Login Player 2</button>
           <button type='button' id='cancel-player2-login' class='flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Cancel</button>
         </div>
       </form>
-      <div id='player2-login-error' class='text-red-500 mt-2 hidden'></div>
     </div>
 
     <!-- Game Area -->

@@ -219,6 +219,8 @@ export class PongEngine {
       pointsToWin: gameSettings.pointsToWin,
       aiUpPressed: false,
       aiDownPressed: false,
+      aiLeftPressed: false,
+      aiRightPressed: false,
       userPaddleColor: '#FFFFFF',
       player2PaddleColor: '#FFFFFF', // Player 2 paddle color
       matchStart: new Date(),
@@ -237,7 +239,32 @@ export class PongEngine {
       
       // Player 2 controls (for local multiplayer)
       wPressed: false,
-      sPressed: false
+      sPressed: false,
+      
+      // Paddle tilting controls
+      aPressed: false, // Player 1 tilt left
+      dPressed: false, // Player 1 tilt right
+      leftPressed: false, // Player 2 tilt left  
+      rightPressed: false, // Player 2 tilt right
+      
+      // Paddle angles (in radians)
+      leftPaddleAngle: 0,
+      rightPaddleAngle: 0,
+      maxPaddleAngle: Math.PI / 6, // 30 degrees max tilt
+      
+      // Shooting mechanics
+      spacePressed: false, // Player 1 shoot
+      enterPressed: false, // Player 2 shoot
+      projectiles: [] as any[],
+      projectileIdCounter: 0,
+      lastShotTime: { left: 0, right: 0 }, // Cooldown tracking
+      shotCooldown: 1000, // 1 second cooldown between shots
+      
+      // Paddle stunning
+      leftPaddleStunned: false,
+      rightPaddleStunned: false,
+      leftPaddleStunEnd: 0,
+      rightPaddleStunEnd: 0
     };
 
     // Start ball movement after initial 1-second delay
@@ -274,9 +301,9 @@ export class PongEngine {
     
     if (statusDiv) {
       const controlsText = gameState.gameConfig.mode === 'player' 
-        ? 'Player 1: WS | Player 2: ↑↓'
-        : 'Use W/S to move left paddle.';
-      statusDiv.textContent = `Game started! Score: ${gameState.leftScore} - ${gameState.rightScore}. ${controlsText}`;
+        ? 'P1: WASD+Space | P2: Arrows+Enter | Tilt to aim!'
+        : 'Tank Controls: WS=Move, AD=Tilt, Space=Shoot';
+      statusDiv.textContent = `🚀 TANK BATTLE! Score: ${gameState.leftScore} - ${gameState.rightScore}. ${controlsText}`;
     }
     
     PongEngine.gameLoop(ctx, canvas, gameState, statusDiv, aiInterval);
@@ -321,6 +348,52 @@ export class PongEngine {
         gameState.aiUpPressed = false;
         gameState.aiDownPressed = false;
       }
+      
+      // AI Tilting Strategy
+      const ballDirection = gameState.ballVX > 0 ? 'incoming' : 'outgoing';
+      const ballSpeed = Math.sqrt(gameState.ballVX * gameState.ballVX + gameState.ballVY * gameState.ballVY);
+      
+      if (ballDirection === 'incoming' && Math.abs(gameState.ballX - (canvas.width - 30)) < 100) {
+        // Ball is incoming - tilt to aim ball toward player's goal
+        const targetY = canvas.height * 0.3; // Aim for difficult spots
+        const currentBallY = gameState.ballY;
+        
+        if (currentBallY > canvas.height / 2) {
+          // Ball is in lower half, tilt up to send it to upper corner
+          gameState.aiLeftPressed = true;
+          gameState.aiRightPressed = false;
+        } else {
+          // Ball is in upper half, tilt down to send it to lower corner
+          gameState.aiLeftPressed = false;
+          gameState.aiRightPressed = true;
+        }
+      } else {
+        // Return to neutral when ball is not incoming
+        gameState.aiLeftPressed = false;
+        gameState.aiRightPressed = false;
+      }
+      
+      // AI Shooting Strategy
+      const currentTime = Date.now();
+      const timeSinceLastShot = currentTime - (gameState.lastShotTime?.right || 0);
+      const canShoot = timeSinceLastShot > gameState.shotCooldown;
+      
+      // Shoot when ball is coming toward AI and it's a good opportunity
+      if (canShoot && !gameState.rightPaddleStunned && ballDirection === 'incoming') {
+        const distanceToBall = Math.abs(gameState.ballX - (canvas.width - 30));
+        const ballIsInRange = distanceToBall < 150 && distanceToBall > 50;
+        
+        // Strategic shooting conditions
+        const shouldShoot = ballIsInRange && (
+          ballSpeed > 6 || // Fast ball - try to slow it down
+          Math.abs(gameState.ballY - paddleCenter) > 40 || // Ball not centered - try to hit it
+          Math.random() < 0.3 // 30% random aggression
+        );
+        
+        if (shouldShoot) {
+          PongEngine.handleShooting(gameState, canvas, 'right');
+        }
+      }
     };
 
     aiDecideMove();
@@ -332,26 +405,50 @@ export class PongEngine {
    */
   private static initializeControls(gameState: any): void {
     const keyDownHandler = (e: KeyboardEvent) => {
-      // Player 1 controls (WASD)
+      // Player 1 controls (WASD + Space)
       if (e.key === 'w' || e.key === 'W') gameState.wPressed = true;
       if (e.key === 's' || e.key === 'S') gameState.sPressed = true;
+      if (e.key === 'a' || e.key === 'A') gameState.aPressed = true;
+      if (e.key === 'd' || e.key === 'D') gameState.dPressed = true;
+      if (e.key === ' ') {
+        e.preventDefault();
+        gameState.spacePressed = true;
+      }
       
-      // Player 2 controls (arrow keys) - only for player vs player mode
+      // Player 2 controls (arrow keys + Enter) - only for player vs player mode
       if (gameState.gameConfig.mode === 'player') {
         if (e.key === 'ArrowUp') gameState.upPressed = true;
         if (e.key === 'ArrowDown') gameState.downPressed = true;
+        if (e.key === 'ArrowLeft') gameState.leftPressed = true;
+        if (e.key === 'ArrowRight') gameState.rightPressed = true;
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          gameState.enterPressed = true;
+        }
       }
     };
     
     const keyUpHandler = (e: KeyboardEvent) => {
-      // Player 1 controls (WASD)
+      // Player 1 controls (WASD + Space)
       if (e.key === 'w' || e.key === 'W') gameState.wPressed = false;
       if (e.key === 's' || e.key === 'S') gameState.sPressed = false;
+      if (e.key === 'a' || e.key === 'A') gameState.aPressed = false;
+      if (e.key === 'd' || e.key === 'D') gameState.dPressed = false;
+      if (e.key === ' ') {
+        e.preventDefault();
+        gameState.spacePressed = false;
+      }
       
-      // Player 2 controls (arrow keys) - only for player vs player mode
+      // Player 2 controls (arrow keys + Enter) - only for player vs player mode
       if (gameState.gameConfig.mode === 'player') {
         if (e.key === 'ArrowUp') gameState.upPressed = false;
         if (e.key === 'ArrowDown') gameState.downPressed = false;
+        if (e.key === 'ArrowLeft') gameState.leftPressed = false;
+        if (e.key === 'ArrowRight') gameState.rightPressed = false;
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          gameState.enterPressed = false;
+        }
       }
     };
     
@@ -396,30 +493,94 @@ export class PongEngine {
     
     // Update left paddle
     const prevPaddleY = gameState.leftPaddleY;
-    if (gameState.wPressed && gameState.leftPaddleY > 0) {
+    if (gameState.wPressed && gameState.leftPaddleY > 0 && !gameState.leftPaddleStunned) {
       gameState.leftPaddleY -= gameState.paddleSpeed;
     }
-    if (gameState.sPressed && gameState.leftPaddleY < canvas.height - gameState.leftPaddleHeight) {
+    if (gameState.sPressed && gameState.leftPaddleY < canvas.height - gameState.leftPaddleHeight && !gameState.leftPaddleStunned) {
       gameState.leftPaddleY += gameState.paddleSpeed;
     }
     gameState.paddleVY = gameState.leftPaddleY - prevPaddleY;
     
+    // Update paddle tilting
+    const tiltSpeed = 0.05;
+    if (gameState.aPressed && !gameState.leftPaddleStunned) {
+      gameState.leftPaddleAngle = Math.max(gameState.leftPaddleAngle - tiltSpeed, -gameState.maxPaddleAngle);
+    } else if (gameState.dPressed && !gameState.leftPaddleStunned) {
+      gameState.leftPaddleAngle = Math.min(gameState.leftPaddleAngle + tiltSpeed, gameState.maxPaddleAngle);
+    } else {
+      // Return to center when no tilt key is pressed
+      if (gameState.leftPaddleAngle > 0) {
+        gameState.leftPaddleAngle = Math.max(0, gameState.leftPaddleAngle - tiltSpeed);
+      } else if (gameState.leftPaddleAngle < 0) {
+        gameState.leftPaddleAngle = Math.min(0, gameState.leftPaddleAngle + tiltSpeed);
+      }
+    }
+    
+    // Handle shooting for Player 1
+    if (gameState.spacePressed && !gameState.leftPaddleStunned) {
+      PongEngine.handleShooting(gameState, canvas, 'left');
+      gameState.spacePressed = false; // Prevent continuous shooting
+    }
+    
+    // Update paddle stunning
+    const currentTime = Date.now();
+    if (gameState.leftPaddleStunned && currentTime > gameState.leftPaddleStunEnd) {
+      gameState.leftPaddleStunned = false;
+    }
+    if (gameState.rightPaddleStunned && currentTime > gameState.rightPaddleStunEnd) {
+      gameState.rightPaddleStunned = false;
+    }
+    
     // Update right paddle (AI or Player 2)
     if (gameState.gameConfig.mode === 'player') {
       // Player 2 controls (arrow keys)
-      if (gameState.upPressed && gameState.rightPaddleY > 0) {
+      if (gameState.upPressed && gameState.rightPaddleY > 0 && !gameState.rightPaddleStunned) {
         gameState.rightPaddleY -= gameState.paddleSpeed;
       }
-      if (gameState.downPressed && gameState.rightPaddleY < canvas.height - gameState.rightPaddleHeight) {
+      if (gameState.downPressed && gameState.rightPaddleY < canvas.height - gameState.rightPaddleHeight && !gameState.rightPaddleStunned) {
         gameState.rightPaddleY += gameState.paddleSpeed;
+      }
+      
+      // Player 2 tilting
+      if (gameState.leftPressed && !gameState.rightPaddleStunned) {
+        gameState.rightPaddleAngle = Math.max(gameState.rightPaddleAngle - tiltSpeed, -gameState.maxPaddleAngle);
+      } else if (gameState.rightPressed && !gameState.rightPaddleStunned) {
+        gameState.rightPaddleAngle = Math.min(gameState.rightPaddleAngle + tiltSpeed, gameState.maxPaddleAngle);
+      } else {
+        // Return to center when no tilt key is pressed
+        if (gameState.rightPaddleAngle > 0) {
+          gameState.rightPaddleAngle = Math.max(0, gameState.rightPaddleAngle - tiltSpeed);
+        } else if (gameState.rightPaddleAngle < 0) {
+          gameState.rightPaddleAngle = Math.min(0, gameState.rightPaddleAngle + tiltSpeed);
+        }
+      }
+      
+      // Handle shooting for Player 2
+      if (gameState.enterPressed && !gameState.rightPaddleStunned) {
+        PongEngine.handleShooting(gameState, canvas, 'right');
+        gameState.enterPressed = false; // Prevent continuous shooting
       }
     } else {
-      // AI controls
-      if (gameState.aiUpPressed && gameState.rightPaddleY > 0) {
+      // AI controls (now with tilting and shooting!)
+      if (gameState.aiUpPressed && gameState.rightPaddleY > 0 && !gameState.rightPaddleStunned) {
         gameState.rightPaddleY -= gameState.paddleSpeed;
       }
-      if (gameState.aiDownPressed && gameState.rightPaddleY < canvas.height - gameState.rightPaddleHeight) {
+      if (gameState.aiDownPressed && gameState.rightPaddleY < canvas.height - gameState.rightPaddleHeight && !gameState.rightPaddleStunned) {
         gameState.rightPaddleY += gameState.paddleSpeed;
+      }
+      
+      // AI tilting (same logic as player 2 but using AI controls)
+      if (gameState.aiLeftPressed && !gameState.rightPaddleStunned) {
+        gameState.rightPaddleAngle = Math.max(gameState.rightPaddleAngle - tiltSpeed, -gameState.maxPaddleAngle);
+      } else if (gameState.aiRightPressed && !gameState.rightPaddleStunned) {
+        gameState.rightPaddleAngle = Math.min(gameState.rightPaddleAngle + tiltSpeed, gameState.maxPaddleAngle);
+      } else {
+        // Return to center when no tilt key is pressed
+        if (gameState.rightPaddleAngle > 0) {
+          gameState.rightPaddleAngle = Math.max(0, gameState.rightPaddleAngle - tiltSpeed);
+        } else if (gameState.rightPaddleAngle < 0) {
+          gameState.rightPaddleAngle = Math.min(0, gameState.rightPaddleAngle + tiltSpeed);
+        }
       }
     }
     
@@ -462,6 +623,9 @@ export class PongEngine {
       PongEngine.updatePowerUps(gameState, canvas);
     }
     
+    // Update projectiles
+    PongEngine.updateProjectiles(gameState, canvas);
+    
     // Update active effects
     PongEngine.updateActiveEffects(gameState);
     
@@ -483,17 +647,21 @@ export class PongEngine {
       gameState.ballX = 30 + 10;
       const hitPos = ((gameState.ballY - gameState.leftPaddleY) / gameState.leftPaddleHeight) * 2 - 1;
       let speed = Math.sqrt(gameState.ballVX * gameState.ballVX + gameState.ballVY * gameState.ballVY);
-      const angle = hitPos * Math.PI / 4;
-      gameState.ballVX = Math.abs(speed * Math.cos(angle));
-      gameState.ballVY = speed * Math.sin(angle);
+      const baseAngle = hitPos * Math.PI / 4;
+      const paddleAngle = gameState.leftPaddleAngle; // Tank tilt affects ball trajectory significantly
+      const finalAngle = baseAngle + paddleAngle * 1.5; // Amplify tilt effect
+      gameState.ballVX = Math.abs(speed * Math.cos(finalAngle));
+      gameState.ballVY = speed * Math.sin(finalAngle);
       gameState.ballVY += gameState.paddleVY * 0.7; // Add spin
     } else {
       gameState.ballX = canvas.width - 30 - 10;
       const hitPos = ((gameState.ballY - gameState.rightPaddleY) / gameState.rightPaddleHeight) * 2 - 1;
       let speed = Math.sqrt(gameState.ballVX * gameState.ballVX + gameState.ballVY * gameState.ballVY);
-      const angle = hitPos * Math.PI / 4;
-      gameState.ballVX = -Math.abs(speed * Math.cos(angle));
-      gameState.ballVY = speed * Math.sin(angle);
+      const baseAngle = hitPos * Math.PI / 4;
+      const paddleAngle = gameState.rightPaddleAngle; // Tank tilt affects ball trajectory significantly
+      const finalAngle = baseAngle - paddleAngle * 1.5; // Opposite direction for right paddle, amplify tilt effect
+      gameState.ballVX = -Math.abs(speed * Math.cos(finalAngle));
+      gameState.ballVY = speed * Math.sin(finalAngle);
     }
     
     // Increase speed slightly
@@ -504,6 +672,128 @@ export class PongEngine {
     
     console.log('After collision - Ball velocity:', gameState.ballVX, gameState.ballVY);
     console.log('After collision - Ball position:', gameState.ballX, gameState.ballY);
+  }
+
+  /**
+   * Handle shooting mechanics
+   */
+  private static handleShooting(gameState: any, canvas: HTMLCanvasElement, side: 'left' | 'right'): void {
+    const currentTime = Date.now();
+    const lastShot = gameState.lastShotTime[side];
+    
+    // Check cooldown
+    if (currentTime - lastShot < gameState.shotCooldown) {
+      return; // Still on cooldown
+    }
+    
+    const projectileSpeed = 6; // Slower projectiles
+    const paddleY = side === 'left' ? gameState.leftPaddleY : gameState.rightPaddleY;
+    const paddleHeight = side === 'left' ? gameState.leftPaddleHeight : gameState.rightPaddleHeight;
+    const paddleAngle = side === 'left' ? gameState.leftPaddleAngle : gameState.rightPaddleAngle;
+    
+    const projectile = {
+      id: gameState.projectileIdCounter++,
+      x: side === 'left' ? 35 : canvas.width - 35, // Start from paddle edge
+      y: paddleY + paddleHeight / 2, // Start from paddle center
+      vx: side === 'left' ? projectileSpeed * Math.cos(paddleAngle) : -projectileSpeed * Math.cos(paddleAngle),
+      vy: projectileSpeed * Math.sin(paddleAngle),
+      side: side,
+      radius: 6 // Bigger projectiles
+    };
+    
+    gameState.projectiles.push(projectile);
+    gameState.lastShotTime[side] = currentTime; // Update cooldown
+    console.log(`${side} tank fired projectile at angle ${paddleAngle}, cooldown applied`);
+  }
+
+  /**
+   * Update projectiles
+   */
+  private static updateProjectiles(gameState: any, canvas: HTMLCanvasElement): void {
+    for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
+      const projectile = gameState.projectiles[i];
+      
+      // Update position
+      projectile.x += projectile.vx;
+      projectile.y += projectile.vy;
+      
+      // Bounce off top/bottom walls
+      if (projectile.y - projectile.radius < 0 || projectile.y + projectile.radius > canvas.height) {
+        projectile.vy *= -1;
+      }
+      
+      // Remove projectiles that go off the sides
+      if (projectile.x < -20 || projectile.x > canvas.width + 20) {
+        gameState.projectiles.splice(i, 1);
+        continue;
+      }
+      
+      // Check collision with ball
+      const ballDistance = Math.sqrt(
+        (projectile.x - gameState.ballX) ** 2 + (projectile.y - gameState.ballY) ** 2
+      );
+      if (ballDistance < projectile.radius + 10 && !gameState.ballRespawning) {
+        // More nuanced physics: combine projectile direction with impact position
+        const currentBallSpeed = Math.sqrt(gameState.ballVX ** 2 + gameState.ballVY ** 2);
+        
+        // Get projectile's normalized direction
+        const projectileSpeed = Math.sqrt(projectile.vx ** 2 + projectile.vy ** 2);
+        const projectileDirX = projectile.vx / projectileSpeed;
+        const projectileDirY = projectile.vy / projectileSpeed;
+        
+        // Calculate where on the ball the projectile hit (impact offset)
+        const impactOffsetX = (projectile.x - gameState.ballX) / 10; // Normalize by ball radius
+        const impactOffsetY = (projectile.y - gameState.ballY) / 10;
+        
+        // The ball's new direction is influenced by both projectile direction and impact position
+        // Projectile direction has more influence (70%), impact position has some influence (30%)
+        const influenceRatio = 0.7;
+        const newDirX = projectileDirX * influenceRatio + impactOffsetX * (1 - influenceRatio);
+        const newDirY = projectileDirY * influenceRatio + impactOffsetY * (1 - influenceRatio);
+        
+        // Normalize the new direction
+        const newDirLength = Math.sqrt(newDirX * newDirX + newDirY * newDirY);
+        const finalDirX = newDirX / newDirLength;
+        const finalDirY = newDirY / newDirLength;
+        
+        // Apply new speed and direction
+        const newSpeed = Math.min(currentBallSpeed * 1.3, 15);
+        gameState.ballVX = newSpeed * finalDirX;
+        gameState.ballVY = newSpeed * finalDirY;
+        
+        // Remove projectile
+        gameState.projectiles.splice(i, 1);
+        console.log(`Projectile hit ball - projectile dir: (${Math.round(projectileDirX*100)/100}, ${Math.round(projectileDirY*100)/100}), impact: (${Math.round(impactOffsetX*100)/100}, ${Math.round(impactOffsetY*100)/100}), final: (${Math.round(finalDirX*100)/100}, ${Math.round(finalDirY*100)/100})`);
+        continue;
+      }
+      
+      // Check collision with paddles
+      // Left paddle collision
+      if (projectile.x - projectile.radius < 30 && 
+          projectile.y > gameState.leftPaddleY && 
+          projectile.y < gameState.leftPaddleY + gameState.leftPaddleHeight &&
+          projectile.side !== 'left') {
+        // Stun left paddle
+        gameState.leftPaddleStunned = true;
+        gameState.leftPaddleStunEnd = Date.now() + 2000; // 2 seconds
+        gameState.projectiles.splice(i, 1);
+        console.log('Left paddle stunned by projectile');
+        continue;
+      }
+      
+      // Right paddle collision
+      if (projectile.x + projectile.radius > canvas.width - 30 && 
+          projectile.y > gameState.rightPaddleY && 
+          projectile.y < gameState.rightPaddleY + gameState.rightPaddleHeight &&
+          projectile.side !== 'right') {
+        // Stun right paddle
+        gameState.rightPaddleStunned = true;
+        gameState.rightPaddleStunEnd = Date.now() + 2000; // 2 seconds
+        gameState.projectiles.splice(i, 1);
+        console.log('Right paddle stunned by projectile');
+        continue;
+      }
+    }
   }
 
   /**
@@ -676,13 +966,12 @@ export class PongEngine {
     ctx.stroke();
     ctx.setLineDash([]);
     
-    // Draw paddles
-    ctx.fillStyle = gameState.userPaddleColor;
-    ctx.fillRect(20, gameState.leftPaddleY, gameState.paddleWidth, gameState.leftPaddleHeight);
+    // Draw paddles as tanks
+    PongEngine.drawTankPaddle(ctx, 20, gameState.leftPaddleY, gameState.leftPaddleHeight, gameState.leftPaddleAngle, gameState.userPaddleColor, gameState.leftPaddleStunned, 'left');
     
     // Use player 2 color for player vs player mode, otherwise white for AI
-    ctx.fillStyle = gameState.gameConfig.mode === 'player' ? gameState.player2PaddleColor : '#fff';
-    ctx.fillRect(canvas.width - 30, gameState.rightPaddleY, gameState.paddleWidth, gameState.rightPaddleHeight);
+    const rightPaddleColor = gameState.gameConfig.mode === 'player' ? gameState.player2PaddleColor : '#fff';
+    PongEngine.drawTankPaddle(ctx, canvas.width - 30, gameState.rightPaddleY, gameState.rightPaddleHeight, gameState.rightPaddleAngle, rightPaddleColor, gameState.rightPaddleStunned, 'right');
     
     // Draw ball
     ctx.beginPath();
@@ -746,6 +1035,127 @@ export class PongEngine {
         ctx.fillText(`${effect.type.replace('_', ' ').toUpperCase()}: ${remaining}s`, 10, yOffset);
         yOffset += 20;
       });
+    }
+    
+    // Draw projectiles
+    gameState.projectiles.forEach((projectile: any) => {
+      ctx.beginPath();
+      ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffff00'; // Bright yellow projectiles
+      ctx.fill();
+      ctx.strokeStyle = '#ffd700'; // Golden border
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.closePath();
+    });
+  }
+
+  /**
+   * Draw a tank-style paddle with tilting
+   */
+  private static drawTankPaddle(
+    ctx: CanvasRenderingContext2D, 
+    x: number, 
+    y: number, 
+    height: number, 
+    angle: number, 
+    color: string, 
+    stunned: boolean, 
+    side: 'left' | 'right'
+  ): void {
+    ctx.save();
+    
+    const centerX = x + 5; // Center of paddle
+    const centerY = y + height / 2;
+    const paddleWidth = 10;
+    
+    // Draw tank base (main body) - tilted according to angle
+    ctx.translate(centerX, centerY);
+    ctx.rotate(angle * 0.3); // Tank body tilts less than the turret
+    
+    // Tank body color with stunning effects
+    let bodyColor = color;
+    if (stunned) {
+      const flashRate = 150; // Fast blinking when stunned
+      const shouldFlash = Math.floor(Date.now() / flashRate) % 2 === 0;
+      bodyColor = shouldFlash ? '#ff4444' : '#666';
+    }
+    
+    // Draw main tank body (thicker and more tank-like)
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-paddleWidth/2, -height/2, paddleWidth, height);
+    
+    // Draw tank tracks/treads
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-paddleWidth/2 - 2, -height/2, 2, height); // Left track
+    ctx.fillRect(paddleWidth/2, -height/2, 2, height); // Right track
+    
+    // Draw track details (small rectangles)
+    ctx.fillStyle = '#555';
+    for (let i = -height/2 + 5; i < height/2; i += 8) {
+      ctx.fillRect(-paddleWidth/2 - 1, i, 1, 3);
+      ctx.fillRect(paddleWidth/2 + 1, i, 1, 3);
+    }
+    
+    // Reset rotation for turret (turret rotates independently)
+    ctx.rotate(-angle * 0.3);
+    ctx.rotate(angle); // Now apply full turret rotation
+    
+    // Draw turret base (circular)
+    ctx.beginPath();
+    ctx.arc(0, 0, 6, 0, Math.PI * 2);
+    ctx.fillStyle = stunned ? '#666' : color;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    // Draw cannon barrel (much more prominent)
+    ctx.strokeStyle = stunned ? '#666' : '#fff';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    
+    if (side === 'left') {
+      ctx.moveTo(0, 0);
+      ctx.lineTo(20, 0); // Longer cannon
+      // Draw cannon tip
+      ctx.arc(20, 0, 2, 0, Math.PI * 2);
+    } else {
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-20, 0); // Longer cannon
+      // Draw cannon tip
+      ctx.arc(-20, 0, 2, 0, Math.PI * 2);
+    }
+    
+    ctx.stroke();
+    
+    // Draw cannon muzzle (dark circle at tip)
+    ctx.beginPath();
+    if (side === 'left') {
+      ctx.arc(20, 0, 1, 0, Math.PI * 2);
+    } else {
+      ctx.arc(-20, 0, 1, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    
+    ctx.restore();
+    
+    // Draw stunning effect (dashed blinking circle around the tank)
+    if (stunned) {
+      const blinkRate = 200;
+      const shouldShowCircle = Math.floor(Date.now() / blinkRate) % 2 === 0;
+      if (shouldShowCircle) {
+        ctx.save();
+        ctx.strokeStyle = '#ff6b6b';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]); // Dashed line
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, Math.max(height/2, paddleWidth) + 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset dash
+        ctx.restore();
+      }
     }
   }
 
