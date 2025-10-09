@@ -28,9 +28,9 @@ export const routes: { [key: string]: string } = {
       <div style="margin-bottom: 20px;">
         <label for="points-to-win" style="display: block; margin-bottom: 5px;">Points to Win:</label>
         <select id="points-to-win" style="width: 100%; padding: 5px; border-radius: 5px; background: #333; color: white; border: 1px solid #555;">
-          <option value="3">3 Points</option>
+          <option value="3" selected>3 Points</option>
           <option value="5">5 Points</option>
-          <option value="11" selected>11 Points</option>
+          <option value="11">11 Points</option>
           <option value="21">21 Points</option>
         </select>
       </div>
@@ -45,7 +45,11 @@ export const routes: { [key: string]: string } = {
           <span id="power-up-interval-value" style="font-size: 14px; color: #ccc;">15</span>
         </div>
       </div>
-      <button id="save-options" style="width: 100%; padding: 10px; background: #007acc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Save Settings</button>
+      <button id="save-options" style="width: 100%; padding: 10px; background: #007acc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-bottom: 10px;">Save Settings</button>
+      <div style="display: flex; gap: 10px;">
+        <button id="reset-defaults" style="flex: 1; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Reset to Default</button>
+        <button id="back-to-main" style="flex: 1; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Back to Main</button>
+      </div>
       <div id="save-status" style="margin-top: 10px; text-align: center; font-size: 14px; color: #4CAF50;"></div>
     </div>
   `,

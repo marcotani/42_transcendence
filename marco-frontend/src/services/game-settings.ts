@@ -15,7 +15,7 @@ export class GameSettingsService {
     return {
       ballSpeed: 3,
       paddleSpeed: 5,
-      pointsToWin: 11,
+      pointsToWin: 3,
       powerUpsEnabled: true,
       powerUpSpawnInterval: 15 // spawn every 15 seconds
     };

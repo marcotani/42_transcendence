@@ -221,7 +221,7 @@ export class Router {
         const newSettings: GameSettings = {
           ballSpeed: parseInt(ballSpeedSlider?.value || '3'),
           paddleSpeed: parseInt(paddleSpeedSlider?.value || '5'),
-          pointsToWin: parseInt(pointsSelect?.value || '11'),
+          pointsToWin: parseInt(pointsSelect?.value || '3'),
           powerUpsEnabled: powerUpsCheckbox?.checked || false,
           powerUpSpawnInterval: parseInt(powerUpIntervalSlider?.value || '15')
         };
@@ -234,6 +234,53 @@ export class Router {
             saveStatus.textContent = '';
           }, 3000);
         }
+      });
+    }
+    
+    // Reset to defaults button
+    const resetButton = document.getElementById('reset-defaults') as HTMLButtonElement;
+    if (resetButton) {
+      resetButton.addEventListener('click', () => {
+        const defaultSettings = GameSettingsService.getDefault();
+        
+        // Update UI elements with default values
+        if (ballSpeedSlider && ballSpeedValue) {
+          ballSpeedSlider.value = defaultSettings.ballSpeed.toString();
+          ballSpeedValue.textContent = defaultSettings.ballSpeed.toString();
+        }
+        if (paddleSpeedSlider && paddleSpeedValue) {
+          paddleSpeedSlider.value = defaultSettings.paddleSpeed.toString();
+          paddleSpeedValue.textContent = defaultSettings.paddleSpeed.toString();
+        }
+        if (pointsSelect) {
+          pointsSelect.value = defaultSettings.pointsToWin.toString();
+        }
+        if (powerUpsCheckbox && powerUpSettings) {
+          powerUpsCheckbox.checked = defaultSettings.powerUpsEnabled;
+          powerUpSettings.style.display = defaultSettings.powerUpsEnabled ? 'block' : 'none';
+        }
+        if (powerUpIntervalSlider && powerUpIntervalValue) {
+          powerUpIntervalSlider.value = defaultSettings.powerUpSpawnInterval.toString();
+          powerUpIntervalValue.textContent = defaultSettings.powerUpSpawnInterval.toString();
+        }
+        
+        // Save the default settings
+        GameSettingsService.save(defaultSettings);
+        
+        if (saveStatus) {
+          saveStatus.textContent = 'Settings reset to default!';
+          setTimeout(() => {
+            saveStatus.textContent = '';
+          }, 3000);
+        }
+      });
+    }
+    
+    // Back to main button
+    const backButton = document.getElementById('back-to-main') as HTMLButtonElement;
+    if (backButton) {
+      backButton.addEventListener('click', () => {
+        window.location.hash = '';
       });
     }
   }
