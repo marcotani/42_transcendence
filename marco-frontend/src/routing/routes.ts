@@ -91,11 +91,68 @@ export const routes: { [key: string]: string } = {
   </div>`,
   'pong': `<div class='flex flex-col items-center justify-center min-h-screen'>
     <h2 class='text-3xl font-bold mb-6'>Pong Game</h2>
-    <div class='bg-gray-800 rounded-lg shadow-lg p-4 flex flex-col items-center'>
+    
+    <!-- Game Mode Selection -->
+    <div id='game-mode-selection' class='bg-gray-800 rounded-lg shadow-lg p-6 mb-4'>
+      <h3 class='text-xl font-semibold mb-4 text-center'>Select Game Mode</h3>
+      <div class='flex space-x-4'>
+        <button id='vs-ai-mode' class='px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400'>
+          <div class='text-center'>
+            <div class='text-lg font-semibold'>VS AI</div>
+            <div class='text-sm text-gray-300'>Play against computer</div>
+          </div>
+        </button>
+        <button id='vs-player-mode' class='px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-purple-400'>
+          <div class='text-center'>
+            <div class='text-lg font-semibold'>VS Player</div>
+            <div class='text-sm text-gray-300'>Local multiplayer</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Player 2 Login (hidden by default) -->
+    <div id='player2-login' class='bg-gray-800 rounded-lg shadow-lg p-6 mb-4 hidden'>
+      <h3 class='text-xl font-semibold mb-4 text-center'>Player 2 Login</h3>
+      <form id='player2-login-form' class='space-y-4'>
+        <div>
+          <label for='player2-username' class='block mb-1'>Username</label>
+          <input type='text' id='player2-username' class='w-full px-3 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-400' required />
+        </div>
+        <div>
+          <label for='player2-password' class='block mb-1'>Password</label>
+          <input type='password' id='player2-password' class='w-full px-3 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-400' required />
+        </div>
+        <div class='flex space-x-2'>
+          <button type='submit' class='flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>Login Player 2</button>
+          <button type='button' id='cancel-player2-login' class='flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Cancel</button>
+        </div>
+      </form>
+      <div id='player2-login-error' class='text-red-500 mt-2 hidden'></div>
+    </div>
+
+    <!-- Game Area -->
+    <div id='game-area' class='bg-gray-800 rounded-lg shadow-lg p-4 flex flex-col items-center hidden'>
+      <div id='players-info' class='mb-4 text-center'>
+        <div class='flex justify-between items-center w-96'>
+          <div class='text-left'>
+            <div class='text-lg font-semibold text-blue-400'>Player 1</div>
+            <div id='player1-name' class='text-sm text-gray-300'></div>
+            <div class='text-xs text-gray-400'>Controls: ↑ ↓</div>
+          </div>
+          <div class='text-center text-2xl font-bold'>VS</div>
+          <div class='text-right'>
+            <div id='player2-info' class='text-lg font-semibold text-red-400'>AI</div>
+            <div id='player2-name' class='text-sm text-gray-300'></div>
+            <div id='player2-controls' class='text-xs text-gray-400'></div>
+          </div>
+        </div>
+      </div>
       <canvas id='pong-canvas' width='600' height='400' class='bg-black rounded mb-4'></canvas>
       <button id='pong-start' class='px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 mb-2'>Start Game</button>
       <div id='pong-status' class='text-white mt-2'></div>
     </div>
+    
     <button id='back-home-pong' class='mt-8 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
   </div>`,
   'friends': `<div class='max-w-4xl mx-auto mt-8 p-6 bg-gray-900 rounded-lg shadow-lg'>

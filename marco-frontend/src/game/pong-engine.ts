@@ -29,6 +29,12 @@ export interface ActiveEffect {
   side?: 'left' | 'right'; // For paddle-specific effects
 }
 
+export interface GameConfig {
+  mode: 'ai' | 'player';
+  player1: { username: string };
+  player2?: { username: string; id: number } | null;
+}
+
 export class PongEngine {
   private static isGameRunning = false;
 
@@ -173,7 +179,7 @@ export class PongEngine {
   /**
    * Start a new Pong game
    */
-  static startGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | null): void {
+  static startGame(canvas: HTMLCanvasElement, statusDiv: HTMLElement | null, gameConfig?: GameConfig): void {
     // Prevent multiple game instances
     if (PongEngine.isGameRunning) {
       console.log('Game already running, ignoring start request');
@@ -223,7 +229,14 @@ export class PongEngine {
       activeEffects: [] as ActiveEffect[],
       powerUpIdCounter: 0,
       lastPowerUpSpawn: Date.now(),
-      gameSettings: gameSettings
+      gameSettings: gameSettings,
+      
+      // Game configuration
+      gameConfig: gameConfig || { mode: 'ai', player1: { username: 'Guest' } },
+      
+      // Player 2 controls (for local multiplayer)
+      wPressed: false,
+      sPressed: false
     };
 
     // Start ball movement after initial 1-second delay
@@ -245,12 +258,15 @@ export class PongEngine {
         });
     }
 
-    // Start AI and game loop
-    const aiInterval = PongEngine.startAI(gameState, canvas);
+    // Start AI (only for AI mode) and game loop
+    const aiInterval = gameState.gameConfig.mode === 'ai' ? PongEngine.startAI(gameState, canvas) : 0;
     PongEngine.initializeControls(gameState);
     
     if (statusDiv) {
-      statusDiv.textContent = `Game started! Score: ${gameState.leftScore} - ${gameState.rightScore}. Use Arrow Up/Down to move left paddle.`;
+      const controlsText = gameState.gameConfig.mode === 'player' 
+        ? 'Player 1: ↑↓ | Player 2: WS'
+        : 'Use Arrow Up/Down to move left paddle.';
+      statusDiv.textContent = `Game started! Score: ${gameState.leftScore} - ${gameState.rightScore}. ${controlsText}`;
     }
     
     PongEngine.gameLoop(ctx, canvas, gameState, statusDiv, aiInterval);
@@ -306,13 +322,27 @@ export class PongEngine {
    */
   private static initializeControls(gameState: any): void {
     const keyDownHandler = (e: KeyboardEvent) => {
+      // Player 1 controls (arrow keys)
       if (e.key === 'ArrowUp') gameState.upPressed = true;
       if (e.key === 'ArrowDown') gameState.downPressed = true;
+      
+      // Player 2 controls (WASD) - only for player vs player mode
+      if (gameState.gameConfig.mode === 'player') {
+        if (e.key === 'w' || e.key === 'W') gameState.wPressed = true;
+        if (e.key === 's' || e.key === 'S') gameState.sPressed = true;
+      }
     };
     
     const keyUpHandler = (e: KeyboardEvent) => {
+      // Player 1 controls (arrow keys)
       if (e.key === 'ArrowUp') gameState.upPressed = false;
       if (e.key === 'ArrowDown') gameState.downPressed = false;
+      
+      // Player 2 controls (WASD) - only for player vs player mode
+      if (gameState.gameConfig.mode === 'player') {
+        if (e.key === 'w' || e.key === 'W') gameState.wPressed = false;
+        if (e.key === 's' || e.key === 'S') gameState.sPressed = false;
+      }
     };
     
     document.addEventListener('keydown', keyDownHandler);
@@ -364,12 +394,23 @@ export class PongEngine {
     }
     gameState.paddleVY = gameState.leftPaddleY - prevPaddleY;
     
-    // Update right paddle (AI)
-    if (gameState.aiUpPressed && gameState.rightPaddleY > 0) {
-      gameState.rightPaddleY -= gameState.paddleSpeed;
-    }
-    if (gameState.aiDownPressed && gameState.rightPaddleY < canvas.height - gameState.rightPaddleHeight) {
-      gameState.rightPaddleY += gameState.paddleSpeed;
+    // Update right paddle (AI or Player 2)
+    if (gameState.gameConfig.mode === 'player') {
+      // Player 2 controls (WASD)
+      if (gameState.wPressed && gameState.rightPaddleY > 0) {
+        gameState.rightPaddleY -= gameState.paddleSpeed;
+      }
+      if (gameState.sPressed && gameState.rightPaddleY < canvas.height - gameState.rightPaddleHeight) {
+        gameState.rightPaddleY += gameState.paddleSpeed;
+      }
+    } else {
+      // AI controls
+      if (gameState.aiUpPressed && gameState.rightPaddleY > 0) {
+        gameState.rightPaddleY -= gameState.paddleSpeed;
+      }
+      if (gameState.aiDownPressed && gameState.rightPaddleY < canvas.height - gameState.rightPaddleHeight) {
+        gameState.rightPaddleY += gameState.paddleSpeed;
+      }
     }
     
     // Update ball position (only if not respawning)
@@ -520,11 +561,15 @@ export class PongEngine {
   ): void {
     gameState.gameOver = true;
     PongEngine.isGameRunning = false;
-    clearInterval(aiInterval);
+    if (aiInterval) clearInterval(aiInterval); // Only clear if there's an AI interval
+    
+    const isPlayerVsPlayer = gameState.gameConfig.mode === 'player';
+    const player1Name = gameState.gameConfig.player1.username;
+    const player2Name = isPlayerVsPlayer ? gameState.gameConfig.player2?.username : 'AI';
     
     const message = result === 'win' 
-      ? `Game Over! Left player wins ${gameState.leftScore}-${gameState.rightScore}!`
-      : `Game Over! Right player wins ${gameState.rightScore}-${gameState.leftScore}!`;
+      ? `Game Over! ${player1Name} wins ${gameState.leftScore}-${gameState.rightScore}!`
+      : `Game Over! ${player2Name} wins ${gameState.rightScore}-${gameState.leftScore}!`;
     
     if (statusDiv) statusDiv.textContent = message;
     
@@ -532,15 +577,31 @@ export class PongEngine {
     
     // Send match result
     const matchEnd = new Date();
-    PongEngine.sendMatchResult({
-      result,
-      player1Score: gameState.leftScore,
-      player2Score: gameState.rightScore,
-      opponent: 'AI',
-      startedAt: gameState.matchStart.toISOString(),
-      endedAt: matchEnd.toISOString(),
-      duration: Math.round((matchEnd.getTime() - gameState.matchStart.getTime()) / 1000)
-    });
+    
+    if (isPlayerVsPlayer) {
+      // Send results for both players in player vs player mode
+      PongEngine.sendPlayerVsPlayerMatchResult({
+        player1: gameState.gameConfig.player1,
+        player2: gameState.gameConfig.player2,
+        player1Score: gameState.leftScore,
+        player2Score: gameState.rightScore,
+        winnerId: result === 'win' ? 1 : 2,
+        startedAt: gameState.matchStart.toISOString(),
+        endedAt: matchEnd.toISOString(),
+        duration: Math.round((matchEnd.getTime() - gameState.matchStart.getTime()) / 1000)
+      });
+    } else {
+      // Send result for single player vs AI
+      PongEngine.sendMatchResult({
+        result,
+        player1Score: gameState.leftScore,
+        player2Score: gameState.rightScore,
+        opponent: 'AI',
+        startedAt: gameState.matchStart.toISOString(),
+        endedAt: matchEnd.toISOString(),
+        duration: Math.round((matchEnd.getTime() - gameState.matchStart.getTime()) / 1000)
+      });
+    }
   }
 
   /**
@@ -700,6 +761,45 @@ export class PongEngine {
       });
     } catch (e) {
       console.error('Failed to send match result:', e);
+    }
+  }
+
+  /**
+   * Send match result for player vs player games
+   */
+  private static async sendPlayerVsPlayerMatchResult(params: {
+    player1: { username: string };
+    player2: { username: string; id: number };
+    player1Score: number;
+    player2Score: number;
+    winnerId: 1 | 2;
+    startedAt: string;
+    endedAt: string;
+    duration: number;
+  }): Promise<void> {
+    try {
+      // Get player 1 ID
+      const player1Res = await fetch(`${API_BASE}/users/${params.player1.username}`);
+      const player1Data = await player1Res.json();
+      if (!player1Data || !player1Data.id) return;
+      
+      const winnerId = params.winnerId === 1 ? player1Data.id : params.player2.id;
+      
+      // Record the match
+      await fetch(`${API_BASE}/matches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player1Id: player1Data.id,
+          player2Id: params.player2.id,
+          player1Score: params.player1Score,
+          player2Score: params.player2Score,
+          winnerId,
+          matchType: 'player'
+        })
+      });
+    } catch (e) {
+      console.error('Failed to send player vs player match result:', e);
     }
   }
 

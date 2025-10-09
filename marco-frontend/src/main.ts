@@ -190,14 +190,118 @@ function attachPongListeners() {
   document.getElementById('back-home-pong')?.addEventListener('click', () => {
     window.location.hash = '';
   });
+  
+  // Game mode selection
+  const vsAiBtn = document.getElementById('vs-ai-mode');
+  const vsPlayerBtn = document.getElementById('vs-player-mode');
+  const gameModeSelection = document.getElementById('game-mode-selection');
+  const player2Login = document.getElementById('player2-login');
+  const gameArea = document.getElementById('game-area');
+  const player1Name = document.getElementById('player1-name');
+  const player2Info = document.getElementById('player2-info');
+  const player2Name = document.getElementById('player2-name');
+  const player2Controls = document.getElementById('player2-controls');
+  
+  // Store game mode and player 2 info
+  let gameMode: 'ai' | 'player' = 'ai';
+  let player2Data: { username: string; id: number } | null = null;
+  
+  vsAiBtn?.addEventListener('click', () => {
+    gameMode = 'ai';
+    setupGameArea('ai');
+  });
+  
+  vsPlayerBtn?.addEventListener('click', () => {
+    gameMode = 'player';
+    gameModeSelection?.classList.add('hidden');
+    player2Login?.classList.remove('hidden');
+  });
+  
+  // Player 2 login form
+  const player2LoginForm = document.getElementById('player2-login-form');
+  const cancelPlayer2Login = document.getElementById('cancel-player2-login');
+  
+  player2LoginForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = (document.getElementById('player2-username') as HTMLInputElement).value;
+    const password = (document.getElementById('player2-password') as HTMLInputElement).value;
+    const errorDiv = document.getElementById('player2-login-error');
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        player2Data = { username, id: userData.id };
+        setupGameArea('player');
+        errorDiv?.classList.add('hidden');
+      } else {
+        const error = await response.json();
+        if (errorDiv) {
+          errorDiv.textContent = error.message || 'Login failed';
+          errorDiv.classList.remove('hidden');
+        }
+      }
+    } catch (error) {
+      if (errorDiv) {
+        errorDiv.textContent = 'Network error occurred';
+        errorDiv.classList.remove('hidden');
+      }
+    }
+  });
+  
+  cancelPlayer2Login?.addEventListener('click', () => {
+    player2Login?.classList.add('hidden');
+    gameModeSelection?.classList.remove('hidden');
+    // Clear form
+    (document.getElementById('player2-username') as HTMLInputElement).value = '';
+    (document.getElementById('player2-password') as HTMLInputElement).value = '';
+    document.getElementById('player2-login-error')?.classList.add('hidden');
+  });
+  
+  function setupGameArea(mode: 'ai' | 'player') {
+    gameModeSelection?.classList.add('hidden');
+    player2Login?.classList.add('hidden');
+    gameArea?.classList.remove('hidden');
+    
+    // Set player 1 info
+    const currentUser = UserSession.getCurrentUser();
+    if (player1Name) player1Name.textContent = currentUser || 'Guest';
+    
+    // Set player 2 info
+    if (mode === 'ai') {
+      if (player2Info) player2Info.textContent = 'AI';
+      if (player2Name) player2Name.textContent = 'Computer';
+      if (player2Controls) player2Controls.textContent = '';
+    } else {
+      if (player2Info) player2Info.textContent = 'Player 2';
+      if (player2Name) player2Name.textContent = player2Data?.username || 'Unknown';
+      if (player2Controls) player2Controls.textContent = 'Controls: W S';
+    }
+  }
+  
+  // Start game button
   const startBtn = document.getElementById('pong-start') as HTMLButtonElement | null;
   const canvas = document.getElementById('pong-canvas') as HTMLCanvasElement | null;
   const statusDiv = document.getElementById('pong-status');
+  
   if (startBtn && canvas) {
     startBtn.addEventListener('click', () => {
       startBtn.disabled = true;
       startBtn.textContent = 'Game Running...';
-      PongEngine.startGame(canvas, statusDiv);
+      
+      // Pass game mode and player 2 data to the engine
+      const gameConfig = {
+        mode: gameMode,
+        player1: { username: UserSession.getCurrentUser() || 'Guest' },
+        player2: gameMode === 'player' ? player2Data : null
+      };
+      
+      PongEngine.startGame(canvas, statusDiv, gameConfig);
     });
   }
 }
