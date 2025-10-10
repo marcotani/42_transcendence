@@ -16,6 +16,9 @@ import { routes } from './routing/routes.js';
 import { Router } from './routing/router.js';
 import { TokenManager } from './services/token-manager.js';
 
+// Make PongEngine globally available for tournament
+(window as any).PongEngine = PongEngine;
+
 // Check for JWT migration - if user is logged in but has no JWT token, clear session
 const migrationCheck = () => {
   const loggedInUser = StorageService.getLoggedInUser();
@@ -79,8 +82,8 @@ function attachMenuListeners() {
   document.getElementById('start-game')?.addEventListener('click', () => {
     window.location.hash = '#pong';
   });
-  document.getElementById('multiplayer')?.addEventListener('click', () => {
-    window.location.hash = '#multiplayer';
+  document.getElementById('tournament')?.addEventListener('click', () => {
+    window.location.hash = '#tournament';
   });
   document.getElementById('options')?.addEventListener('click', () => {
     window.location.hash = '#options';

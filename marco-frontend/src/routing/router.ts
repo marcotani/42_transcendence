@@ -41,8 +41,8 @@ export class Router {
       // Handle viewing other user's profile
       const username = route.split('/')[1];
       content = Router.generateViewProfilePage(username);
-    } else if (route === 'multiplayer') {
-      content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.multiplayerTitle}'>${t.multiplayerTitle}</h2><p>${t.multiplayerDesc}</p>`;
+    } else if (route === 'tournament') {
+      content = routes['tournament'];
     } else if (route === 'options') {
       content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.optionsTitle}'>${t.optionsTitle}</h2><p>${t.optionsDesc}</p>`;
     } else if (route === 'leaderboard') {
@@ -57,7 +57,7 @@ export class Router {
       content = `<h1 class='text-4xl font-bold mb-4' tabindex='0' aria-label='${t.title}'>${t.title}</h1>
         <div class='flex flex-col items-center justify-center space-y-4 mt-8'>
           <button class='w-48 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400' id='start-game' aria-label='${t.startGame}' tabindex='0'>${t.startGame}</button>
-          <button class='w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-yellow-400' id='multiplayer' aria-label='${t.multiplayer}' tabindex='0'>${t.multiplayer}</button>
+          <button class='w-48 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-orange-400' id='tournament' aria-label='${t.tournament}' tabindex='0'>${t.tournament}</button>
           <button class='w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400' id='options' aria-label='${t.options}' tabindex='0'>${t.options}</button>
           <button class='w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-purple-400' id='leaderboard' aria-label='${t.leaderboard}' tabindex='0'>${t.leaderboard}</button>
         </div>`;
@@ -148,6 +148,14 @@ export class Router {
     if (route === 'friends' && !Router.attachedListeners.has('friends')) {
       Router.attachedListeners.add('friends');
       setTimeout(() => Router.initializeFriendsPage(), 0);
+    }
+    if (route === 'tournament' && !Router.attachedListeners.has('tournament')) {
+      Router.attachedListeners.add('tournament');
+      setTimeout(() => Router.initializeTournamentPage(), 0);
+    }
+    if (route === 'pong' && !Router.attachedListeners.has('pong')) {
+      Router.attachedListeners.add('pong');
+      setTimeout(() => Router.initializeGamePage(), 0);
     }
   }
 
@@ -376,6 +384,784 @@ export class Router {
 
   static viewProfile(username: string): void {
     return FriendsManager.viewProfile(username);
+  }
+
+  /**
+   * Initialize tournament page with event handlers
+   */
+  private static initializeTournamentPage(): void {
+    // Tournament state
+    let tournamentPlayers: Array<{username: string, password: string}> = [];
+    let tournamentSize = 0;
+    let currentTournament: any = null;
+    let currentMatchIndex = 0;
+
+    // Player count selection
+    document.getElementById('players-4')?.addEventListener('click', () => {
+      tournamentSize = 4;
+      Router.showPlayerRegistration(4);
+    });
+
+    document.getElementById('players-6')?.addEventListener('click', () => {
+      tournamentSize = 6;
+      Router.showPlayerRegistration(6);
+    });
+
+    document.getElementById('players-8')?.addEventListener('click', () => {
+      tournamentSize = 8;
+      Router.showPlayerRegistration(8);
+    });
+
+    // Start tournament button
+    document.getElementById('start-tournament')?.addEventListener('click', async () => {
+      const loggedInUser = (window as any).loggedInUser;
+      if (!loggedInUser) {
+        alert('Please log in to start a tournament');
+        return;
+      }
+
+      // Build players array with logged-in user first
+      tournamentPlayers = [{ username: loggedInUser, password: '' }]; // No password needed for logged-in user
+      
+      // Add other players (starting from player 2)
+      for (let i = 2; i <= tournamentSize; i++) {
+        const username = (document.getElementById(`player${i}-username`) as HTMLInputElement)?.value;
+        const password = (document.getElementById(`player${i}-password`) as HTMLInputElement)?.value;
+        
+        if (username && password) {
+          tournamentPlayers.push({ username, password });
+        }
+      }
+
+      if (tournamentPlayers.length === tournamentSize) {
+        const success = await Router.validateAllPlayers(tournamentPlayers);
+        if (success) {
+          currentTournament = Router.generateTournamentBracket(tournamentPlayers);
+          Router.showTournamentBracket(currentTournament);
+          Router.startNextMatch(currentTournament, currentMatchIndex);
+        }
+      }
+    });
+
+    // Start match button
+    document.getElementById('start-match')?.addEventListener('click', () => {
+      // Get the current match index from session storage (updated by startNextMatch)
+      const actualMatchIndex = parseInt(sessionStorage.getItem('currentMatchIndex') || '0');
+      console.log('Start match button clicked - using matchIndex:', actualMatchIndex);
+      
+      // Get the current match from tournament data
+      const currentRound = currentTournament.rounds[currentTournament.currentRound];
+      const currentMatch = currentRound[actualMatchIndex];
+      
+      if (currentMatch && currentMatch.player1 && currentMatch.player2) {
+        Router.startTournamentGame(currentMatch.player1, currentMatch.player2, currentTournament, actualMatchIndex);
+      }
+    });
+
+    // Back to home button
+    document.getElementById('back-home-tournament')?.addEventListener('click', () => {
+      window.location.hash = '#';
+    });
+
+    // Return to bracket button
+    document.getElementById('return-to-bracket')?.addEventListener('click', () => {
+      // Get the current match index from session storage (updated by startNextMatch)
+      const actualMatchIndex = parseInt(sessionStorage.getItem('currentMatchIndex') || '0');
+      Router.endTournamentGame(currentTournament, actualMatchIndex);
+    });
+
+    // Start tournament game button
+    document.getElementById('start-tournament-game')?.addEventListener('click', () => {
+      Router.actuallyStartTournamentGame();
+    });
+
+    // Expose continue tournament function globally
+    (window as any).continueTournament = () => {
+      Router.continueTournamentFromGame();
+    };
+  }
+
+  /**
+   * Show player registration form
+   */
+  private static showPlayerRegistration(playerCount: number): void {
+    document.getElementById('tournament-setup')?.classList.add('hidden');
+    document.getElementById('player-registration')?.classList.remove('hidden');
+    
+    const formsContainer = document.getElementById('player-forms');
+    if (!formsContainer) return;
+
+    const loggedInUser = (window as any).loggedInUser;
+    if (!loggedInUser) {
+      alert('Please log in to start a tournament');
+      window.location.hash = '#';
+      return;
+    }
+
+    formsContainer.innerHTML = '';
+    
+    // Add logged-in user as Player 1 (read-only)
+    const player1Form = document.createElement('div');
+    player1Form.className = 'bg-green-800 p-4 rounded-lg';
+    player1Form.innerHTML = `
+      <h4 class="text-lg font-bold mb-3">Player 1 (You)</h4>
+      <div class="space-y-3">
+        <input 
+          type="text" 
+          value="${loggedInUser}" 
+          class="w-full px-3 py-2 bg-gray-600 text-white rounded border border-gray-500"
+          readonly
+        />
+        <div class="text-green-400 text-sm">✓ Already logged in</div>
+      </div>
+    `;
+    formsContainer.appendChild(player1Form);
+
+    // Add forms for remaining players
+    for (let i = 2; i <= playerCount; i++) {
+      const playerForm = document.createElement('div');
+      playerForm.className = 'bg-gray-800 p-4 rounded-lg';
+      playerForm.innerHTML = `
+        <h4 class="text-lg font-bold mb-3">Player ${i}</h4>
+        <div class="space-y-3">
+          <input 
+            type="text" 
+            id="player${i}-username" 
+            placeholder="Username" 
+            class="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500"
+            required
+          />
+          <input 
+            type="password" 
+            id="player${i}-password" 
+            placeholder="Password" 
+            class="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500"
+            required
+          />
+          <div id="player${i}-error" class="text-red-400 text-sm h-5"></div>
+        </div>
+      `;
+      formsContainer.appendChild(playerForm);
+
+      // Add validation listeners
+      const usernameInput = playerForm.querySelector(`#player${i}-username`) as HTMLInputElement;
+      const passwordInput = playerForm.querySelector(`#player${i}-password`) as HTMLInputElement;
+      
+      [usernameInput, passwordInput].forEach(input => {
+        input?.addEventListener('input', () => Router.checkTournamentFormValidity(playerCount));
+      });
+    }
+  }
+
+  /**
+   * Check if tournament form is valid and enable/disable start button
+   */
+  private static checkTournamentFormValidity(playerCount: number): void {
+    const startButton = document.getElementById('start-tournament') as HTMLButtonElement;
+    if (!startButton) return;
+
+    let allValid = true;
+    // Start from player 2 since player 1 is the logged-in user
+    for (let i = 2; i <= playerCount; i++) {
+      const username = (document.getElementById(`player${i}-username`) as HTMLInputElement)?.value;
+      const password = (document.getElementById(`player${i}-password`) as HTMLInputElement)?.value;
+      
+      if (!username || !password) {
+        allValid = false;
+        break;
+      }
+    }
+
+    startButton.disabled = !allValid;
+  }
+
+  /**
+   * Validate all player credentials and fetch profile data
+   */
+  private static async validateAllPlayers(players: Array<{username: string, password: string}>): Promise<boolean> {
+    const usernames = new Set();
+    
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
+      // For players 2 and beyond, the error div is at player{i+1}-error
+      // For player 1 (logged-in user), skip validation
+      const errorDiv = i === 0 ? null : document.getElementById(`player${i+1}-error`);
+      
+      // Check for duplicate usernames
+      if (usernames.has(player.username)) {
+        if (errorDiv) errorDiv.textContent = 'Username already used in tournament';
+        return false;
+      }
+      usernames.add(player.username);
+
+      // Skip credential validation for the logged-in user (first player)
+      if (i === 0) {
+        // For logged-in user, fetch their profile data
+        try {
+          const response = await fetch(`${API_BASE}/users/${player.username}`);
+          if (response.ok) {
+            const userData = await response.json();
+            // Store profile data with the player
+            (player as any).profile = userData.profile;
+            (player as any).id = userData.id;
+          }
+        } catch (error) {
+          console.warn('Failed to fetch profile for logged-in user:', error);
+        }
+        continue;
+      }
+
+      // Validate credentials for other players
+      try {
+        const response = await fetch(`${API_BASE}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: player.username, password: player.password })
+        });
+
+        if (!response.ok) {
+          if (errorDiv) errorDiv.textContent = 'Invalid username or password';
+          return false;
+        } else {
+          if (errorDiv) errorDiv.textContent = '';
+          
+          // After successful login, fetch user profile data
+          try {
+            const profileResponse = await fetch(`${API_BASE}/users/${player.username}`);
+            if (profileResponse.ok) {
+              const userData = await profileResponse.json();
+              // Store profile data with the player
+              (player as any).profile = userData.profile;
+              (player as any).id = userData.id;
+            }
+          } catch (profileError) {
+            console.warn('Failed to fetch profile for player:', player.username, profileError);
+          }
+        }
+      } catch (error) {
+        if (errorDiv) errorDiv.textContent = 'Connection error';
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Generate tournament bracket
+   */
+  private static generateTournamentBracket(players: Array<{username: string, password: string}>): any {
+    // Shuffle players for random matchups
+    const shuffled = [...players].sort(() => Math.random() - 0.5);
+    
+    return {
+      players: shuffled,
+      rounds: Router.createRounds(shuffled),
+      currentRound: 0,
+      winners: []
+    };
+  }
+
+  /**
+   * Create tournament rounds structure
+   */
+  private static createRounds(players: Array<{username: string, password: string}>): any[] {
+    const rounds = [];
+    
+    // Only create the first round initially
+    const matches = [];
+    for (let i = 0; i < players.length; i += 2) {
+      matches.push({
+        player1: players[i],
+        player2: players[i + 1] || null, // Handle odd numbers (bye)
+        winner: null
+      });
+    }
+    rounds.push(matches);
+    
+    return rounds;
+  }
+
+  /**
+   * Generate bracket tree visualization
+   */
+  private static generateBracketVisualization(tournament: any, currentMatchIndex: number): void {
+    const bracketTree = document.getElementById('bracket-tree');
+    if (!bracketTree) return;
+
+    const rounds = tournament.rounds;
+    const currentRound = tournament.currentRound;
+    
+    let html = `<div class="bracket-container flex justify-center items-center space-x-8 overflow-x-auto min-h-[300px]">`;
+
+    // Generate each round
+    for (let roundIndex = 0; roundIndex < rounds.length; roundIndex++) {
+      const matches = rounds[roundIndex];
+      const isCurrentRound = roundIndex === currentRound;
+      
+      html += `<div class="round-column flex flex-col justify-center space-y-4">`;
+      html += `<div class="text-center text-sm font-bold text-gray-400 mb-2">
+        ${roundIndex === rounds.length - 1 ? 'Finals' : `Round ${roundIndex + 1}`}
+      </div>`;
+
+      matches.forEach((match: any, matchIndex: number) => {
+        const isCurrentMatch = isCurrentRound && matchIndex === currentMatchIndex;
+        const isCompleted = match.winner;
+        
+        let matchClass = 'bg-gray-700 border-2 border-gray-500';
+        if (isCurrentMatch) {
+          matchClass = 'bg-orange-600 border-2 border-orange-400 animate-pulse';
+        } else if (isCompleted) {
+          matchClass = 'bg-green-700 border-2 border-green-500';
+        }
+
+        html += `
+          <div class="${matchClass} rounded-lg p-3 min-w-[140px] relative">
+            <div class="text-sm font-bold ${match.winner?.username === match.player1.username ? 'text-green-300' : ''} mb-1">
+              ${match.player1.username}
+            </div>
+            <div class="text-xs text-gray-300 text-center mb-1">vs</div>
+            <div class="text-sm font-bold ${match.winner?.username === match.player2?.username ? 'text-green-300' : ''} mb-1">
+              ${match.player2?.username || 'BYE'}
+            </div>
+            ${isCurrentMatch ? '<div class="absolute -top-2 -right-2 text-orange-300 text-xl">👑</div>' : ''}
+            ${isCompleted ? `<div class="text-xs text-center text-green-300 mt-1">Winner: ${match.winner.username}</div>` : ''}
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+
+      // Add connecting lines (simplified version)
+      if (roundIndex < rounds.length - 1) {
+        html += `<div class="connector flex flex-col justify-center space-y-8">`;
+        const nextRoundMatches = rounds[roundIndex + 1]?.length || 0;
+        for (let i = 0; i < nextRoundMatches; i++) {
+          html += `<div class="w-8 h-px bg-gray-500"></div>`;
+        }
+        html += `</div>`;
+      }
+    }
+
+    html += `</div>`;
+    
+    // Add legend
+    html += `
+      <div class="flex justify-center space-x-4 mt-4 text-xs">
+        <span class="flex items-center"><div class="w-4 h-4 bg-orange-600 rounded mr-1"></div>Current Match</span>
+        <span class="flex items-center"><div class="w-4 h-4 bg-green-700 rounded mr-1"></div>Completed</span>
+        <span class="flex items-center"><div class="w-4 h-4 bg-gray-700 rounded mr-1"></div>Upcoming</span>
+      </div>
+    `;
+
+    bracketTree.innerHTML = html;
+  }
+
+  /**
+   * Show tournament bracket
+   */
+  private static showTournamentBracket(tournament: any): void {
+    document.getElementById('player-registration')?.classList.add('hidden');
+    document.getElementById('tournament-bracket')?.classList.remove('hidden');
+    
+    const bracketDisplay = document.getElementById('bracket-display');
+    if (!bracketDisplay) return;
+
+    let bracketHTML = '';
+    tournament.rounds.forEach((round: any, roundIndex: number) => {
+      bracketHTML += `<div class="mb-4">
+        <h4 class="text-lg font-bold mb-2">Round ${roundIndex + 1}</h4>
+        <div class="space-y-2">`;
+      
+      round.forEach((match: any, matchIndex: number) => {
+        const player1Name = match.player1.username;
+        const player2Name = match.player2?.username || 'BYE';
+        const winnerClass = match.winner ? 'bg-green-700' : 'bg-gray-700';
+        
+        bracketHTML += `
+          <div class="flex justify-between items-center p-2 ${winnerClass} rounded">
+            <span>${player1Name}</span>
+            <span class="text-sm">vs</span>
+            <span>${player2Name}</span>
+            ${match.winner ? `<span class="text-yellow-400">🏆 ${match.winner.username}</span>` : ''}
+          </div>`;
+      });
+      
+      bracketHTML += '</div></div>';
+    });
+
+    bracketDisplay.innerHTML = bracketHTML;
+  }
+
+  /**
+   * Start next tournament match
+   */
+  private static startNextMatch(tournament: any, matchIndex: number): void {
+    console.log('=== START NEXT MATCH ===');
+    console.log('Current round:', tournament.currentRound);
+    console.log('Match index:', matchIndex);
+    console.log('Current round matches:', tournament.rounds[tournament.currentRound]);
+    
+    // Store current match index for use by event handlers
+    sessionStorage.setItem('currentMatchIndex', matchIndex.toString());
+    console.log('Stored currentMatchIndex in sessionStorage:', matchIndex);
+    
+    const currentRound = tournament.rounds[tournament.currentRound];
+    if (!currentRound || matchIndex >= currentRound.length) {
+      console.log('End of round - checking if complete...');
+      console.log('Current round matches:', currentRound);
+      // Round finished, check if all matches in current round are complete
+      const allMatchesComplete = currentRound && currentRound.every((match: any) => {
+        console.log('Checking match:', match, 'Has winner:', !!match.winner);
+        return match.winner;
+      });
+      console.log('All matches complete:', allMatchesComplete);
+      
+      if (allMatchesComplete) {
+        // Create next round with winners
+        const winners = currentRound.map((match: any) => match.winner).filter((winner: any) => winner);
+        console.log('Winners:', winners);
+        
+        if (winners.length === 1) {
+          // Tournament finished
+          console.log('Tournament finished!');
+          Router.showTournamentWinner(tournament);
+          return;
+        }
+        
+        // Create next round
+        const nextRoundMatches = [];
+        for (let i = 0; i < winners.length; i += 2) {
+          nextRoundMatches.push({
+            player1: winners[i],
+            player2: winners[i + 1] || null,
+            winner: null
+          });
+        }
+        tournament.rounds.push(nextRoundMatches);
+        console.log('New round created:', nextRoundMatches);
+        
+        // Move to next round and reset match index
+        tournament.currentRound++;
+        matchIndex = 0;
+        
+        // Update bracket display and start first match of new round
+        Router.showTournamentBracket(tournament);
+        Router.startNextMatch(tournament, matchIndex);
+        return;
+      }
+      
+      // If not all matches complete, something went wrong - reset to first incomplete match
+      console.log('Not all matches complete, resetting...');
+      matchIndex = 0;
+    }
+
+    const match = currentRound[matchIndex];
+    if (match.winner) {
+      // Match already completed, go to next
+      Router.startNextMatch(tournament, matchIndex + 1);
+      return;
+    }
+
+    if (!match.player2) {
+      // BYE match, player1 advances automatically
+      match.winner = match.player1;
+      Router.startNextMatch(tournament, matchIndex + 1);
+      return;
+    }
+
+    // Show current match display
+    document.getElementById('tournament-bracket')?.classList.add('hidden');
+    document.getElementById('current-match')?.classList.remove('hidden');
+    
+    // Generate bracket visualization
+    Router.generateBracketVisualization(tournament, matchIndex);
+    
+    const player1Element = document.getElementById('match-player1');
+    const player2Element = document.getElementById('match-player2');
+    
+    if (player1Element) player1Element.textContent = match.player1.username;
+    if (player2Element) player2Element.textContent = match.player2.username;
+  }
+
+  /**
+   * Show tournament winner
+   */
+  private static showTournamentWinner(tournament: any): void {
+    document.getElementById('current-match')?.classList.add('hidden');
+    document.getElementById('tournament-game')?.classList.add('hidden');
+    document.getElementById('tournament-bracket')?.classList.add('hidden');
+    document.getElementById('tournament-winner')?.classList.remove('hidden');
+    
+    // Find the winner - could be from the last completed round
+    let winner = null;
+    if (tournament.rounds.length > 0) {
+      const lastRound = tournament.rounds[tournament.rounds.length - 1];
+      if (lastRound.length === 1 && lastRound[0].winner) {
+        winner = lastRound[0].winner;
+      } else {
+        // Find the winner from completed matches
+        const winners = lastRound.map((match: any) => match.winner).filter((w: any) => w);
+        if (winners.length === 1) {
+          winner = winners[0];
+        }
+      }
+    }
+    
+    const winnerNameElement = document.getElementById('winner-name');
+    if (winnerNameElement && winner) {
+      winnerNameElement.textContent = winner.username;
+    }
+
+    // Update winner statistics
+    if (winner) {
+      Router.updateTournamentWinner(winner.username);
+    }
+  }
+
+  /**
+   * Update tournament winner statistics
+   */
+  private static async updateTournamentWinner(username: string): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/stats/tournament-win`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+    } catch (error) {
+      console.error('Failed to update tournament winner stats:', error);
+    }
+  }
+
+  /**
+   * Actually start the tournament game when button is clicked
+   */
+  private static actuallyStartTournamentGame(): void {
+    const gameData = (window as any).tournamentGameData;
+    if (!gameData) return;
+    
+    const { player1, player2, tournament, matchIndex } = gameData;
+    
+    // Hide start button and update status
+    document.getElementById('start-tournament-game')?.classList.add('hidden');
+    const statusElement = document.getElementById('tournament-game-status');
+    if (statusElement) statusElement.textContent = 'Game in progress...';
+    
+    // Get canvas and start game
+    const canvas = document.getElementById('tournament-canvas') as HTMLCanvasElement;
+    if (canvas) {
+      // Set tournament mode flag for the game engine
+      sessionStorage.setItem('tournamentMode', 'true');
+      
+      // Import PongEngine (it should already be available globally)
+      if ((window as any).PongEngine) {
+        const gameInstance = (window as any).PongEngine.createTournamentGame(canvas, {
+          player1: player1,
+          player2: player2,
+          onGameEnd: (winner: string) => {
+            console.log('Tournament game ended, winner:', winner);
+            Router.onTournamentGameEnd(winner, tournament, matchIndex);
+          }
+        });
+        gameInstance.start();
+      } else {
+        console.error('PongEngine not available');
+      }
+    }
+  }
+  private static startTournamentGame(player1: any, player2: any, tournament: any, matchIndex: number): void {
+    // Update main title to show match info
+    const titleElement = document.getElementById('tournament-main-title');
+    const currentRound = tournament.currentRound + 1;
+    const totalMatches = tournament.rounds[tournament.currentRound].length;
+    const currentMatch = matchIndex + 1;
+    
+    if (titleElement) {
+      titleElement.textContent = `🏆 Tournament - Round ${currentRound}, Match ${currentMatch}`;
+    }
+    
+    // Hide current match display and show game area
+    document.getElementById('current-match')?.classList.add('hidden');
+    document.getElementById('tournament-game')?.classList.remove('hidden');
+    
+    // Set player names in game display
+    const player1Element = document.getElementById('game-player1');
+    const player2Element = document.getElementById('game-player2');
+    if (player1Element) player1Element.textContent = player1.username;
+    if (player2Element) player2Element.textContent = player2.username;
+    
+    // Initialize game status
+    const statusElement = document.getElementById('tournament-game-status');
+    if (statusElement) statusElement.textContent = 'Ready to start - Click the button when both players are ready!';
+    
+    // Store game data for when start button is clicked
+    (window as any).tournamentGameData = { player1, player2, tournament, matchIndex };
+    
+    console.log('=== STARTING TOURNAMENT GAME ===');
+    console.log('Storing game data with matchIndex:', matchIndex);
+    console.log('Players:', player1, 'vs', player2);
+  }
+
+  /**
+   * Handle tournament game completion
+   */
+  private static onTournamentGameEnd(winner: string, tournament: any, matchIndex: number): void {
+    // Get the correct match index from game data
+    const gameData = (window as any).tournamentGameData;
+    if (gameData && typeof gameData.matchIndex === 'number') {
+      matchIndex = gameData.matchIndex;
+    }
+    
+    console.log('=== TOURNAMENT GAME END ===');
+    console.log('Winner:', winner);
+    console.log('Match index:', matchIndex);
+    console.log('Tournament state:', tournament);
+    
+    // Update game status
+    const statusElement = document.getElementById('tournament-game-status');
+    if (statusElement) statusElement.textContent = `🏆 ${winner} wins!`;
+    
+    // CRITICAL: Update tournament bracket with winner at the CORRECT match index
+    const currentRound = tournament.rounds[tournament.currentRound];
+    if (currentRound && currentRound[matchIndex]) {
+      const match = currentRound[matchIndex];
+      console.log('Updating match:', matchIndex, 'Old match:', match);
+      // Find the winner object from the players
+      if (match.player1.username === winner) {
+        match.winner = match.player1;
+      } else if (match.player2 && match.player2.username === winner) {
+        match.winner = match.player2;
+      }
+      console.log('Match updated with winner:', match);
+    } else {
+      console.error('Could not find match to update!', { matchIndex, currentRound });
+    }
+    
+    // Update the global tournament state with current tournament
+    (window as any).tournamentGameData.tournament = tournament;
+    (window as any).tournamentGameData.matchIndex = matchIndex;
+    
+    // Show return to bracket button
+    const returnButton = document.getElementById('return-to-bracket');
+    if (returnButton) {
+      returnButton.classList.remove('hidden');
+      returnButton.textContent = 'Continue Tournament';
+    }
+  }
+
+  /**
+   * End tournament game and return to bracket
+   */
+  private static endTournamentGame(tournament: any, matchIndex: number): void {
+    // Get the updated tournament state from the game data
+    const gameData = (window as any).tournamentGameData;
+    if (gameData && gameData.tournament) {
+      tournament = gameData.tournament;
+      matchIndex = gameData.matchIndex || matchIndex;
+    }
+    
+    console.log('=== END TOURNAMENT GAME ===');
+    console.log('Tournament state:', tournament);
+    console.log('Match index:', matchIndex);
+    
+    // Check if this was the final match (only 1 match in the current round)
+    const currentRound = tournament.rounds[tournament.currentRound];
+    const isFinalMatch = currentRound && currentRound.length === 1 && currentRound[0].winner;
+    console.log('Is final match:', isFinalMatch);
+    
+    if (isFinalMatch) {
+      // This was the final - show tournament winner
+      Router.showTournamentWinner(tournament);
+      return;
+    }
+    
+    // Reset title back to tournament setup
+    const titleElement = document.getElementById('tournament-main-title');
+    if (titleElement) {
+      titleElement.textContent = '🏆 Tournament Bracket';
+    }
+    
+    // Hide game area and reset game elements
+    document.getElementById('tournament-game')?.classList.add('hidden');
+    document.getElementById('return-to-bracket')?.classList.add('hidden');
+    document.getElementById('start-tournament-game')?.classList.remove('hidden');
+    
+    // Reset game status
+    const statusElement = document.getElementById('tournament-game-status');
+    if (statusElement) statusElement.textContent = 'Ready to start...';
+    
+    // Clear tournament mode flag
+    sessionStorage.removeItem('tournamentMode');
+    
+    // Update and show bracket
+    Router.showTournamentBracket(tournament);
+    
+    // Continue to next match
+    Router.startNextMatch(tournament, matchIndex + 1);
+  }
+
+  /**
+   * Continue tournament after a match completes
+   */
+  private static continueTournamentFromGame(): void {
+    try {
+      const tournamentState = JSON.parse(sessionStorage.getItem('tournamentState') || '{}');
+      const currentMatchIndex = parseInt(sessionStorage.getItem('currentMatchIndex') || '0');
+      
+      // Update tournament bracket display
+      Router.showTournamentBracket(tournamentState);
+      
+      // Continue with next match or round
+      Router.startNextMatch(tournamentState, currentMatchIndex);
+    } catch (error) {
+      console.error('Error continuing tournament:', error);
+      // Reset tournament if there's an error
+      document.getElementById('tournament-setup')?.classList.remove('hidden');
+      document.getElementById('tournament-bracket')?.classList.add('hidden');
+      document.getElementById('current-match')?.classList.add('hidden');
+      document.getElementById('tournament-winner')?.classList.add('hidden');
+    }
+  }
+
+  /**
+   * Initialize game page with tournament mode support
+   */
+  private static initializeGamePage(): void {
+    const isTournamentMode = sessionStorage.getItem('tournamentMode') === 'true';
+    
+    if (isTournamentMode) {
+      // Handle tournament mode
+      const player1 = sessionStorage.getItem('player1');
+      const player2 = sessionStorage.getItem('player2');
+      
+      if (player1 && player2) {
+        // Auto-select player vs player mode and set players
+        setTimeout(() => {
+          const playerModeBtn = document.getElementById('player-vs-player-btn');
+          const gameArea = document.getElementById('game-area');
+          const gameModeSelection = document.getElementById('game-mode-selection');
+          
+          if (playerModeBtn && gameArea && gameModeSelection) {
+            // Hide mode selection and show game area
+            gameModeSelection.classList.add('hidden');
+            gameArea.classList.remove('hidden');
+            
+            // Set player names in the UI
+            const player1Input = document.getElementById('player-1-username') as HTMLInputElement;
+            const player2Input = document.getElementById('player-2-username') as HTMLInputElement;
+            
+            if (player1Input) player1Input.value = player1;
+            if (player2Input) player2Input.value = player2;
+            
+            // Trigger form validation
+            const event = new Event('input', { bubbles: true });
+            player1Input?.dispatchEvent(event);
+            player2Input?.dispatchEvent(event);
+          }
+        }, 100);
+      }
+    }
   }
 }
 

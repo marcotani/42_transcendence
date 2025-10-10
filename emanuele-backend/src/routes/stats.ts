@@ -98,6 +98,39 @@ const statsRoute: FastifyPluginAsync = async (app) => {
     }
   });
 
+  // Tournament win endpoint - accepts username and updates tournament statistics
+  app.post('/stats/tournament-win', async (req, reply) => {
+    const body = req.body as { username: string };
+
+    if (!body || !body.username) {
+      return reply.code(400).send({ error: 'Username is required' });
+    }
+
+    try {
+      // Find user by username
+      const user = await app.prisma.user.findUnique({
+        where: { username: body.username },
+        select: { id: true }
+      });
+
+      if (!user) {
+        return reply.code(404).send({ error: 'User not found' });
+      }
+
+      // Update tournament wins
+      await app.prisma.userStat.update({
+        where: { userId: user.id },
+        data: { tournamentWins: { increment: 1 } },
+      });
+
+      app.log.info(`Tournament win recorded for user: ${body.username}`);
+      return reply.send({ success: true });
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
   // Leaderboard per Bot Wins
   app.get('/stats/leaderboard/bot-wins', async (req, reply) => {
     try {

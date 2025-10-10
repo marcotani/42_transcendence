@@ -31,8 +31,8 @@ export interface ActiveEffect {
 
 export interface GameConfig {
   mode: 'ai' | 'player';
-  player1: { username: string };
-  player2?: { username: string; id: number } | null;
+  player1: { username: string; profile?: any; id?: number };
+  player2?: { username: string; id: number; profile?: any } | null;
 }
 
 export class PongEngine {
@@ -277,22 +277,37 @@ export class PongEngine {
     }, 1000);
 
     // Initialize paddle colors
-    const loggedInUser = (window as any).loggedInUser;
-    if (loggedInUser) {
-      fetch(`${API_BASE}/users/${loggedInUser}`)
-        .then(res => res.json())
-        .then(user => {
-          gameState.userPaddleColor = user.profile?.skinColor || '#FFFFFF';
-        });
+    // For tournaments and when profile data is available in gameConfig, use that directly
+    if (gameState.gameConfig.player1?.profile?.skinColor) {
+      gameState.userPaddleColor = gameState.gameConfig.player1.profile.skinColor;
+      console.log('Set player1 paddle color from config:', gameState.userPaddleColor, 'for player:', gameState.gameConfig.player1.username);
+    } else {
+      // Fallback to fetching logged-in user data for regular games
+      const loggedInUser = (window as any).loggedInUser;
+      if (loggedInUser) {
+        fetch(`${API_BASE}/users/${loggedInUser}`)
+          .then(res => res.json())
+          .then(user => {
+            gameState.userPaddleColor = user.profile?.skinColor || '#FFFFFF';
+            console.log('Set player1 paddle color from API:', gameState.userPaddleColor);
+          });
+      }
     }
     
     // Initialize Player 2 paddle color for player vs player mode
     if (gameState.gameConfig.mode === 'player' && gameState.gameConfig.player2) {
-      fetch(`${API_BASE}/users/${gameState.gameConfig.player2.username}`)
-        .then(res => res.json())
-        .then(user => {
-          gameState.player2PaddleColor = user.profile?.skinColor || '#FFFFFF';
-        });
+      if (gameState.gameConfig.player2.profile?.skinColor) {
+        gameState.player2PaddleColor = gameState.gameConfig.player2.profile.skinColor;
+        console.log('Set player2 paddle color from config:', gameState.player2PaddleColor, 'for player:', gameState.gameConfig.player2.username);
+      } else {
+        // Fallback to fetching user data for regular games
+        fetch(`${API_BASE}/users/${gameState.gameConfig.player2.username}`)
+          .then(res => res.json())
+          .then(user => {
+            gameState.player2PaddleColor = user.profile?.skinColor || '#FFFFFF';
+            console.log('Set player2 paddle color from API:', gameState.player2PaddleColor);
+          });
+      }
     }
 
     // Start AI (only for AI mode) and game loop
@@ -877,6 +892,9 @@ export class PongEngine {
     console.log('Player 2:', player2Name);
     console.log('Player 2 data:', gameState.gameConfig.player2);
     
+    // Check if this is a tournament match
+    const isTournamentMode = sessionStorage.getItem('tournamentMode') === 'true';
+    
     const message = result === 'win' 
       ? `Game Over! ${player1Name} wins ${gameState.leftScore}-${gameState.rightScore}!`
       : `Game Over! ${player2Name} wins ${gameState.rightScore}-${gameState.leftScore}!`;
@@ -888,7 +906,23 @@ export class PongEngine {
     // Send match result
     const matchEnd = new Date();
     
-    if (isPlayerVsPlayer) {
+    if (isTournamentMode && isPlayerVsPlayer) {
+      console.log('Tournament match completed, processing...');
+      
+      // Check for tournament callback
+      const tournamentCallback = (window as any).tournamentCallback;
+      const tournamentPlayers = (window as any).tournamentPlayers;
+      
+      if (tournamentCallback && tournamentPlayers) {
+        const winnerName = result === 'win' ? tournamentPlayers.player1 : tournamentPlayers.player2;
+        setTimeout(() => {
+          tournamentCallback(winnerName);
+        }, 2000); // Give time to show the win message
+      }
+      
+      // Skip the old processTournamentMatchResult since we handle it in the router now
+      return;
+    } else if (isPlayerVsPlayer) {
       console.log('Sending player vs player match result...');
       // Send results for both players in player vs player mode
       PongEngine.sendPlayerVsPlayerMatchResult({
@@ -1502,5 +1536,110 @@ export class PongEngine {
         PongEngine.startGame(canvas, statusDiv);
       });
     }
+  }
+
+  /**
+   * Process tournament match result and advance tournament
+   */
+  private static processTournamentMatchResult(
+    result: 'win' | 'loss',
+    player1Name: string,
+    player2Name: string,
+    gameState: any
+  ): void {
+    try {
+      const tournamentState = JSON.parse(sessionStorage.getItem('tournamentState') || '{}');
+      const currentMatchIndex = parseInt(sessionStorage.getItem('currentMatchIndex') || '0');
+      
+      // Determine winner
+      const winnerName = result === 'win' ? player1Name : player2Name;
+      
+      // Find and update the current match
+      const currentRound = tournamentState.rounds[tournamentState.currentRound];
+      if (currentRound && currentRound[currentMatchIndex]) {
+        const match = currentRound[currentMatchIndex];
+        match.winner = match.player1.username === winnerName ? match.player1 : match.player2;
+        
+        // Update next round with winner
+        if (tournamentState.currentRound < tournamentState.rounds.length - 1) {
+          const nextRound = tournamentState.rounds[tournamentState.currentRound + 1];
+          const nextMatchIndex = Math.floor(currentMatchIndex / 2);
+          if (nextRound[nextMatchIndex]) {
+            if (currentMatchIndex % 2 === 0) {
+              nextRound[nextMatchIndex].player1 = match.winner;
+            } else {
+              nextRound[nextMatchIndex].player2 = match.winner;
+            }
+          }
+        }
+      }
+      
+      // Update sessionStorage with new state
+      sessionStorage.setItem('tournamentState', JSON.stringify(tournamentState));
+      sessionStorage.setItem('currentMatchIndex', (currentMatchIndex + 1).toString());
+      
+      // Show match result for 3 seconds then return to tournament
+      setTimeout(() => {
+        // Clear tournament session data for this match
+        sessionStorage.removeItem('tournamentMode');
+        sessionStorage.removeItem('player1');
+        sessionStorage.removeItem('player2');
+        
+        // Return to tournament page
+        window.location.hash = '#tournament';
+        
+        // After a brief delay, continue tournament
+        setTimeout(() => {
+          (window as any).continueTournament?.();
+        }, 100);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error processing tournament match result:', error);
+      // Fallback: return to tournament page
+      setTimeout(() => {
+        window.location.hash = '#tournament';
+      }, 3000);
+    }
+  }
+
+  /**
+   * Create a tournament game instance
+   */
+  static createTournamentGame(canvas: HTMLCanvasElement, options: {
+    player1: any; // Full player object with profile data
+    player2: any; // Full player object with profile data
+    onGameEnd: (winner: string) => void;
+  }): { start: () => void } {
+    console.log('=== CREATING TOURNAMENT GAME ===');
+    console.log('Player 1:', options.player1.username, 'Color:', options.player1.profile?.skinColor);
+    console.log('Player 2:', options.player2.username, 'Color:', options.player2.profile?.skinColor);
+    
+    // Store tournament callback globally for endGame to access
+    (window as any).tournamentCallback = options.onGameEnd;
+    (window as any).tournamentPlayers = { player1: options.player1.username, player2: options.player2.username };
+    
+    // Create game configuration with profile data
+    const gameConfig: GameConfig = {
+      mode: 'player',
+      player1: { 
+        username: options.player1.username,
+        profile: options.player1.profile,
+        id: options.player1.id
+      },
+      player2: { 
+        username: options.player2.username, 
+        profile: options.player2.profile,
+        id: options.player2.id || 0
+      }
+    };
+    
+    console.log('GameConfig created:', gameConfig);
+    
+    return {
+      start: () => {
+        PongEngine.startGame(canvas, null, gameConfig);
+      }
+    };
   }
 }

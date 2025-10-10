@@ -3,13 +3,13 @@ export const translations: Record<'en'|'it'|'fr', {
   title: string;
   login: string;
   startGame: string;
-  multiplayer: string;
+  tournament: string;
   options: string;
   leaderboard: string;
   startGameTitle: string;
   startGameDesc: string;
-  multiplayerTitle: string;
-  multiplayerDesc: string;
+  tournamentTitle: string;
+  tournamentDesc: string;
   optionsTitle: string;
   optionsDesc: string;
   leaderboardTitle: string;
@@ -20,13 +20,13 @@ export const translations: Record<'en'|'it'|'fr', {
     title: "Pong Game",
     login: "Login",
     startGame: "Start Game",
-    multiplayer: "Multiplayer",
+    tournament: "🏆 Tournament",
     options: "Options",
     leaderboard: "Leaderboard",
     startGameTitle: "Start Game",
     startGameDesc: "Game setup will go here.",
-    multiplayerTitle: "Multiplayer",
-    multiplayerDesc: "Multiplayer options will go here.",
+    tournamentTitle: "Tournament",
+    tournamentDesc: "Tournament mode for multiple players.",
     optionsTitle: "Options",
     optionsDesc: "Settings will go here.",
     leaderboardTitle: "Leaderboard",
@@ -37,13 +37,13 @@ export const translations: Record<'en'|'it'|'fr', {
     title: "Gioco Pong",
     login: "Accedi",
     startGame: "Inizia Gioco",
-    multiplayer: "Multigiocatore",
+    tournament: "🏆 Torneo",
     options: "Opzioni",
     leaderboard: "Classifica",
     startGameTitle: "Inizia Gioco",
     startGameDesc: "La configurazione del gioco sarà qui.",
-    multiplayerTitle: "Multigiocatore",
-    multiplayerDesc: "Le opzioni multigiocatore saranno qui.",
+    tournamentTitle: "Torneo",
+    tournamentDesc: "Modalità torneo per più giocatori.",
     optionsTitle: "Opzioni",
     optionsDesc: "Le impostazioni saranno qui.",
     leaderboardTitle: "Classifica",
@@ -54,13 +54,13 @@ export const translations: Record<'en'|'it'|'fr', {
     title: "Jeu Pong",
     login: "Connexion",
     startGame: "Démarrer le jeu",
-    multiplayer: "Multijoueur",
+    tournament: "🏆 Tournoi",
     options: "Options",
     leaderboard: "Classement",
     startGameTitle: "Démarrer le jeu",
     startGameDesc: "La configuration du jeu sera ici.",
-    multiplayerTitle: "Multijoueur",
-    multiplayerDesc: "Les options multijoueur seront ici.",
+    tournamentTitle: "Tournoi",
+    tournamentDesc: "Mode tournoi pour plusieurs joueurs.",
     optionsTitle: "Options",
     optionsDesc: "Les paramètres seront ici.",
     leaderboardTitle: "Classement",

@@ -3,7 +3,7 @@ export const routes: { [key: string]: string } = {
   'home': `<h1 class="text-4xl font-bold mb-4">Pong Game</h1>
   <div class="flex flex-col items-center justify-center space-y-4 mt-8">
     <button class="w-48 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400" id="start-game">Start Game</button>
-    <button class="w-48 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-yellow-400" id="multiplayer">Multiplayer</button>
+    <button class="w-48 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-orange-400" id="tournament">🏆 Tournament</button>
     <button class="w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-2 focus:ring-gray-400" id="options">Options</button>
     <button class="w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-purple-400" id="leaderboard">Leaderboard</button>
     <div class="flex space-x-4 mt-8">
@@ -11,7 +11,111 @@ export const routes: { [key: string]: string } = {
       <button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400" id="register-btn">Register</button>
     </div>
   </div>`,
-  'multiplayer': `<h2 class="text-2xl font-bold mb-4">Multiplayer</h2><p>Multiplayer options will go here.</p>`,
+  'tournament': `
+    <div class='max-w-4xl mx-auto mt-8 p-6 bg-gray-900 rounded-lg shadow-lg'>
+      <h2 class='text-3xl font-bold mb-6 text-center' id="tournament-main-title">🏆 Tournament Setup</h2>
+      
+      <!-- Tournament Setup Phase -->
+      <div id="tournament-setup" class="mb-6">
+        <h3 class="text-xl mb-4 text-center">Select Number of Players</h3>
+        <div class="flex justify-center space-x-4 mb-6">
+          <button id="players-4" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold">
+            4 Players
+          </button>
+          <button id="players-6" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold">
+            6 Players
+          </button>
+          <button id="players-8" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold">
+            8 Players
+          </button>
+        </div>
+      </div>
+
+      <!-- Player Registration Phase -->
+      <div id="player-registration" class="hidden mb-6">
+        <h3 class="text-xl mb-4 text-center">Register Tournament Players</h3>
+        <div id="player-forms" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Player forms will be generated here -->
+        </div>
+        <div class="text-center mt-6">
+          <button id="start-tournament" class="px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-lg disabled:opacity-50" disabled>
+            🚀 Start Tournament!
+          </button>
+        </div>
+      </div>
+
+      <!-- Tournament Bracket -->
+      <div id="tournament-bracket" class="hidden mb-6">
+        <h3 class="text-xl mb-4 text-center">Tournament Bracket</h3>
+        <div id="bracket-display" class="bg-gray-800 p-4 rounded-lg">
+          <!-- Bracket will be generated here -->
+        </div>
+      </div>
+
+      <!-- Current Match Display -->
+      <div id="current-match" class="hidden mb-6">
+        <!-- Tournament Bracket Visualization -->
+        <div id="bracket-visualization" class="mb-6">
+          <h3 class="text-xl mb-4 text-center">🏆 Tournament Bracket</h3>
+          <div id="bracket-tree" class="bg-gray-800 p-4 rounded-lg overflow-x-auto">
+            <!-- Bracket tree will be generated here -->
+          </div>
+        </div>
+        
+        <h3 class="text-xl mb-4 text-center">Current Match</h3>
+        <div class="bg-gray-800 p-6 rounded-lg text-center">
+          <div class="flex justify-between items-center mb-4">
+            <div class="flex-1">
+              <h4 class="text-lg font-bold" id="match-player1">Player 1</h4>
+              <p class="text-sm text-gray-400">Left Side</p>
+            </div>
+            <div class="text-2xl font-bold text-orange-400">VS</div>
+            <div class="flex-1">
+              <h4 class="text-lg font-bold" id="match-player2">Player 2</h4>
+              <p class="text-sm text-gray-400">Right Side</p>
+            </div>
+          </div>
+          <button id="start-match" class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold">
+            🚀 Start Match!
+          </button>
+        </div>
+      </div>
+
+      <!-- Tournament Game Area -->
+      <div id="tournament-game" class="hidden mb-6">
+        <h3 class="text-xl mb-4 text-center">Tournament Match</h3>
+        <div class="bg-gray-800 p-4 rounded-lg">
+          <div class="flex justify-between items-center mb-4">
+            <div class="text-lg font-bold" id="game-player1">Player 1</div>
+            <div class="text-xl text-orange-400">VS</div>
+            <div class="text-lg font-bold" id="game-player2">Player 2</div>
+          </div>
+          <canvas id="tournament-canvas" width="600" height="400" class="border border-gray-600 bg-black mx-auto block rounded"></canvas>
+          <div class="text-center mt-4">
+            <button id="start-tournament-game" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold mb-2">
+              🚀 Start Game!
+            </button>
+            <div id="tournament-game-status" class="text-lg mb-2">Ready to start...</div>
+            <button id="return-to-bracket" class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold hidden">
+              Return to Bracket
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tournament Winner -->
+      <div id="tournament-winner" class="hidden mb-6">
+        <h3 class="text-2xl mb-4 text-center text-yellow-400">🏆 Tournament Champion! 🏆</h3>
+        <div class="bg-gradient-to-r from-yellow-600 to-orange-600 p-6 rounded-lg text-center">
+          <h4 class="text-3xl font-bold text-white" id="winner-name">Champion</h4>
+          <p class="text-lg text-yellow-100 mt-2">Tournament Winner!</p>
+        </div>
+      </div>
+
+      <button id='back-home-tournament' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>
+        Back to Home
+      </button>
+    </div>`,
   'options': `
     <h2 class="text-2xl font-bold mb-4">Options</h2>
     <div style="max-width: 600px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; color: white;">
