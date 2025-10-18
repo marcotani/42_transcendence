@@ -87,6 +87,24 @@ async function buildServer() {
     console.error(err);
     process.exit(1);
   }
+
+  // Gestione del graceful shutdown
+  const gracefulShutdown = async (signal: string) => {
+    console.log(`\nRicevuto segnale ${signal}. Arresto del server in corso...`);
+    
+    try {
+      await app.close();
+      console.log('Server successfully stopped.');
+      process.exit(0);
+    } catch (err) {
+      console.error('Error while stopping the server:', err);
+      process.exit(1);
+    }
+  };
+
+  // Gestisce i segnali di terminazione
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
 buildServer();

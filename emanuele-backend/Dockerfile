@@ -2,8 +2,8 @@
 FROM node:22-alpine
 WORKDIR /app
 
-# Installa OpenSSL per generare certificati TLS
-RUN apk add --no-cache openssl
+# Installa OpenSSL per generare certificati TLS e tini per gestire i segnali
+RUN apk add --no-cache openssl tini
 
 COPY package.json package-lock.json ./
 RUN npm install
@@ -16,4 +16,7 @@ RUN mkdir -p /app/services/TLS && \
 
 RUN npx prisma generate --schema=prisma/schema.prisma
 ENV DATABASE_URL="file:/app/dev.db"
+
+# Usa tini come init system per gestire correttamente i segnali
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prisma && npm run dev"]

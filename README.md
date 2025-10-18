@@ -6,6 +6,9 @@ sudo docker compose build
 sudo docker compose up
 sudo docker compose down
 
+Per fermare i container in modo pulito (alternativa a Ctrl+C):
+sudo docker compose stop
+
 Se succedono cose strane: sudo docker compose down --volumes --remove-orphans
 
 ---------- INFO FRONTEND & BACKEND ----------
