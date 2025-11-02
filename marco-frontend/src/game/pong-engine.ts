@@ -720,7 +720,7 @@ export class PongEngine {
       x: side === 'left' ? 35 : canvas.width - 35, // Start from paddle edge
       y: paddleY + paddleHeight / 2, // Start from paddle center
       vx: side === 'left' ? projectileSpeed * Math.cos(paddleAngle) : -projectileSpeed * Math.cos(paddleAngle),
-      vy: projectileSpeed * Math.sin(paddleAngle),
+      vy: side === 'left' ? projectileSpeed * Math.sin(paddleAngle) : -projectileSpeed * Math.sin(paddleAngle),
       side: side,
       radius: 6 // Bigger projectiles
     };

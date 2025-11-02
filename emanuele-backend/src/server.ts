@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import path from 'node:path';
+import fs from 'node:fs';
 
 // Plugins personalizzati
 import prismaPlugin from './plugins/prisma';
@@ -15,9 +16,22 @@ import statsRoute from './routes/stats';
 import heartbeatRoutes from './routes/heartbeat';
 import matchesRoute from './routes/matches';
 
-const app = Fastify({ 
-  logger: false // Disattiva il logger automatico di Fastify, evita spam di messaggi
-});
+// Read TLS cert/key and initialize Fastify with HTTPS enabled.
+// If the cert/key cannot be read the process will exit because HTTPS is mandatory.
+let fastifyOptions: { logger: boolean; https?: { key: Buffer; cert: Buffer } } = { logger: false };
+try {
+  const keyPath = path.join(__dirname, 'services', 'TLS', 'server.key');
+  const certPath = path.join(__dirname, 'services', 'TLS', 'server.crt');
+  const key = fs.readFileSync(keyPath);
+  const cert = fs.readFileSync(certPath);
+  fastifyOptions.https = { key, cert };
+} catch (err) {
+  console.error('Failed to read TLS certificate or key from src/services/TLS. HTTPS is required.');
+  console.error(err);
+  process.exit(1);
+}
+
+const app = Fastify(fastifyOptions);
 
 async function buildServer() {
   // Abilita CORS per il frontend
@@ -73,6 +87,11 @@ async function buildServer() {
   await app.register(heartbeatRoutes);
   await app.register(matchesRoute);
 
+  // Rotta di accesso a backend https per evitare che restituisca errore 404
+  app.get('/', async () => {
+    return { ok: true, service: 'transcendence-backend', message: 'Backend is running (HTTPS)' };
+  });
+
   // Rotta di health check DB
   app.get('/health/db', async () => {
     await app.prisma.$queryRaw`SELECT 1`;
@@ -81,8 +100,8 @@ async function buildServer() {
 
   // Avvia il server
   try {
-    await app.listen({ port: 3000, host: '0.0.0.0' }); // 0.0.0.0 per Docker
-    console.log(`Server HTTP avviato su http://localhost:3000`);
+  await app.listen({ port: 3000, host: '0.0.0.0' }); // 0.0.0.0 per Docker
+  console.log(`Server HTTPS avviato su https://localhost:3000`);
   } catch (err) {
     console.error(err);
     process.exit(1);
