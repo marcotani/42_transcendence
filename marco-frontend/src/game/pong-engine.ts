@@ -1318,6 +1318,8 @@ export class PongEngine {
     if (startBtn) {
       startBtn.disabled = false;
       startBtn.textContent = 'Start Game';
+      // Ensure the start button is visible again after the match
+      startBtn.style.display = 'block';
     }
   }
 
@@ -1372,11 +1374,17 @@ export class PongEngine {
       if ((gameState as any).mobileControlsElement) return;
 
       // Helper to create small corner pads (two per player: top and bottom)
+      // Use a dynamic button width so pads can be positioned relative to button size
+      const BUTTON_WIDTH = 56; // default width used by makeButton
+      const BUTTON_MARGIN = 8; // extra margin
       const createCornerPad = (x: string, y: string) => {
         const el = document.createElement('div');
         el.style.position = 'fixed';
-        el.style[x as any] = '12px';
-        el.style[y as any] = '12px';
+        // compute offset dynamically from button width + margin
+        const horizontalOffset = `${BUTTON_WIDTH + BUTTON_MARGIN}px`;
+        const verticalOffset = '12px';
+        el.style[x as any] = horizontalOffset;
+        el.style[y as any] = verticalOffset;
         el.style.zIndex = '90';
         el.style.display = 'flex';
         el.style.flexDirection = 'column';
@@ -1516,7 +1524,14 @@ export class PongEngine {
   (gameState as any).mobileControlsElement = container;
 
   // Attach wrapper to the DOM last (container has pointerEvents none; pads handle events)
-  document.body.appendChild(container);
+  try {
+    // Prefer to append inside fullscreen element so controls show in fullscreen
+    const fs = document.fullscreenElement as HTMLElement | null;
+    const parentToUse = fs || (canvas && canvas.parentElement) || document.body;
+    parentToUse.appendChild(container);
+  } catch (e) {
+    try { document.body.appendChild(container); } catch (err) { /* ignore */ }
+  }
     } catch (e) {
       console.warn('Could not create mobile controls', e);
     }

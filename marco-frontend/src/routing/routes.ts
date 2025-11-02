@@ -256,8 +256,10 @@ export const routes: { [key: string]: string } = {
           </div>
         </div>
       </div>
-      <canvas id='pong-canvas' width='600' height='400' class='bg-black rounded mb-4'></canvas>
-      <button id='pong-start' class='px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 mb-2'>Start Game</button>
+      <div class='relative mb-4'>
+        <canvas id='pong-canvas' width='600' height='400' class='bg-black rounded block'></canvas>
+        <button id='pong-start' class='absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>Start Game</button>
+      </div>
       <div id='pong-status' class='text-white mt-2'></div>
     </div>
     

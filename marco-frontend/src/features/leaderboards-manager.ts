@@ -6,7 +6,7 @@ export class LeaderboardsManager {
    * Create a leaderboard table HTML
    */
   private static createLeaderboardTable(title: string, data: any[], emptyMessage: string): string {
-    const rows = data.length > 0 
+    const tableRows = data.length > 0
       ? data.map(item => `
           <tr class='hover:bg-gray-700 transition-colors'>
             <td class='px-4 py-3 text-yellow-400 font-semibold'>#${item.rank}</td>
@@ -16,21 +16,44 @@ export class LeaderboardsManager {
         `).join('')
       : `<tr><td colspan='3' class='px-4 py-6 text-center text-gray-400'>${emptyMessage}</td></tr>`;
 
+    // Mobile-friendly stacked rows
+    const mobileRows = data.length > 0
+      ? data.map(item => `
+          <div class='flex items-center justify-between px-4 py-3 border-b border-gray-700'>
+            <div class='flex items-center gap-3'>
+              <div class='text-yellow-400 font-semibold'>#${item.rank}</div>
+              <div class='font-medium truncate' style='max-width:180px;'>${item.displayName}</div>
+            </div>
+            <div class='text-green-400 font-semibold'>${item.wins}</div>
+          </div>
+        `).join('')
+      : `<div class='px-4 py-6 text-center text-gray-400'>${emptyMessage}</div>`;
+
     return `
       <div class='bg-gray-800 rounded-lg overflow-hidden'>
         <h3 class='text-xl font-semibold p-4 bg-gray-700 text-center'>${title}</h3>
-        <table class='w-full text-left'>
-          <thead class='bg-gray-600'>
-            <tr>
-              <th class='px-4 py-3 text-yellow-400'>Rank</th>
-              <th class='px-4 py-3'>Player</th>
-              <th class='px-4 py-3 text-green-400'>Wins</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-        </table>
+        <div class='p-2'>
+          <!-- Desktop/tablet: show table -->
+          <div class='hidden lg:block overflow-x-auto'>
+            <table class='w-full text-left'>
+              <thead class='bg-gray-600'>
+                <tr>
+                  <th class='px-4 py-3 text-yellow-400'>Rank</th>
+                  <th class='px-4 py-3'>Player</th>
+                  <th class='px-4 py-3 text-green-400'>Wins</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile: stacked cards -->
+          <div class='block lg:hidden bg-gray-900 rounded'>
+            ${mobileRows}
+          </div>
+        </div>
       </div>
     `;
   }

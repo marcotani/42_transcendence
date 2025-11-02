@@ -464,10 +464,21 @@ export class Router {
     });
 
     // Return to bracket button
-    document.getElementById('return-to-bracket')?.addEventListener('click', () => {
-      // Get the current match index from session storage (updated by startNextMatch)
-      const actualMatchIndex = parseInt(sessionStorage.getItem('currentMatchIndex') || '0');
-      Router.endTournamentGame(currentTournament, actualMatchIndex);
+    document.getElementById('return-to-bracket')?.addEventListener('click', (ev) => {
+      try { ev.preventDefault(); ev.stopPropagation(); } catch (e) { /* ignore */ }
+      // Try to exit fullscreen first; do not await to avoid race where the button DOM is removed before handler finishes
+      try {
+        if (document.fullscreenElement) {
+          if (typeof (document as any).exitFullscreen === 'function') (document as any).exitFullscreen();
+          else if (typeof (document as any).webkitExitFullscreen === 'function') (document as any).webkitExitFullscreen();
+        }
+      } catch (e) { /* ignore */ }
+
+      // Call endTournamentGame after a short delay to give fullscreenchange handlers time to restore DOM
+      setTimeout(() => {
+        const actualMatchIndex = parseInt(sessionStorage.getItem('currentMatchIndex') || '0');
+        Router.endTournamentGame(currentTournament, actualMatchIndex);
+      }, 150);
     });
 
     // Start tournament game button
@@ -1047,6 +1058,23 @@ export class Router {
     if (returnButton) {
       returnButton.classList.remove('hidden');
       returnButton.textContent = 'Continue Tournament';
+      // If in fullscreen, move the button into the fullscreen element so it's visible to the user
+      try {
+        const fs = document.fullscreenElement as HTMLElement | null;
+        if (fs) {
+          // position and append
+          returnButton.style.position = 'absolute';
+          returnButton.style.left = '50%';
+          returnButton.style.bottom = '24px';
+          returnButton.style.transform = 'translateX(-50%)';
+          returnButton.style.zIndex = '10020';
+          // If fullscreen element is a canvas, append to body (canvas elements don't reliably host HTML children)
+          const appendTarget = (fs.tagName === 'CANVAS') ? document.body : fs;
+          try { appendTarget.appendChild(returnButton); } catch (e) { /* ignore */ }
+          // Make sure it can receive pointer events
+          try { (returnButton as HTMLElement).style.pointerEvents = 'auto'; } catch (e) { /* ignore */ }
+        }
+      } catch (e) { /* ignore */ }
     }
   }
 
@@ -1055,11 +1083,20 @@ export class Router {
    */
   private static endTournamentGame(tournament: any, matchIndex: number): void {
     // Get the updated tournament state from the game data
-    const gameData = (window as any).tournamentGameData;
-    if (gameData && gameData.tournament) {
-      tournament = gameData.tournament;
-      matchIndex = gameData.matchIndex || matchIndex;
-    }
+    try {
+      const gameData = (window as any).tournamentGameData;
+      if (!tournament && gameData && gameData.tournament) {
+        tournament = gameData.tournament;
+        matchIndex = gameData.matchIndex || matchIndex;
+      }
+    } catch (e) { /* ignore */ }
+    // As last resort, try sessionStorage
+    try {
+      if (!tournament) {
+        const ts = sessionStorage.getItem('tournamentState');
+        if (ts) tournament = JSON.parse(ts);
+      }
+    } catch (e) { /* ignore */ }
     
     console.log('=== END TOURNAMENT GAME ===');
     console.log('Tournament state:', tournament);
@@ -1097,6 +1134,9 @@ export class Router {
     // Update and show bracket
     Router.showTournamentBracket(tournament);
     
+  // Ensure body is scrollable after returning from fullscreen
+  try { document.body.style.overflow = ''; } catch (e) { /* ignore */ }
+
     // Continue to next match
     Router.startNextMatch(tournament, matchIndex + 1);
   }
