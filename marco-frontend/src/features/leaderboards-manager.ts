@@ -1,11 +1,14 @@
 // Leaderboards Manager - Handles leaderboard functionality
 import { API_BASE } from '../config/constants.js';
+import { getT } from '../config/translations.js';
+import { LanguageManager } from './language.js';
 
 export class LeaderboardsManager {
   /**
    * Create a leaderboard table HTML
    */
   private static createLeaderboardTable(title: string, data: any[], emptyMessage: string): string {
+    const t = getT(LanguageManager.getLang());
     const tableRows = data.length > 0
       ? data.map(item => `
           <tr class='hover:bg-gray-700 transition-colors'>
@@ -38,9 +41,9 @@ export class LeaderboardsManager {
             <table class='w-full text-left'>
               <thead class='bg-gray-600'>
                 <tr>
-                  <th class='px-4 py-3 text-yellow-400'>Rank</th>
-                  <th class='px-4 py-3'>Player</th>
-                  <th class='px-4 py-3 text-green-400'>Wins</th>
+                  <th class='px-4 py-3 text-yellow-400'>${t.rankLabel}</th>
+                  <th class='px-4 py-3'>${t.playerColumnLabel}</th>
+                  <th class='px-4 py-3 text-green-400'>${t.winsColumnLabel}</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,11 +83,12 @@ export class LeaderboardsManager {
       ]);
 
       // Create the three-column layout
+      const t = getT(LanguageManager.getLang());
       const leaderboardHtml = `
         <div class='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-          ${LeaderboardsManager.createLeaderboardTable('🤖 Bot Wins', botWinsData, 'No bot matches played yet')}
-          ${LeaderboardsManager.createLeaderboardTable('👥 Player Wins', playerWinsData, 'No player matches played yet')}
-          ${LeaderboardsManager.createLeaderboardTable('🏆 Tournament Wins', tournamentWinsData, 'No tournaments won yet')}
+          ${LeaderboardsManager.createLeaderboardTable(t.leaderboardBotTitle, botWinsData, t.noBotMatches)}
+          ${LeaderboardsManager.createLeaderboardTable(t.leaderboardPlayerTitle, playerWinsData, t.noPlayerMatches)}
+          ${LeaderboardsManager.createLeaderboardTable(t.leaderboardTournamentTitle, tournamentWinsData, t.noTournamentWins)}
         </div>
       `;
 

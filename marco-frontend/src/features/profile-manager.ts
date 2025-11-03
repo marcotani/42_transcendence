@@ -1,5 +1,7 @@
 // Profile Manager - Handles user profile viewing functionality
 import { API_BASE } from '../config/constants.js';
+import { getT } from '../config/translations.js';
+import { LanguageManager } from './language.js';
 import { MatchHistoryManager } from './match-history.js';
 
 export class ProfileManager {
@@ -7,13 +9,14 @@ export class ProfileManager {
    * Generate initial profile page HTML with loading spinner
    */
   static generateViewProfilePage(username: string): string {
+    const t = getT(LanguageManager.getLang());
     return `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg' id='view-profile-page'>
       <div class='flex flex-col items-center'>
         <div class='text-center py-8'>
           <div class='inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white'></div>
           <p class='mt-2 text-gray-400'>Loading profile...</p>
         </div>
-        <button id='back-home-view-profile' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Home</button>
+        <button id='back-home-view-profile' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome}</button>
       </div>
     </div>`;
   }
@@ -92,6 +95,7 @@ export class ProfileManager {
         // Match History HTML
         const matchHistoryHtml = matchHistoryData ? MatchHistoryManager.generateMatchHistoryHtml(matchHistoryData.matches || [], username) : '';
 
+        const t = getT(LanguageManager.getLang());
         container.innerHTML = `
           <div class='flex flex-col items-center'>
             <div class='mb-4'>${avatarHtml}</div>
@@ -101,7 +105,7 @@ export class ProfileManager {
             ${userData.profile?.bio ? `<div class='text-base text-white mb-6'>${userData.profile.bio}</div>` : ''}
             ${statsHtml}
             ${matchHistoryHtml}
-            <button id='back-home-view-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Friends</button>
+            <button id='back-home-view-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome}</button>
           </div>
         `;
         
@@ -114,11 +118,12 @@ export class ProfileManager {
       console.error('Error loading user profile:', error);
       const container = document.getElementById('view-profile-page');
       if (container) {
+        const t = getT(LanguageManager.getLang());
         container.innerHTML = `
           <div class='flex flex-col items-center'>
             <div class='text-red-400 mb-4'>Failed to load profile</div>
             <p class='text-gray-400 mb-6 text-center'>User not found or an error occurred.</p>
-            <button id='back-home-view-profile' class='w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>Back to Friends</button>
+            <button id='back-home-view-profile' class='w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome}</button>
           </div>
         `;
         

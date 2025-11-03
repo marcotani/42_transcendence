@@ -2,6 +2,8 @@
 import { API_BASE } from '../config/constants.js';
 import { TokenManager } from './token-manager.js';
 import { Authentication } from '../features/authentication.js';
+import { getT } from '../config/translations.js';
+import { LanguageManager } from '../features/language.js';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -41,7 +43,8 @@ export class ApiClient {
         
         // Redirect to login if we're not already on auth pages
         if (!window.location.hash.includes('login') && !window.location.hash.includes('register')) {
-          alert('Session expired. Please log in again.');
+          const t = getT(LanguageManager.getLang());
+          alert(t.sessionExpired);
           window.location.hash = '#login';
         }
         
@@ -162,12 +165,13 @@ export class ApiClient {
     });
 
     // Handle unauthorized responses
-    if (response.status === 401) {
+      if (response.status === 401) {
       TokenManager.clearToken();
-      if (!window.location.hash.includes('login') && !window.location.hash.includes('register')) {
-        alert('Session expired. Please log in again.');
-        window.location.hash = '#login';
-      }
+        if (!window.location.hash.includes('login') && !window.location.hash.includes('register')) {
+          const t = getT(LanguageManager.getLang());
+          alert(t.sessionExpired);
+          window.location.hash = '#login';
+        }
     }
 
     return response;

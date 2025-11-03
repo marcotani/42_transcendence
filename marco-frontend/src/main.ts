@@ -31,7 +31,7 @@ const migrationCheck = () => {
     StorageService.setLoggedInUserAvatar(null);
     
     // Show migration message
-    alert('Security upgrade: Please log in again to continue using the application.');
+    alert(translations[LanguageManager.getLang()].securityUpgradeAlert);
     window.location.hash = '#login';
   }
 };
@@ -290,6 +290,7 @@ function attachPongListeners() {
   
   player2LoginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const lang = LanguageManager.getLang();
     const username = (document.getElementById('player2-username') as HTMLInputElement).value;
     const password = (document.getElementById('player2-password') as HTMLInputElement).value;
     const errorDiv = document.getElementById('player2-login-error');
@@ -298,7 +299,7 @@ function attachPongListeners() {
     const currentUser = UserSession.getCurrentUser();
     if (currentUser && username === currentUser) {
       if (errorDiv) {
-        errorDiv.textContent = 'User already logged in';
+        errorDiv.textContent = translations[lang].userAlreadyLoggedIn;
         errorDiv.style.visibility = 'visible';
       }
       return;
@@ -322,13 +323,13 @@ function attachPongListeners() {
       } else {
         const error = await response.json();
         if (errorDiv) {
-          errorDiv.textContent = error.message || 'Login failed';
+          errorDiv.textContent = error.message || translations[lang].loginFailed;
           errorDiv.style.visibility = 'visible';
         }
       }
     } catch (error) {
       if (errorDiv) {
-        errorDiv.textContent = 'Network error occurred';
+        errorDiv.textContent = translations[lang].networkErrorOccurred;
         errorDiv.style.visibility = 'visible';
       }
     }
@@ -359,9 +360,10 @@ function attachPongListeners() {
       if (player2Name) player2Name.textContent = 'Computer';
       if (player2Controls) player2Controls.textContent = '';
     } else {
-      if (player2Info) player2Info.textContent = 'Player 2';
+      const lang = LanguageManager.getLang();
+      if (player2Info) player2Info.textContent = translations[lang].player2;
       if (player2Name) player2Name.textContent = player2Data?.username || 'Unknown';
-      if (player2Controls) player2Controls.textContent = 'Controls: ↑ ↓';
+      if (player2Controls) player2Controls.textContent = translations[lang].controlsArrows;
     }
   }
   
@@ -480,8 +482,9 @@ function attachPongListeners() {
         } catch (e) { /* ignore */ }
       }
 
-      startBtn.disabled = true;
-      startBtn.textContent = 'Game Running...';
+  startBtn.disabled = true;
+  const lang = LanguageManager.getLang();
+  startBtn.textContent = translations[lang].gameRunning;
       // Hide the start button while the match is running so it doesn't obstruct the view
       startBtn.style.display = 'none';
 

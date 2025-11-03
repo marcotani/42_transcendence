@@ -27,6 +27,11 @@ export class Router {
     const t = translations[lang];
     const app = document.getElementById('app');
     if (!app) return;
+    // Clear the record of attached page-specific listeners on every render.
+    // When render replaces `app.innerHTML`, previously attached DOM listeners are lost,
+    // so we must allow page-specific initialization to run again. This avoids a class
+    // of bugs where buttons become non-interactive after a re-render (e.g. language change).
+    Router.attachedListeners.clear();
     
     let content = '';
     
@@ -36,13 +41,15 @@ export class Router {
     }
     
     if (routes[route]) {
-      content = routes[route];
+      const routeDef = routes[route];
+      content = (typeof routeDef === 'function') ? routeDef(t) : (routeDef as any);
     } else if (route.startsWith('profile/')) {
       // Handle viewing other user's profile
       const username = route.split('/')[1];
       content = Router.generateViewProfilePage(username);
     } else if (route === 'tournament') {
-      content = routes['tournament'];
+      const rd = routes['tournament'];
+      content = (typeof rd === 'function') ? rd(t) : (rd as any);
     } else if (route === 'options') {
       content = `<h2 class='text-2xl font-bold mb-4' tabindex='0' aria-label='${t.optionsTitle}'>${t.optionsTitle}</h2><p>${t.optionsDesc}</p>`;
     } else if (route === 'leaderboard') {
@@ -96,15 +103,15 @@ export class Router {
         <div class='relative'>
           <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400 flex items-center' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${avatarImg}<span>${loggedInUser}</span></button>
           <div id='user-dropdown-menu' class='absolute right-0 top-full mt-1 w-40 bg-gray-900 border border-gray-700 rounded shadow-lg hidden' role='menu' aria-label='User menu'>
-            <button id='dropdown-my-profile' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>My Profile</button>
-            <button id='dropdown-logout' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem'>Logout</button>
+            <button id='dropdown-my-profile' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem' aria-label='${t.myProfile}'>${t.myProfile}</button>
+            <button id='dropdown-logout' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem' aria-label='${t.logout}'>${t.logout}</button>
           </div>
         </div>
       </div>`;
     } else {
       topRightUI = `<div class='fixed top-4 right-4 z-50 flex space-x-2'>
         <button class='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400' aria-label='${t.login}' tabindex='0' id='login-btn'>${t.login}</button>
-        <button class='px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400' aria-label='Register' tabindex='0' id='register-btn'>Register</button>
+        <button class='px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400' aria-label='${t.register}' tabindex='0' id='register-btn'>${t.register}</button>
       </div>`;
     }
     
@@ -185,6 +192,7 @@ export class Router {
     const powerUpSettings = document.getElementById('power-up-settings') as HTMLDivElement;
     const saveButton = document.getElementById('save-options') as HTMLButtonElement;
     const saveStatus = document.getElementById('save-status') as HTMLDivElement;
+  const t = translations[LanguageManager.getLang()];
     
     if (ballSpeedSlider && ballSpeedValue) {
       ballSpeedSlider.value = settings.ballSpeed.toString();
@@ -237,7 +245,7 @@ export class Router {
         GameSettingsService.save(newSettings);
         
         if (saveStatus) {
-          saveStatus.textContent = 'Settings saved successfully!';
+          saveStatus.textContent = t.settingsSavedSuccess;
           setTimeout(() => {
             saveStatus.textContent = '';
           }, 3000);
@@ -276,7 +284,7 @@ export class Router {
         GameSettingsService.save(defaultSettings);
         
         if (saveStatus) {
-          saveStatus.textContent = 'Settings reset to default!';
+          saveStatus.textContent = t.settingsResetSuccess;
           setTimeout(() => {
             saveStatus.textContent = '';
           }, 3000);
@@ -390,6 +398,7 @@ export class Router {
    * Initialize tournament page with event handlers
    */
   private static initializeTournamentPage(): void {
+    const t = translations[LanguageManager.getLang()];
     // Tournament state
     let tournamentPlayers: Array<{username: string, password: string}> = [];
     let tournamentSize = 0;
@@ -416,7 +425,7 @@ export class Router {
     document.getElementById('start-tournament')?.addEventListener('click', async () => {
       const loggedInUser = (window as any).loggedInUser;
       if (!loggedInUser) {
-        alert('Please log in to start a tournament');
+        alert(t.pleaseLogInToStartTournament);
         return;
       }
 
@@ -496,6 +505,7 @@ export class Router {
    * Show player registration form
    */
   private static showPlayerRegistration(playerCount: number): void {
+    const t = translations[LanguageManager.getLang()];
     document.getElementById('tournament-setup')?.classList.add('hidden');
     document.getElementById('player-registration')?.classList.remove('hidden');
     
@@ -504,7 +514,7 @@ export class Router {
 
     const loggedInUser = (window as any).loggedInUser;
     if (!loggedInUser) {
-      alert('Please log in to start a tournament');
+      alert(t.pleaseLogInToStartTournament);
       window.location.hash = '#';
       return;
     }
@@ -538,14 +548,14 @@ export class Router {
           <input 
             type="text" 
             id="player${i}-username" 
-            placeholder="Username" 
+            placeholder="${t.enterUsernamePlaceholder}"
             class="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500"
             required
           />
           <input 
             type="password" 
             id="player${i}-password" 
-            placeholder="Password" 
+            placeholder="${t.passwordLabel}"
             class="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500"
             required
           />
@@ -590,6 +600,7 @@ export class Router {
    * Validate all player credentials and fetch profile data
    */
   private static async validateAllPlayers(players: Array<{username: string, password: string}>): Promise<boolean> {
+    const t = translations[LanguageManager.getLang()];
     const usernames = new Set();
     
     for (let i = 0; i < players.length; i++) {
@@ -600,7 +611,7 @@ export class Router {
       
       // Check for duplicate usernames
       if (usernames.has(player.username)) {
-        if (errorDiv) errorDiv.textContent = 'Username already used in tournament';
+        if (errorDiv) errorDiv.textContent = t.usernameAlreadyUsedTournament;
         return false;
       }
       usernames.add(player.username);
@@ -631,7 +642,7 @@ export class Router {
         });
 
         if (!response.ok) {
-          if (errorDiv) errorDiv.textContent = 'Invalid username or password';
+         if (errorDiv) errorDiv.textContent = t.invalidUsernameOrPassword;
           return false;
         } else {
           if (errorDiv) errorDiv.textContent = '';
@@ -982,6 +993,7 @@ export class Router {
     }
   }
   private static startTournamentGame(player1: any, player2: any, tournament: any, matchIndex: number): void {
+    const t = translations[LanguageManager.getLang()];
     // Update main title to show match info
     const titleElement = document.getElementById('tournament-main-title');
     const currentRound = tournament.currentRound + 1;
@@ -1004,7 +1016,7 @@ export class Router {
     
     // Initialize game status
     const statusElement = document.getElementById('tournament-game-status');
-    if (statusElement) statusElement.textContent = 'Ready to start - Click the button when both players are ready!';
+  if (statusElement) statusElement.textContent = t.readyToStartFull;
     
     // Store game data for when start button is clicked
     (window as any).tournamentGameData = { player1, player2, tournament, matchIndex };
@@ -1018,6 +1030,7 @@ export class Router {
    * Handle tournament game completion
    */
   private static onTournamentGameEnd(winner: string, tournament: any, matchIndex: number): void {
+    const t = translations[LanguageManager.getLang()];
     // Get the correct match index from game data
     const gameData = (window as any).tournamentGameData;
     if (gameData && typeof gameData.matchIndex === 'number') {
@@ -1031,7 +1044,7 @@ export class Router {
     
     // Update game status
     const statusElement = document.getElementById('tournament-game-status');
-    if (statusElement) statusElement.textContent = `🏆 ${winner} wins!`;
+  if (statusElement) statusElement.textContent = `🏆 ${winner} wins!`;
     
     // CRITICAL: Update tournament bracket with winner at the CORRECT match index
     const currentRound = tournament.rounds[tournament.currentRound];
@@ -1057,7 +1070,7 @@ export class Router {
     const returnButton = document.getElementById('return-to-bracket');
     if (returnButton) {
       returnButton.classList.remove('hidden');
-      returnButton.textContent = 'Continue Tournament';
+      returnButton.textContent = t.continueTournament;
       // If in fullscreen, move the button into the fullscreen element so it's visible to the user
       try {
         const fs = document.fullscreenElement as HTMLElement | null;
@@ -1082,6 +1095,7 @@ export class Router {
    * End tournament game and return to bracket
    */
   private static endTournamentGame(tournament: any, matchIndex: number): void {
+    const t = translations[LanguageManager.getLang()];
     // Get the updated tournament state from the game data
     try {
       const gameData = (window as any).tournamentGameData;
@@ -1126,7 +1140,7 @@ export class Router {
     
     // Reset game status
     const statusElement = document.getElementById('tournament-game-status');
-    if (statusElement) statusElement.textContent = 'Ready to start...';
+  if (statusElement) statusElement.textContent = t.readyToStart;
     
     // Clear tournament mode flag
     sessionStorage.removeItem('tournamentMode');

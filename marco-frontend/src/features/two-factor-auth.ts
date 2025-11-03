@@ -1,6 +1,8 @@
 // Two-Factor Authentication Components
 import { API_BASE } from '../config/constants.js';
 import { TokenManager } from '../services/token-manager.js';
+import { getT } from '../config/translations.js';
+import { LanguageManager } from './language.js';
 
 export interface TwoFactorAuthCallbacks {
   onTwoFactorSuccess: (token: string, userId: number, username: string) => void;
@@ -37,17 +39,18 @@ export class TwoFactorAuth {
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
     modal.id = 'twofa-modal';
     
+    const t = getT(LanguageManager.getLang());
     modal.innerHTML = `
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" style="color: #374151 !important;">
-        <h2 class="text-xl font-bold mb-4" style="color: #1f2937 !important;">Two-Factor Authentication</h2>
+        <h2 class="text-xl font-bold mb-4" style="color: #1f2937 !important;">${t.twoFactorTitle}</h2>
         <p class="text-gray-600 mb-4" style="color: #4b5563 !important;">
-          Please enter the 6-digit code from your authenticator app.
+          ${t.twoFactorDesc}
         </p>
         
         <form id="twofa-form" class="space-y-4">
           <div>
             <label for="twofa-code" class="block text-sm font-medium text-gray-700" style="color: #374151 !important;">
-              Authentication Code
+                ${t.authCodeLabel}
             </label>
             <input
               type="text"
@@ -69,14 +72,14 @@ export class TwoFactorAuth {
               type="submit"
               class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              Verify
+              ${t.verifyButton}
             </button>
             <button
               type="button"
               id="cancel-twofa"
               class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
             >
-              Cancel
+              ${t.cancelButton}
             </button>
           </div>
         </form>
@@ -105,13 +108,14 @@ export class TwoFactorAuth {
    */
   private static async handleTwoFactorVerification(e: Event, username: string): Promise<void> {
     e.preventDefault();
+    const t = getT(LanguageManager.getLang());
     
     const form = e.target as HTMLFormElement;
     const code = (form.querySelector('#twofa-code') as HTMLInputElement).value;
     const errorDiv = form.querySelector('#twofa-error') as HTMLElement;
 
     if (code.length !== 6) {
-      TwoFactorAuth.show2FAError(errorDiv, 'Please enter a 6-digit code.');
+        TwoFactorAuth.show2FAError(errorDiv, t.enter6DigitCode);
       return;
     }
 
@@ -127,7 +131,7 @@ export class TwoFactorAuth {
       const data = await response.json();
 
       if (!response.ok) {
-        TwoFactorAuth.show2FAError(errorDiv, data.error || 'Invalid code.');
+          TwoFactorAuth.show2FAError(errorDiv, data.error || t.invalidCode);
         return;
       }
 
@@ -142,11 +146,11 @@ export class TwoFactorAuth {
           TwoFactorAuth.callbacks.onTwoFactorSuccess(data.token, payload.userId, payload.username);
         }
       } else {
-        TwoFactorAuth.show2FAError(errorDiv, 'Authentication failed.');
+          TwoFactorAuth.show2FAError(errorDiv, t.authenticationFailedMsg);
       }
 
     } catch (error) {
-      TwoFactorAuth.show2FAError(errorDiv, 'Network error. Please try again.');
+        TwoFactorAuth.show2FAError(errorDiv, t.networkErrorTryAgain);
     }
   }
 
@@ -164,8 +168,9 @@ export class TwoFactorAuth {
    * Show 2FA setup modal for enabling 2FA
    */
   static async showTwoFactorSetup(): Promise<void> {
+    const t = getT(LanguageManager.getLang());
     if (!TokenManager.isAuthenticated()) {
-      alert('Please log in first.');
+      alert(t.sessionExpired);
       return;
     }
 
@@ -185,14 +190,14 @@ export class TwoFactorAuth {
       const data = await response.json();
 
       if (!response.ok) {
-        alert('Failed to generate 2FA setup: ' + (data.error || 'Unknown error'));
+        alert(t.failedGenerate2FA + (data.error || t.unknownError));
         return;
       }
 
       TwoFactorAuth.showSetupModal(data.secret, data.qrcode, tokenData.username);
 
     } catch (error) {
-      alert('Network error while setting up 2FA.');
+      alert(t.networkErrorSettingUp2FA);
     }
   }
 
@@ -204,14 +209,15 @@ export class TwoFactorAuth {
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
     modal.id = 'twofa-setup-modal';
     
+    const t = getT(LanguageManager.getLang());
     modal.innerHTML = `
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-96 overflow-y-auto" style="color: #374151 !important;">
-        <h2 class="text-xl font-bold mb-4" style="color: #1f2937 !important;">Enable Two-Factor Authentication</h2>
+        <h2 class="text-xl font-bold mb-4" style="color: #1f2937 !important;">${t.enable2FA}</h2>
         
         <div class="space-y-4">
           <div class="text-center">
             <p class="text-sm text-gray-600 mb-3" style="color: #4b5563 !important;">
-              Scan this QR code with your authenticator app:
+                ${t.scanQRCode}
             </p>
             <div class="bg-gray-100 p-3 rounded-lg inline-block">
               <img src="${qrcode}" alt="2FA QR Code" class="max-w-48 h-auto" />
@@ -220,7 +226,7 @@ export class TwoFactorAuth {
           
           <div>
             <p class="text-sm text-gray-600 mb-2" style="color: #4b5563 !important;">
-              Or enter this secret manually:
+                ${t.enterSecretManually}
             </p>
             <div class="bg-gray-100 p-2 rounded text-center font-mono text-sm break-all" style="color: #1f2937 !important; background-color: #f3f4f6 !important;">
               ${secret}
@@ -230,7 +236,7 @@ export class TwoFactorAuth {
           <form id="verify-setup-form" class="space-y-3">
             <div>
               <label for="verify-code" class="block text-sm font-medium text-gray-700" style="color: #374151 !important;">
-                Enter verification code to confirm setup:
+                  ${t.enterVerificationCodeConfirm}
               </label>
               <input
                 type="text"
@@ -251,14 +257,14 @@ export class TwoFactorAuth {
                 type="submit"
                 class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
               >
-                Enable 2FA
+                ${t.enable2FA}
               </button>
               <button
                 type="button"
                 id="cancel-setup"
                 class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400"
               >
-                Cancel
+                ${t.cancelButton}
               </button>
             </div>
           </form>
@@ -289,6 +295,7 @@ export class TwoFactorAuth {
    */
   private static async handleSetupVerification(e: Event, username: string): Promise<void> {
     e.preventDefault();
+    const t = getT(LanguageManager.getLang());
     
     const form = e.target as HTMLFormElement;
     const code = (form.querySelector('#verify-code') as HTMLInputElement).value;
@@ -313,8 +320,8 @@ export class TwoFactorAuth {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        TwoFactorAuth.closeSetupModal();
-        alert('Two-Factor Authentication enabled successfully!');
+  TwoFactorAuth.closeSetupModal();
+  alert(t.twoFactorEnabled);
         // Refresh the profile page to show 2FA is now enabled
         window.location.reload();
       } else {
@@ -330,12 +337,13 @@ export class TwoFactorAuth {
    * Disable 2FA
    */
   static async disableTwoFactor(): Promise<void> {
+    const t = getT(LanguageManager.getLang());
     if (!TokenManager.isAuthenticated()) {
-      alert('Please log in first.');
+      alert(t.sessionExpired);
       return;
     }
 
-    if (!confirm('Are you sure you want to disable Two-Factor Authentication?')) {
+    if (!confirm(t.confirmDisable2FA)) {
       return;
     }
 
@@ -355,14 +363,14 @@ export class TwoFactorAuth {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        alert('Two-Factor Authentication disabled successfully.');
+        alert(t.twoFactorDisabled);
         window.location.reload();
       } else {
-        alert('Failed to disable 2FA: ' + (data.error || 'Unknown error'));
+        alert(t.failedDisable2FA + (data.error || t.unknownError));
       }
 
     } catch (error) {
-      alert('Network error while disabling 2FA.');
+      alert(t.networkErrorDisabling2FA);
     }
   }
 

@@ -2,6 +2,8 @@
 import { API_BASE } from '../config/constants.js';
 import { TokenManager } from '../services/token-manager.js';
 import { TwoFactorAuth, TwoFactorAuthCallbacks } from './two-factor-auth.js';
+import { getT } from '../config/translations.js';
+import { LanguageManager } from './language.js';
 
 // Callback functions to be set by main.ts to avoid circular imports
 type AuthCallbacks = {
@@ -27,13 +29,15 @@ export class Authentication {
         // Update UI state
         if (Authentication.callbacks) {
           Authentication.callbacks.setLoggedInUser(username);
-          alert('Logged in successfully with 2FA!');
+          const t = getT(LanguageManager.getLang());
+          alert(t.loggedInWith2FA);
           window.location.hash = '';
           Authentication.callbacks.render('');
         }
       },
       onTwoFactorError: (error: string) => {
-        alert('2FA Error: ' + error);
+        const t = getT(LanguageManager.getLang());
+        alert(t.twoFactorError + error);
       }
     };
     
@@ -91,6 +95,7 @@ export class Authentication {
    */
   private static async handleLogin(e: Event) {
     e.preventDefault();
+    const t = getT(LanguageManager.getLang());
     
     const username = (document.getElementById('login-username') as HTMLInputElement).value.trim();
     const password = (document.getElementById('login-password') as HTMLInputElement).value;
@@ -114,7 +119,7 @@ export class Authentication {
       const data = await response.json();
 
       if (!response.ok) {
-        Authentication.showError(errorDiv, data.error || 'Authentication failed.');
+        Authentication.showError(errorDiv, data.error || t.authFailed);
         return;
       }
 
@@ -133,14 +138,14 @@ export class Authentication {
         // Use callbacks to avoid circular imports
         if (Authentication.callbacks) {
           Authentication.callbacks.setLoggedInUser(data.user.username);
-          alert('Logged in as ' + data.user.username);
+          alert(t.loggedInAsPrefix + data.user.username);
           window.location.hash = '';
           Authentication.callbacks.render('');
         }
       }
 
     } catch (err) {
-      Authentication.showError(errorDiv, 'Network error.');
+      Authentication.showError(errorDiv, t.networkErrorGeneric);
     }
   }
 
@@ -149,6 +154,7 @@ export class Authentication {
    */
   private static async handleRegister(e: Event) {
     e.preventDefault();
+    const t = getT(LanguageManager.getLang());
     
     const username = (document.getElementById('register-username') as HTMLInputElement).value.trim();
     const email = (document.getElementById('register-email') as HTMLInputElement).value.trim();
@@ -173,15 +179,14 @@ export class Authentication {
       const data = await response.json();
 
       if (!response.ok) {
-        Authentication.showError(errorDiv, data.message || 'Registration failed.');
+        Authentication.showError(errorDiv, data.message || t.registrationFailed);
         return;
       }
-
-      alert('Registered as ' + username);
+      alert(t.registeredAsPrefix + username);
       window.location.hash = '';
 
     } catch (err) {
-      Authentication.showError(errorDiv, 'Network error.');
+      Authentication.showError(errorDiv, t.networkErrorGeneric);
     }
   }
 

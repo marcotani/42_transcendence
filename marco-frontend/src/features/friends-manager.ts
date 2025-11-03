@@ -4,6 +4,8 @@ import { API_BASE } from '../config/constants.js';
 import { ApiClient } from '../services/api-client.js';
 import { StorageService } from '../services/storage.js';
 import { showStatus } from '../utils/dom-helpers.js';
+import { getT } from '../config/translations.js';
+import { LanguageManager } from '../features/language.js';
 
 export class FriendsManager {
   /**
@@ -25,7 +27,8 @@ export class FriendsManager {
     if (!loggedInUser) return;
 
     if (!ApiClient.isAuthenticated()) {
-      alert('Your session has expired. Please log in again to continue.');
+      const t = getT(LanguageManager.getLang());
+      alert(t.sessionExpired);
       window.location.hash = '#login';
       return;
     }
@@ -47,12 +50,14 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        alert('Failed to accept friend request: ' + (response.error || 'Unknown error'));
+        const t = getT(LanguageManager.getLang());
+        alert(t.failedAcceptFriendRequest + (response.error || t.unknownError));
       }
 
     } catch (error) {
       console.error('Error accepting friend request:', error);
-      alert('Error accepting friend request.');
+      const t = getT(LanguageManager.getLang());
+      alert(t.errorAcceptingFriendRequest);
     }
   }
 
@@ -66,13 +71,14 @@ export class FriendsManager {
     const loggedInUser = (window as any).loggedInUser;
     if (!loggedInUser) return;
 
+    const t = getT(LanguageManager.getLang());
     if (!ApiClient.isAuthenticated()) {
-      alert('Your session has expired. Please log in again to continue.');
+      alert(t.sessionExpired);
       window.location.hash = '#login';
       return;
     }
 
-    const confirmed = confirm('Are you sure you want to reject this friend request?');
+  const confirmed = confirm(t.confirmRejectFriendRequest);
     if (!confirmed) return;
 
     try {
@@ -87,11 +93,11 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        alert('Failed to reject friend request: ' + (response.error || 'Unknown error'));
+        alert(t.failedRejectFriendRequest + (response.error || t.unknownError));
       }
     } catch (error) {
       console.error('Error rejecting friend request:', error);
-      alert('Error rejecting friend request');
+      alert(t.errorRejectingFriendRequest);
     }
   }
 
@@ -105,13 +111,14 @@ export class FriendsManager {
     const loggedInUser = (window as any).loggedInUser;
     if (!loggedInUser) return;
 
+    const t = getT(LanguageManager.getLang());
     if (!ApiClient.isAuthenticated()) {
-      alert('Your session has expired. Please log in again to continue.');
+      alert(t.sessionExpired);
       window.location.hash = '#login';
       return;
     }
 
-    const confirmed = confirm(`Are you sure you want to remove ${friendUsername} from your friends?`);
+  const confirmed = confirm(t.confirmRemoveFriend.replace('{username}', friendUsername));
     if (!confirmed) return;
 
     try {
@@ -126,11 +133,11 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        alert('Failed to remove friend: ' + (response.error || 'Unknown error'));
+        alert(t.failedRemoveFriend + (response.error || t.unknownError));
       }
     } catch (error) {
       console.error('Error removing friend:', error);
-      alert('Error removing friend');
+      alert(t.errorRemovingFriend);
     }
   }
 
@@ -202,8 +209,9 @@ export class FriendsManager {
     if (!loggedInUser) return;
 
     if (!ApiClient.isAuthenticated()) {
+      const t = getT(LanguageManager.getLang());
       const statusDiv = document.getElementById('send-request-status') as HTMLDivElement;
-      showStatus(statusDiv, 'Session expired. Please log in again.', 'error');
+      showStatus(statusDiv, t.sessionExpiredMsg, 'error');
       setTimeout(() => {
         window.location.hash = '#login';
       }, 2000);
@@ -216,7 +224,8 @@ export class FriendsManager {
     const toUsername = usernameInput.value.trim();
 
     if (!toUsername) {
-      showStatus(statusDiv, 'Please enter a username', 'error');
+      const t = getT(LanguageManager.getLang());
+      showStatus(statusDiv, t.pleaseEnterUsername, 'error');
       return;
     }
 
@@ -227,16 +236,19 @@ export class FriendsManager {
       });
 
       if (response.success) {
-        showStatus(statusDiv, 'Friend request sent successfully!', 'success');
+        const t = getT(LanguageManager.getLang());
+        showStatus(statusDiv, t.friendRequestSent, 'success');
         usernameInput.value = '';
         if (refreshCallback) {
           refreshCallback(); // Refresh pending requests
         }
       } else {
-        showStatus(statusDiv, response.error || 'Failed to send friend request', 'error');
+        const t = getT(LanguageManager.getLang());
+        showStatus(statusDiv, response.error || t.failedToSendFriendRequest, 'error');
       }
     } catch (error) {
-      showStatus(statusDiv, 'Error sending friend request', 'error');
+      const t = getT(LanguageManager.getLang());
+      showStatus(statusDiv, t.errorSendingFriendRequest, 'error');
       console.error('Error:', error);
     }
   }
@@ -258,19 +270,20 @@ export class FriendsManager {
       if (response.ok) {
         const { incoming, outgoing } = data;
         let html = '';
+        const t = getT(LanguageManager.getLang());
 
         if (incoming.length === 0 && outgoing.length === 0) {
-          html = '<p class="text-gray-400 text-center">No pending requests</p>';
+          html = `<p class="text-gray-400 text-center">${t.noPendingRequests}</p>`;
         } else {
           if (incoming.length > 0) {
-            html += '<h4 class="font-semibold mb-2">Incoming Requests</h4>';
+            html += `<h4 class="font-semibold mb-2">${t.incomingRequestsTitle}</h4>`;
             incoming.forEach((req: any) => {
               html += `
                 <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
                   <span>${req.fromUser.username}</span>
                   <div class="space-x-2">
-                    <button class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm" onclick="acceptFriendRequest(${req.id})">Accept</button>
-                    <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm" onclick="rejectFriendRequest(${req.id})">Reject</button>
+                    <button class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm" onclick="acceptFriendRequest(${req.id})">${t.acceptButton}</button>
+                    <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm" onclick="rejectFriendRequest(${req.id})">${t.rejectButton}</button>
                   </div>
                 </div>
               `;
@@ -278,14 +291,14 @@ export class FriendsManager {
           }
 
           if (outgoing.length > 0) {
-            html += '<h4 class="font-semibold mb-2 mt-4">Outgoing Requests</h4>';
+            html += `<h4 class="font-semibold mb-2 mt-4">${t.outgoingRequestsTitle}</h4>`;
             outgoing.forEach((req: any) => {
               html += `
                 <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
                   <span>${req.toUser.username}</span>
                   <div class="flex items-center space-x-2">
-                    <span class="text-gray-400 text-sm">Pending...</span>
-                    <button class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm" onclick="cancelFriendRequest(${req.id})">Cancel</button>
+                    <span class="text-gray-400 text-sm">${t.pendingText}</span>
+                    <button class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm" onclick="cancelFriendRequest(${req.id})">${t.cancelButton}</button>
                   </div>
                 </div>
               `;
@@ -297,7 +310,8 @@ export class FriendsManager {
       }
     } catch (error) {
       console.error('Error loading pending requests:', error);
-      container.innerHTML = '<p class="text-red-400 text-center">Error loading requests</p>';
+      const t = getT(LanguageManager.getLang());
+      container.innerHTML = `<p class="text-red-400 text-center">${t.errorLoadingRequests}</p>`;
     }
   }
 
@@ -310,6 +324,7 @@ export class FriendsManager {
 
     const container = document.getElementById('friends-list');
     if (!container) return;
+  const t = getT(LanguageManager.getLang());
 
     try {
       const response = await fetch(`${API_BASE}/friends/${loggedInUser}`);
@@ -320,7 +335,7 @@ export class FriendsManager {
         let html = '';
 
         if (friends.length === 0) {
-          html = '<p class="text-gray-400 text-center">No friends yet</p>';
+          html = `<p class="text-gray-400 text-center">${t.noFriendsYet}</p>`;
         } else {
           // Sort friends to prioritize online users first
           const sortedFriends = friends.sort((a: any, b: any) => {
@@ -347,10 +362,10 @@ export class FriendsManager {
                             new Date(friend.heartbeat) > new Date(Date.now() - 2 * 60 * 1000);
             
             const onlineIndicator = isOnline 
-              ? '<span class="w-2 h-2 bg-green-500 rounded-full" title="Online"></span>'
-              : '<span class="w-2 h-2 bg-gray-500 rounded-full" title="Offline"></span>';
+              ? `<span class="w-2 h-2 bg-green-500 rounded-full" title="${t.onlineLabel}"></span>`
+              : `<span class="w-2 h-2 bg-gray-500 rounded-full" title="${t.offlineLabel}"></span>`;
             
-            const onlineText = isOnline ? 'Online' : 'Offline';
+            const onlineText = isOnline ? t.onlineLabel : t.offlineLabel;
             
             html += `
               <div class="flex items-center justify-between p-3 bg-gray-700 rounded mb-2">
@@ -366,7 +381,7 @@ export class FriendsManager {
                     ${onlineIndicator}
                     <span class="text-xs text-gray-400">${onlineText}</span>
                   </div>
-                  <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm" onclick="removeFriend('${friend.username}')">Remove</button>
+                  <button class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm" onclick="removeFriend('${friend.username}')">${t.removeButton}</button>
                 </div>
               </div>
             `;
@@ -377,7 +392,8 @@ export class FriendsManager {
       }
     } catch (error) {
       console.error('Error loading friends list:', error);
-      container.innerHTML = '<p class="text-red-400 text-center">Error loading friends</p>';
+      const t = getT(LanguageManager.getLang());
+      container.innerHTML = `<p class="text-red-400 text-center">${t.errorLoadingFriends}</p>`;
     }
   }
 
@@ -391,7 +407,8 @@ export class FriendsManager {
     const loggedInUser = (window as any).loggedInUser;
     if (!loggedInUser) return;
 
-    const confirmed = confirm('Are you sure you want to cancel this friend request?');
+  const t = getT(LanguageManager.getLang());
+  const confirmed = confirm(t.confirmCancelFriendRequest);
     if (!confirmed) return;
 
     try {
@@ -406,11 +423,11 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        alert(response.error || 'Failed to cancel friend request');
+        alert(response.error || t.failedCancelFriendRequest);
       }
     } catch (error) {
       console.error('Error canceling friend request:', error);
-      alert('Error canceling friend request');
+      alert(t.errorCancelingFriendRequest);
     }
   }
 }

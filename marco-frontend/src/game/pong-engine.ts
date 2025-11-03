@@ -1,4 +1,5 @@
 import { API_BASE } from '../config/constants.js';
+import { getT } from '../config/translations.js';
 import { GameSettingsService } from '../services/game-settings.js';
 
 // Power-up types and their effects
@@ -323,7 +324,8 @@ export class PongEngine {
     PongEngine.setupMobileButtons(gameState, canvas);
   }
     
-    if (statusDiv) {
+      if (statusDiv) {
+      const t = getT();
       const controlsText = gameState.gameConfig.mode === 'player' 
         ? 'P1: WASD+Space | P2: Arrows+Enter | Tilt to aim!'
         : 'Tank Controls: WS=Move, AD=Tilt, Space=Shoot';
@@ -832,8 +834,9 @@ export class PongEngine {
     // Left side scoring (right player scores)
     if (gameState.ballX < 0 && !gameState.gameAborted) {
       gameState.rightScore++;
-      if (statusDiv) {
-        statusDiv.textContent = `Right Player scores! Score: ${gameState.leftScore} - ${gameState.rightScore}`;
+        if (statusDiv) {
+        const t = getT();
+        statusDiv.textContent = `${t.rightPlayerScores}${gameState.leftScore} - ${gameState.rightScore}`;
       }
       
       if (gameState.rightScore >= gameState.pointsToWin) {
@@ -841,7 +844,8 @@ export class PongEngine {
       } else {
         PongEngine.resetBall(gameState, canvas);
         if (statusDiv) {
-          statusDiv.textContent = `Ball respawning...`;
+          const t = getT();
+          statusDiv.textContent = t.ballRespawning;
         }
         setTimeout(() => {
           if (statusDiv) {
@@ -854,9 +858,10 @@ export class PongEngine {
     // Right side scoring (left player scores)
     if (gameState.ballX > canvas.width && !gameState.gameAborted) {
       gameState.leftScore++;
-      if (statusDiv) {
-        statusDiv.textContent = `Left Player scores! Score: ${gameState.leftScore} - ${gameState.rightScore}`;
-      }
+        if (statusDiv) {
+            const t = getT();
+            statusDiv.textContent = `${t.leftPlayerScores}${gameState.leftScore} - ${gameState.rightScore}`;
+          }
       
       if (gameState.leftScore >= gameState.pointsToWin) {
         PongEngine.endGame(gameState, 'win', statusDiv, aiInterval);
@@ -1317,7 +1322,8 @@ export class PongEngine {
     const startBtn = document.getElementById('pong-start') as HTMLButtonElement | null;
     if (startBtn) {
       startBtn.disabled = false;
-      startBtn.textContent = 'Start Game';
+      const t = getT();
+      startBtn.textContent = t.startGame;
       // Ensure the start button is visible again after the match
       startBtn.style.display = 'block';
     }
@@ -1669,7 +1675,8 @@ export class PongEngine {
       if (ball.x < 0) {
         gameState.rightScore++;
         if (statusDiv) {
-          statusDiv.textContent = `Right Player scores! Score: ${gameState.leftScore} - ${gameState.rightScore}`;
+          const t = getT();
+          statusDiv.textContent = `${t.rightPlayerScores}${gameState.leftScore} - ${gameState.rightScore}`;
         }
         if (gameState.rightScore >= gameState.pointsToWin) {
           PongEngine.endGame(gameState, 'loss', statusDiv, aiInterval);
@@ -1678,7 +1685,8 @@ export class PongEngine {
       } else if (ball.x > canvas.width) {
         gameState.leftScore++;
         if (statusDiv) {
-          statusDiv.textContent = `Left Player scores! Score: ${gameState.leftScore} - ${gameState.rightScore}`;
+          const t = getT();
+          statusDiv.textContent = `${t.leftPlayerScores}${gameState.leftScore} - ${gameState.rightScore}`;
         }
         if (gameState.leftScore >= gameState.pointsToWin) {
           PongEngine.endGame(gameState, 'win', statusDiv, aiInterval);
@@ -1734,7 +1742,8 @@ export class PongEngine {
           return;
         }
         startBtn.disabled = true;
-        startBtn.textContent = 'Game Running...';
+        const t = getT();
+        startBtn.textContent = t.gameRunning;
         PongEngine.startGame(canvas, statusDiv);
       });
     }

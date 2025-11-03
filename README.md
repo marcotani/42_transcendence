@@ -45,7 +45,7 @@ curl -k -X PATCH https://localhost:3000/users/"nome_utente"/alias \
   -d '{"alias": "new_alias"}'
 
 Modifica username utente
-curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
+curl -k -X PATCH https://localhost:3000/users/username \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",
@@ -53,7 +53,7 @@ curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
   }'
 
 Modifica email utente
-curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
+curl -k -X PATCH https://localhost:3000/users/username \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",
@@ -61,7 +61,7 @@ curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
   }'
 
 Modifica password utente
-curl -k -X PATCH https://localhost:3000/users/vecchioUsername \
+curl -k -X PATCH https://localhost:3000/users/username \
   -H "Content-Type: application/json" \
   -d '{
     "currentPassword": "passwordAttuale",

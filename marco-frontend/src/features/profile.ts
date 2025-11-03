@@ -2,6 +2,8 @@ import { API_BASE } from '../config/constants.js';
 import { StorageService } from '../services/storage.js';
 import { MatchHistoryManager } from './match-history.js';
 import { TwoFactorAuth } from './two-factor-auth.js';
+import { getT } from '../config/translations.js';
+import { LanguageManager } from './language.js';
 
 // Declare global window extensions
 declare global {
@@ -20,10 +22,11 @@ export class ProfileManager {
     const deleteBtn = document.getElementById('delete-profile-btn');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', async () => {
-        if (!confirm('Are you sure you want to delete your profile? This action cannot be undone.')) return;
-        if (!confirm('This is your last chance! Do you really want to delete your profile and all your data?')) return;
+        const t = getT(LanguageManager.getLang());
+        if (!confirm(t.confirmDeleteProfile1)) return;
+        if (!confirm(t.confirmDeleteProfile2)) return;
         // Prompt for password
-        const password = prompt('Please enter your current password to confirm deletion:');
+        const password = prompt(t.enterPasswordPrompt);
         if (!password) return;
         const errorDiv = document.getElementById('delete-profile-error');
         errorDiv?.classList.add('hidden');
@@ -35,15 +38,15 @@ export class ProfileManager {
           });
           const data = await res.json();
           if (!res.ok) {
-            errorDiv!.textContent = data.error || 'Failed to delete profile.';
+            errorDiv!.textContent = data.error || getT(LanguageManager.getLang()).failedToDeleteProfile;
             errorDiv!.classList.remove('hidden');
           } else {
-            alert('Your profile has been deleted.');
+            alert(getT(LanguageManager.getLang()).profileDeleted);
             window.setLoggedInUser(null);
             window.location.hash = '';
           }
         } catch (err) {
-          errorDiv!.textContent = 'Network error.';
+          errorDiv!.textContent = getT(LanguageManager.getLang()).failedToDeleteProfile;
           errorDiv!.classList.remove('hidden');
         }
       });
@@ -130,37 +133,38 @@ export class ProfileManager {
    * Populate stats section
    */
   private static populateStats(stats: any): void {
+    const t = getT(LanguageManager.getLang());
     const statsHtml = `
       <div class='grid grid-cols-2 gap-4 mb-2'>
         <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-          <div class='text-lg font-semibold text-green-400'>Bot</div>
+          <div class='text-lg font-semibold text-green-400' data-i18n='botLabel'>${t.botLabel}</div>
           <div class='flex space-x-4 mt-2'>
             <div class='text-center'>
               <div class='text-2xl font-bold'>${stats.botWins ?? 0}</div>
-              <div class='text-gray-400 text-sm'>Wins</div>
+              <div class='text-gray-400 text-sm' data-i18n='winsLabel'>${t.winsLabel}</div>
             </div>
             <div class='text-center'>
               <div class='text-2xl font-bold'>${stats.botLosses ?? 0}</div>
-              <div class='text-gray-400 text-sm'>Losses</div>
+              <div class='text-gray-400 text-sm' data-i18n='lossesLabel'>${t.lossesLabel}</div>
             </div>
           </div>
         </div>
         <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-          <div class='text-lg font-semibold text-blue-400'>Player</div>
+          <div class='text-lg font-semibold text-blue-400' data-i18n='playerLabel'>${t.playerLabel}</div>
           <div class='flex space-x-4 mt-2'>
             <div class='text-center'>
               <div class='text-2xl font-bold'>${stats.playerWins ?? 0}</div>
-              <div class='text-gray-400 text-sm'>Wins</div>
+              <div class='text-gray-400 text-sm' data-i18n='winsLabel'>${t.winsLabel}</div>
             </div>
             <div class='text-center'>
               <div class='text-2xl font-bold'>${stats.playerLosses ?? 0}</div>
-              <div class='text-gray-400 text-sm'>Losses</div>
+              <div class='text-gray-400 text-sm' data-i18n='lossesLabel'>${t.lossesLabel}</div>
             </div>
           </div>
         </div>
       </div>
       <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-        <div class='text-lg font-semibold text-yellow-400'>Tournament Wins</div>
+        <div class='text-lg font-semibold text-yellow-400' data-i18n='tournamentWinsLabel'>${t.tournamentWinsLabel}</div>
         <div class='text-3xl font-bold mt-2'>${stats.tournamentWins ?? 0}</div>
       </div>
     `;
@@ -172,6 +176,7 @@ export class ProfileManager {
    */
   private static setupPaddleColorSelector(user: any): void {
     setTimeout(() => {
+      const t = getT(LanguageManager.getLang());
       const skinColorSelect = document.getElementById('profile-skinColor') as HTMLSelectElement | null;
       const skinColorConfirm = document.getElementById('profile-skinColor-confirm') as HTMLButtonElement | null;
       if (skinColorSelect && skinColorConfirm && window.loggedInUser) {
@@ -188,12 +193,12 @@ export class ProfileManager {
           })
             .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
             .then(() => {
-              document.getElementById('profile-skinColor-success')!.textContent = 'Paddle color updated!';
+              document.getElementById('profile-skinColor-success')!.textContent = t.paddleColorUpdated;
               document.getElementById('profile-skinColor-success')!.classList.remove('hidden');
               document.getElementById('profile-skinColor-error')!.classList.add('hidden');
             })
             .catch(err => {
-              document.getElementById('profile-skinColor-error')!.textContent = err.error || 'Failed to update color.';
+              document.getElementById('profile-skinColor-error')!.textContent = err.error || t.failedToUpdateProfile;
               document.getElementById('profile-skinColor-error')!.classList.remove('hidden');
               document.getElementById('profile-skinColor-success')!.classList.add('hidden');
             });
@@ -260,6 +265,7 @@ export class ProfileManager {
    * Setup edit profile form with submission handling
    */
   private static setupEditProfileForm(form: HTMLFormElement, avatarInput: HTMLInputElement | null, avatarPreview: HTMLElement | null): void {
+    const t = getT(LanguageManager.getLang());
     let original = { alias: '', username: '', email: '', bio: '', skinColor: '#FFFFFF', emailVisible: true };
     let formReady = false;
     let isSubmitting = false;
@@ -299,7 +305,7 @@ export class ProfileManager {
         const submitBtn = document.getElementById('edit-profile-submit') as HTMLButtonElement;
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.textContent = 'Update Profile';
+          submitBtn.textContent = t.updateProfileButton;
         }
       });
       
@@ -330,12 +336,13 @@ export class ProfileManager {
     }
     
     // Prevent submission if form data isn't loaded yet
+    const t = getT(LanguageManager.getLang());
     if (!formReady) {
       console.log('[DEBUG] Form not ready yet');
       const errorDiv = document.getElementById('edit-profile-error');
       const successDiv = document.getElementById('edit-profile-success');
       if (errorDiv) {
-        errorDiv.textContent = 'Please wait for form to load completely before submitting.';
+        errorDiv.textContent = t.waitForFormToLoad;
         errorDiv.classList.remove('hidden');
       }
       if (successDiv) {
@@ -346,14 +353,14 @@ export class ProfileManager {
     
     isSubmitting = true;
     
-    try {
+  try {
       await ProfileManager.processProfileUpdate(original, avatarInput, avatarPreview);
     } finally {
       isSubmitting = false;
       const currentSubmitBtn = document.getElementById('edit-profile-submit') as HTMLButtonElement;
       if (currentSubmitBtn) {
         currentSubmitBtn.disabled = false;
-        currentSubmitBtn.textContent = 'Update Profile';
+        currentSubmitBtn.textContent = t.updateProfileButton;
       }
     }
   }
@@ -366,6 +373,7 @@ export class ProfileManager {
     avatarInput: HTMLInputElement | null, 
     avatarPreview: HTMLElement | null
   ): Promise<void> {
+    const t = getT(LanguageManager.getLang());
     if (!window.loggedInUser) {
       console.error('No logged in user');
       return;
@@ -402,12 +410,12 @@ export class ProfileManager {
     
     // Check if at least one field is being changed
     if (!wantsAliasChange && !wantsUsernameChange && !wantsEmailChange && !wantsPasswordChange && !wantsAvatarChange && !wantsBioChange && !wantsEmailVisibilityChange) {
-      errorMsg = 'At least one field must be filled.';
+      errorMsg = t.atLeastOneField;
     }
     
     // Current password only required for sensitive changes
     if ((wantsUsernameChange || wantsEmailChange || wantsPasswordChange) && !currentPassword) {
-      errorMsg = 'Current password is required to change username, email, or password.';
+      errorMsg = t.currentPasswordRequired;
     }
     
     if (errorMsg) {
@@ -427,10 +435,11 @@ export class ProfileManager {
     
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Updating...';
+      // Use the edit/profile loading label so this is localized
+      submitBtn.textContent = t.editProfileLoading;
     }
     
-    try {
+  try {
       // Update user credentials if needed
       if (wantsUsernameChange || wantsEmailChange || wantsPasswordChange) {
         const result = await ProfileManager.updateUserCredentials(
@@ -461,7 +470,7 @@ export class ProfileManager {
       
     } catch (err) {
       ok = false;
-      msg = err instanceof Error ? err.message : 'Network error updating profile.';
+      msg = err instanceof Error ? err.message : t.networkErrorGeneric;
     }
     
     // Show result
@@ -470,7 +479,7 @@ export class ProfileManager {
       const currentErrorDiv = document.getElementById('edit-profile-error');
       
       if (currentSuccessDiv) {
-        currentSuccessDiv.textContent = 'Profile updated successfully!';
+        currentSuccessDiv.textContent = t.profileUpdatedSuccessfully;
         currentSuccessDiv.classList.remove('hidden');
       }
       if (currentErrorDiv) {
@@ -481,7 +490,7 @@ export class ProfileManager {
       const currentSuccessDiv = document.getElementById('edit-profile-success');
       
       if (currentErrorDiv) {
-        currentErrorDiv.textContent = msg;
+        currentErrorDiv.textContent = msg || t.failedToUpdateProfile;
         currentErrorDiv.classList.remove('hidden');
       }
       if (currentSuccessDiv) {
@@ -497,6 +506,7 @@ export class ProfileManager {
     wantsUsernameChange: boolean, wantsEmailChange: boolean, wantsPasswordChange: boolean,
     username: string, email: string, password: string, currentPassword: string, original: any
   ): Promise<{ok: boolean, msg: string, aliasTargetUser: string}> {
+  const t = getT(LanguageManager.getLang());
     const updateBody: any = {};
     let aliasTargetUser = (window as any).loggedInUser;
     
@@ -516,7 +526,7 @@ export class ProfileManager {
         });
         const userResBody = await userRes.json();
         if (!userRes.ok) {
-          return { ok: false, msg: userResBody.error || 'Failed to update profile.', aliasTargetUser };
+          return { ok: false, msg: userResBody.error || t.failedToUpdateProfile, aliasTargetUser };
         } else {
           if (updateBody.newUsername) {
             window.setLoggedInUser(updateBody.newUsername);
@@ -530,7 +540,7 @@ export class ProfileManager {
       } catch (err) {
         return { 
           ok: false, 
-          msg: err instanceof Error ? err.message : 'Network error updating profile.',
+          msg: err instanceof Error ? err.message : t.networkErrorGeneric,
           aliasTargetUser 
         };
       }
@@ -547,6 +557,7 @@ export class ProfileManager {
     aliasTargetUser: string, 
     avatarPreview: HTMLElement | null
   ): Promise<{ok: boolean, msg: string}> {
+    const t = getT(LanguageManager.getLang());
     const file = avatarInput.files![0];
     const formData = new FormData();
     formData.append('file', file);
@@ -558,7 +569,7 @@ export class ProfileManager {
       });
       const avatarResBody = await avatarRes.json();
       if (!avatarRes.ok) {
-        return { ok: false, msg: avatarResBody.error || 'Failed to upload avatar.' };
+        return { ok: false, msg: avatarResBody.error || t.failedToUpdateProfile };
       } else {
         const newAvatarUrl = avatarResBody.avatarUrl;
         window.setLoggedInUser(aliasTargetUser, newAvatarUrl, true);
@@ -570,7 +581,7 @@ export class ProfileManager {
     } catch (err) {
       return { 
         ok: false, 
-        msg: err instanceof Error ? err.message : 'Network error uploading avatar.' 
+        msg: err instanceof Error ? err.message : t.networkErrorGeneric 
       };
     }
   }
@@ -582,6 +593,8 @@ export class ProfileManager {
     alias: string, bio: string, emailVisible: boolean, original: any, aliasTargetUser: string,
     wantsBioChange: boolean, wantsEmailVisibilityChange: boolean, wantsAliasChange: boolean
   ): Promise<{ok: boolean, msg: string}> {
+    const t = getT(LanguageManager.getLang());
+
     // Update alias if changed
     if (wantsAliasChange) {
       try {
@@ -592,10 +605,10 @@ export class ProfileManager {
         });
         const aliasResBody = await aliasRes.json();
         if (!aliasRes.ok) {
-          return { ok: false, msg: aliasResBody.error || 'Failed to update alias.' };
+          return { ok: false, msg: aliasResBody.error || t.failedToUpdateProfile };
         }
       } catch (err) {
-        return { ok: false, msg: err instanceof Error ? err.message : 'Network error updating alias.' };
+        return { ok: false, msg: err instanceof Error ? err.message : t.networkErrorGeneric };
       }
     }
     
@@ -608,11 +621,11 @@ export class ProfileManager {
           body: JSON.stringify({ bio })
         });
         const bioResBody = await bioRes.json();
-        if (!bioRes.ok) {
-          return { ok: false, msg: bioResBody.error || 'Failed to update biography.' };
-        }
+          if (!bioRes.ok) {
+            return { ok: false, msg: bioResBody.error || t.failedToUpdateProfile };
+          }
       } catch (err) {
-        return { ok: false, msg: err instanceof Error ? err.message : 'Network error updating biography.' };
+        return { ok: false, msg: err instanceof Error ? err.message : t.networkErrorGeneric };
       }
     }
     
@@ -626,10 +639,10 @@ export class ProfileManager {
         });
         const emailVisResBody = await emailVisRes.json();
         if (!emailVisRes.ok) {
-          return { ok: false, msg: emailVisResBody.error || 'Failed to update email visibility.' };
+          return { ok: false, msg: emailVisResBody.error || t.failedToUpdateProfile };
         }
       } catch (err) {
-        return { ok: false, msg: err instanceof Error ? err.message : 'Network error updating email visibility.' };
+        return { ok: false, msg: err instanceof Error ? err.message : t.networkErrorGeneric };
       }
     }
     
