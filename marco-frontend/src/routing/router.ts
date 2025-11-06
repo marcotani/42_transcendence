@@ -1,6 +1,6 @@
 // Router class for handling application routing
 import { routes } from './routes.js';
-import { translations } from '../config/translations.js';
+import { translations, getT } from '../config/translations.js';
 import { API_BASE } from '../config/constants.js';
 import { accessibilityTogglesUI, showStatus } from '../utils/dom-helpers.js';
 import { LanguageManager } from '../features/language.js';
@@ -23,8 +23,8 @@ export class Router {
     loggedInUserAvatar: string | null,
     currentOnlineFriendsCount: number,
     currentPendingRequestsCount: number): void {
-    const lang = LanguageManager.getLang();
-    const t = translations[lang];
+  const lang = LanguageManager.getLang();
+  const t = getT(lang);
     const app = document.getElementById('app');
     if (!app) return;
     // Clear the record of attached page-specific listeners on every render.

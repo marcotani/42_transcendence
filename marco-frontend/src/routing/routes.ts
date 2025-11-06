@@ -387,12 +387,12 @@ export const routes: { [key: string]: (t: any) => string } = {
   <div class='w-full mb-6' id='profile-skinColor-container'>
         <label for='profile-skinColor' id='profile-skinColor-label' class='block mb-1' data-i18n='paddleColorLabel'>${t.paddleColorLabel}</label>
         <select id='profile-skinColor' name='skinColor' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400'>
-          <option value="#FF0000" style="color:#FF0000">${t.colorRed}</option>
-          <option value="#00FF00" style="color:#00FF00">${t.colorGreen}</option>
-          <option value="#0000FF" style="color:#0000FF">${t.colorBlue}</option>
-          <option value="#FFFF00" style="color:#FFFF00">${t.colorYellow}</option>
-          <option value="#FF00FF" style="color:#FF00FF">${t.colorMagenta}</option>
-          <option value="#FFFFFF" style="color:#FFFFFF">${t.colorWhite}</option>
+          <option data-i18n='colorRed' value="#FF0000" style="color:#FF0000">${t.colorRed}</option>
+          <option data-i18n='colorGreen' value="#00FF00" style="color:#00FF00">${t.colorGreen}</option>
+          <option data-i18n='colorBlue' value="#0000FF" style="color:#0000FF">${t.colorBlue}</option>
+          <option data-i18n='colorYellow' value="#FFFF00" style="color:#FFFF00">${t.colorYellow}</option>
+          <option data-i18n='colorMagenta' value="#FF00FF" style="color:#FF00FF">${t.colorMagenta}</option>
+          <option data-i18n='colorWhite' value="#FFFFFF" style="color:#FFFFFF">${t.colorWhite}</option>
         </select>
   <button id='profile-skinColor-confirm' data-i18n='confirmColor' class='mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-400'>${t.confirmColor}</button>
         <div id='profile-skinColor-success' class='text-green-500 mt-2 hidden'></div>

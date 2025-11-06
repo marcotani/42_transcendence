@@ -119,7 +119,10 @@ export class Authentication {
       const data = await response.json();
 
       if (!response.ok) {
-        Authentication.showError(errorDiv, data.error || t.authFailed);
+        // Prefer localized frontend message to ensure UI language consistency.
+        // Log server-provided detail to console for debugging.
+        console.warn('Login failed from server:', data.error || data.message || data);
+        Authentication.showError(errorDiv, t.loginFailed);
         return;
       }
 

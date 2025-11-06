@@ -1,5 +1,5 @@
 // Import extracted modules
-import { translations } from './config/translations.js';
+import { translations, getT } from './config/translations.js';
 import { API_BASE, HEARTBEAT_INTERVAL_MS } from './config/constants.js';
 import { accessibilityTogglesUI } from './utils/dom-helpers.js';
 import { StorageService, Language } from './services/storage.js';
@@ -31,7 +31,7 @@ const migrationCheck = () => {
     StorageService.setLoggedInUserAvatar(null);
     
     // Show migration message
-    alert(translations[LanguageManager.getLang()].securityUpgradeAlert);
+  alert(getT(LanguageManager.getLang()).securityUpgradeAlert);
     window.location.hash = '#login';
   }
 };
@@ -290,16 +290,16 @@ function attachPongListeners() {
   
   player2LoginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const lang = LanguageManager.getLang();
+  const lang = LanguageManager.getLang();
     const username = (document.getElementById('player2-username') as HTMLInputElement).value;
     const password = (document.getElementById('player2-password') as HTMLInputElement).value;
     const errorDiv = document.getElementById('player2-login-error');
     
     // Check if player 2 is trying to use the same account as player 1
     const currentUser = UserSession.getCurrentUser();
-    if (currentUser && username === currentUser) {
+      if (currentUser && username === currentUser) {
       if (errorDiv) {
-        errorDiv.textContent = translations[lang].userAlreadyLoggedIn;
+        errorDiv.textContent = getT(LanguageManager.getLang()).userAlreadyLoggedIn;
         errorDiv.style.visibility = 'visible';
       }
       return;
@@ -322,14 +322,15 @@ function attachPongListeners() {
         if (errorDiv) errorDiv.style.visibility = 'hidden';
       } else {
         const error = await response.json();
+        console.warn('Player2 login error from server:', error);
         if (errorDiv) {
-          errorDiv.textContent = error.message || translations[lang].loginFailed;
+          errorDiv.textContent = getT(LanguageManager.getLang()).loginFailed;
           errorDiv.style.visibility = 'visible';
         }
       }
     } catch (error) {
       if (errorDiv) {
-        errorDiv.textContent = translations[lang].networkErrorOccurred;
+        errorDiv.textContent = getT(LanguageManager.getLang()).networkErrorOccurred;
         errorDiv.style.visibility = 'visible';
       }
     }
@@ -356,14 +357,13 @@ function attachPongListeners() {
     
     // Set player 2 info
     if (mode === 'ai') {
-      if (player2Info) player2Info.textContent = 'AI';
+      if (player2Info) player2Info.textContent = getT(LanguageManager.getLang()).aiLabel || 'AI';
       if (player2Name) player2Name.textContent = 'Computer';
       if (player2Controls) player2Controls.textContent = '';
     } else {
-      const lang = LanguageManager.getLang();
-      if (player2Info) player2Info.textContent = translations[lang].player2;
+      if (player2Info) player2Info.textContent = getT(LanguageManager.getLang()).player2 || '';
       if (player2Name) player2Name.textContent = player2Data?.username || 'Unknown';
-      if (player2Controls) player2Controls.textContent = translations[lang].controlsArrows;
+      if (player2Controls) player2Controls.textContent = getT(LanguageManager.getLang()).controlsArrows;
     }
   }
   
@@ -484,7 +484,7 @@ function attachPongListeners() {
 
   startBtn.disabled = true;
   const lang = LanguageManager.getLang();
-  startBtn.textContent = translations[lang].gameRunning;
+  startBtn.textContent = getT(LanguageManager.getLang()).gameRunning;
       // Hide the start button while the match is running so it doesn't obstruct the view
       startBtn.style.display = 'none';
 

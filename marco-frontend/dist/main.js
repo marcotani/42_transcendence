@@ -8,7 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 // Import extracted modules
-import { translations } from './config/translations.js';
+import { getT } from './config/translations.js';
 import { API_BASE } from './config/constants.js';
 import { StorageService } from './services/storage.js';
 import { HeartbeatService } from './services/heartbeat.js';
@@ -32,7 +32,7 @@ const migrationCheck = () => {
         StorageService.setLoggedInUser(null);
         StorageService.setLoggedInUserAvatar(null);
         // Show migration message
-        alert(translations[LanguageManager.getLang()].securityUpgradeAlert);
+        alert(getT(LanguageManager.getLang()).securityUpgradeAlert);
         window.location.hash = '#login';
     }
 };
@@ -303,7 +303,7 @@ function attachPongListeners() {
         const currentUser = UserSession.getCurrentUser();
         if (currentUser && username === currentUser) {
             if (errorDiv) {
-                errorDiv.textContent = translations[lang].userAlreadyLoggedIn;
+                errorDiv.textContent = getT(LanguageManager.getLang()).userAlreadyLoggedIn;
                 errorDiv.style.visibility = 'visible';
             }
             return;
@@ -326,15 +326,16 @@ function attachPongListeners() {
             }
             else {
                 const error = yield response.json();
+                console.warn('Player2 login error from server:', error);
                 if (errorDiv) {
-                    errorDiv.textContent = error.message || translations[lang].loginFailed;
+                    errorDiv.textContent = getT(LanguageManager.getLang()).loginFailed;
                     errorDiv.style.visibility = 'visible';
                 }
             }
         }
         catch (error) {
             if (errorDiv) {
-                errorDiv.textContent = translations[lang].networkErrorOccurred;
+                errorDiv.textContent = getT(LanguageManager.getLang()).networkErrorOccurred;
                 errorDiv.style.visibility = 'visible';
             }
         }
@@ -360,20 +361,19 @@ function attachPongListeners() {
         // Set player 2 info
         if (mode === 'ai') {
             if (player2Info)
-                player2Info.textContent = 'AI';
+                player2Info.textContent = getT(LanguageManager.getLang()).aiLabel || 'AI';
             if (player2Name)
                 player2Name.textContent = 'Computer';
             if (player2Controls)
                 player2Controls.textContent = '';
         }
         else {
-            const lang = LanguageManager.getLang();
             if (player2Info)
-                player2Info.textContent = translations[lang].player2;
+                player2Info.textContent = getT(LanguageManager.getLang()).player2 || '';
             if (player2Name)
                 player2Name.textContent = (player2Data === null || player2Data === void 0 ? void 0 : player2Data.username) || 'Unknown';
             if (player2Controls)
-                player2Controls.textContent = translations[lang].controlsArrows;
+                player2Controls.textContent = getT(LanguageManager.getLang()).controlsArrows;
         }
     }
     // Start game button
@@ -505,7 +505,7 @@ function attachPongListeners() {
             }
             startBtn.disabled = true;
             const lang = LanguageManager.getLang();
-            startBtn.textContent = translations[lang].gameRunning;
+            startBtn.textContent = getT(LanguageManager.getLang()).gameRunning;
             // Hide the start button while the match is running so it doesn't obstruct the view
             startBtn.style.display = 'none';
             // Pass game mode and player 2 data to the engine
