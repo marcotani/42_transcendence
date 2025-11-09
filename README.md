@@ -16,8 +16,6 @@ Se succedono cose strane: sudo docker compose down --volumes --remove-orphans
 Frontend disponibile a https://localhost:8080 (HTTPS)
 Backend disponibile a https://localhost:3000 (HTTPS)
 
-IMPORTANTE: Accedi sempre al frontend tramite HTTPS per evitare problemi di mixed content!
-
 ---------- COMANDI REGISTRAZIONE UTENTE ----------
 
 Registrazione utente

@@ -5,14 +5,74 @@
 /* Custom styles for accessibility, responsiveness, etc. can be added here */
 
 /* Accessibility: High-contrast mode and focus ring */
-.high-contrast {
-  background-color: #000 !important;
-  color: #fff !important;
+/*
+  Broaden the selectors so applying a high-contrast marker to the root
+  (html or body) or using a data attribute will force a dark background
+  across the whole page. Keep button inversion so controls remain readable.
+*/
+html.high-contrast,
+body.high-contrast,
+.high-contrast,
+[data-theme="high-contrast"] {
+  background-color: #000000 !important; /* pure black background as requested */
+  color: #ffffff !important;
+  min-height: 100vh;
 }
-.high-contrast button {
-  background-color: #fff !important;
-  color: #000 !important;
-  border: 2px solid #000 !important;
+
+html.high-contrast button,
+body.high-contrast button,
+.high-contrast button,
+[data-theme="high-contrast"] button {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+/* Target common Tailwind background utility classes used for cards/boxes
+   instead of forcing every element to transparent (which hid the edit-profile
+   panels). This keeps panels visible and gives them a neutral gray in
+   high-contrast mode. */
+html.high-contrast .bg-gray-800,
+body.high-contrast .bg-gray-800,
+.high-contrast .bg-gray-800,
+[data-theme="high-contrast"] .bg-gray-800 {
+  background-color: #1f2937 !important; /* slate/very-dark-gray */
+  color: #ffffff !important;
+}
+
+html.high-contrast .bg-gray-700,
+body.high-contrast .bg-gray-700,
+.high-contrast .bg-gray-700,
+[data-theme="high-contrast"] .bg-gray-700 {
+  background-color: #374151 !important; /* dark gray */
+  color: #ffffff !important;
+}
+
+/* Keep gray buttons that are used as regular controls (like 'Options') visually consistent
+   with other buttons by overriding the bg-gray-* card color only when the element is a button. */
+html.high-contrast button.bg-gray-700,
+body.high-contrast button.bg-gray-700,
+.high-contrast button.bg-gray-700,
+[data-theme="high-contrast"] button.bg-gray-700 {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+html.high-contrast .bg-gray-600,
+body.high-contrast .bg-gray-600,
+.high-contrast .bg-gray-600,
+[data-theme="high-contrast"] .bg-gray-600 {
+  background-color: #4b5563 !important;
+  color: #ffffff !important;
+}
+
+/* Also ensure form controls with rounded card classes remain visible */
+html.high-contrast .rounded-lg,
+body.high-contrast .rounded-lg,
+.high-contrast .rounded-lg,
+[data-theme="high-contrast"] .rounded-lg {
+  background-clip: padding-box;
 }
 .text-large {
   font-size: 1.5rem !important;

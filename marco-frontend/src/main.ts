@@ -175,10 +175,14 @@ function attachLangListener() {
 
 function attachAccessibilityListeners() {
   document.getElementById('toggle-contrast')?.addEventListener('click', () => {
-    document.body.classList.toggle('high-contrast');
+    // Toggle high-contrast on the <html> element so the mode applies globally
+    // (some user agents or components may ignore body-level changes).
+    document.documentElement.classList.toggle('high-contrast');
   });
   document.getElementById('toggle-textsize')?.addEventListener('click', () => {
-    document.body.classList.toggle('text-large');
+    // Toggle the class on the <html> element (documentElement) instead of <body>
+    // so rem-based Tailwind utilities scale correctly across the app.
+    document.documentElement.classList.toggle('text-large');
   });
 }
 

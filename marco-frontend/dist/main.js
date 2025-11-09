@@ -181,10 +181,14 @@ function attachLangListener() {
 function attachAccessibilityListeners() {
     var _a, _b;
     (_a = document.getElementById('toggle-contrast')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
-        document.body.classList.toggle('high-contrast');
+        // Toggle high-contrast on the <html> element so the mode applies globally
+        // (some user agents or components may ignore body-level changes).
+        document.documentElement.classList.toggle('high-contrast');
     });
     (_b = document.getElementById('toggle-textsize')) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
-        document.body.classList.toggle('text-large');
+        // Toggle the class on the <html> element (documentElement) instead of <body>
+        // so rem-based Tailwind utilities scale correctly across the app.
+        document.documentElement.classList.toggle('text-large');
     });
 }
 function attachLoginListeners() {
