@@ -19,10 +19,13 @@ body.high-contrast,
   min-height: 100vh;
 }
 
-html.high-contrast button,
-body.high-contrast button,
-.high-contrast button,
-[data-theme="high-contrast"] button {
+/* Only invert buttons that use background utility classes (primary/CTA buttons).
+   This prevents small inline buttons (like the friend username) from getting a
+   white box in high-contrast. */
+html.high-contrast button[class*="bg-"],
+body.high-contrast button[class*="bg-"],
+.high-contrast button[class*="bg-"],
+[data-theme="high-contrast"] button[class*="bg-"] {
   background-color: #ffffff !important;
   color: #000000 !important;
   border: 2px solid #000000 !important;
@@ -37,6 +40,16 @@ body.high-contrast .bg-gray-800,
 .high-contrast .bg-gray-800,
 [data-theme="high-contrast"] .bg-gray-800 {
   background-color: #1f2937 !important; /* slate/very-dark-gray */
+  color: #ffffff !important;
+}
+
+/* Ensure the darkest site wrappers become pure black in high-contrast so the
+   overall page background matches the requested black background. */
+html.high-contrast .bg-gray-900,
+body.high-contrast .bg-gray-900,
+.high-contrast .bg-gray-900,
+[data-theme="high-contrast"] .bg-gray-900 {
+  background-color: #000000 !important;
   color: #ffffff !important;
 }
 
@@ -59,6 +72,99 @@ body.high-contrast button.bg-gray-700,
   border: 2px solid #000000 !important;
 }
 
+/* Also treat anchors that use Tailwind bg-* utilities as buttons in high-contrast
+   so link-buttons like the "View Privacy Policy" anchor match the other buttons. */
+html.high-contrast a[class*="bg-"],
+body.high-contrast a[class*="bg-"],
+.high-contrast a[class*="bg-"],
+[data-theme="high-contrast"] a[class*="bg-"] {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  display: inline-block; /* keep block-like anchors visible */
+}
+
+/* High-contrast: match history semantic colors (wins/losses) */
+html.high-contrast .bg-green-900,
+body.high-contrast .bg-green-900,
+.high-contrast .bg-green-900,
+[data-theme="high-contrast"] .bg-green-900 {
+  /* brighter, saturated green for wins (still dark enough to feel like a card) */
+  background-color: #087f45 !important;
+}
+html.high-contrast .border-green-400,
+body.high-contrast .border-green-400,
+.high-contrast .border-green-400,
+[data-theme="high-contrast"] .border-green-400 {
+  border-color: #00e676 !important;
+}
+html.high-contrast .text-green-400,
+body.high-contrast .text-green-400,
+.high-contrast .text-green-400,
+[data-theme="high-contrast"] .text-green-400 {
+  color: #34d399 !important; /* Tailwind emerald-400 */
+}
+
+html.high-contrast .bg-red-900,
+body.high-contrast .bg-red-900,
+.high-contrast .bg-red-900,
+[data-theme="high-contrast"] .bg-red-900 {
+  /* saturated red for losses */
+  background-color: #8b1f1f !important;
+}
+html.high-contrast .border-red-400,
+body.high-contrast .border-red-400,
+.high-contrast .border-red-400,
+[data-theme="high-contrast"] .border-red-400 {
+  border-color: #ff6b6b !important;
+}
+html.high-contrast .text-red-400,
+body.high-contrast .text-red-400,
+.high-contrast .text-red-400,
+[data-theme="high-contrast"] .text-red-400 {
+  color: #ffffff !important;
+}
+
+/* Match-type accents (bot/player) — keep them visible but readable on dark background */
+html.high-contrast .text-blue-400,
+body.high-contrast .text-blue-400,
+.high-contrast .text-blue-400,
+[data-theme="high-contrast"] .text-blue-400 {
+  color: #93c5fd !important; /* light blue */
+}
+/* Make the right-side player label (AI or Player 2) red in high-contrast */
+html.high-contrast #player2-info,
+body.high-contrast #player2-info,
+.high-contrast #player2-info,
+[data-theme="high-contrast"] #player2-info {
+  color: #ff6b6b !important; /* readable high-contrast red */
+}
+/* Make friend list usernames white in high-contrast for better readability */
+html.high-contrast #friends-list button.text-blue-400,
+body.high-contrast #friends-list button.text-blue-400,
+.high-contrast #friends-list button.text-blue-400,
+[data-theme="high-contrast"] #friends-list button.text-blue-400 {
+  color: #ffffff !important;
+}
+html.high-contrast .text-orange-400,
+body.high-contrast .text-orange-400,
+.high-contrast .text-orange-400,
+[data-theme="high-contrast"] .text-orange-400 {
+  color: #ffd27a !important; /* light amber */
+}
+
+/* Make the small helper texts under VS buttons black in high-contrast for readability */
+html.high-contrast #vs-ai-mode .text-sm,
+body.high-contrast #vs-ai-mode .text-sm,
+.high-contrast #vs-ai-mode .text-sm,
+[data-theme="high-contrast"] #vs-ai-mode .text-sm,
+html.high-contrast #vs-player-mode .text-sm,
+body.high-contrast #vs-player-mode .text-sm,
+.high-contrast #vs-player-mode .text-sm,
+[data-theme="high-contrast"] #vs-player-mode .text-sm {
+  color: #000000 !important;
+}
+
 html.high-contrast .bg-gray-600,
 body.high-contrast .bg-gray-600,
 .high-contrast .bg-gray-600,
@@ -66,6 +172,10 @@ body.high-contrast .bg-gray-600,
   background-color: #4b5563 !important;
   color: #ffffff !important;
 }
+
+/* In high-contrast mode we prefer white text on dark backgrounds. If you want
+  specific semantic colors preserved (e.g. win/loss), we can add high-contrast
+  friendly accents separately. */
 
 /* Also ensure form controls with rounded card classes remain visible */
 html.high-contrast .rounded-lg,
@@ -76,4 +186,23 @@ body.high-contrast .rounded-lg,
 }
 .text-large {
   font-size: 1.5rem !important;
+}
+
+/* When the app toggles text-large on the root (<html>), increase the root font-size
+   so rem-based Tailwind utilities scale automatically. Also force specific buttons
+   that use inline pixel font-sizes in the Options route to grow via !important. */
+html.text-large,
+body.text-large {
+  font-size: 18px !important; /* increases rem reference for Tailwind-based text sizes */
+}
+
+/* Target the Options page buttons which have inline font-size values to ensure
+   they respect the large-text accessibility toggle. */
+html.text-large #save-options,
+html.text-large #reset-defaults,
+html.text-large #back-to-main,
+body.text-large #save-options,
+body.text-large #reset-defaults,
+body.text-large #back-to-main {
+  font-size: 1.125rem !important; /* ~18px */
 }
