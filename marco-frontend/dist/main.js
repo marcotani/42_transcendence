@@ -78,65 +78,7 @@ function attachTournamentListeners() {
             }
             catch (e) { /* ignore */ }
             const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-            if (isTouch) {
-                try {
-                    // Create a clean fullscreen wrapper so only the canvas and overlays are shown in fullscreen
-                    let wrapper = document.getElementById('tournament-fullscreen-wrapper');
-                    if (!wrapper) {
-                        wrapper = document.createElement('div');
-                        wrapper.id = 'tournament-fullscreen-wrapper';
-                        wrapper.style.position = 'fixed';
-                        wrapper.style.left = '0';
-                        wrapper.style.top = '0';
-                        wrapper.style.width = '100vw';
-                        wrapper.style.height = '100vh';
-                        wrapper.style.display = 'flex';
-                        wrapper.style.alignItems = 'center';
-                        wrapper.style.justifyContent = 'center';
-                        wrapper.style.background = '#000';
-                        wrapper.style.zIndex = '10000';
-                        wrapper.style.overflow = 'hidden';
-                        document.body.appendChild(wrapper);
-                    }
-                    // Record original parent and next sibling so we can restore later
-                    try {
-                        tournamentCanvas._origParent = tournamentCanvas.parentElement;
-                        tournamentCanvas._origNextSibling = tournamentCanvas.nextSibling;
-                    }
-                    catch (e) { /* ignore */ }
-                    // Move canvas and mobile overlay into wrapper
-                    try {
-                        wrapper.appendChild(tournamentCanvas);
-                        const mobileOverlay = document.getElementById('mobile-controls-overlay');
-                        if (mobileOverlay)
-                            wrapper.appendChild(mobileOverlay);
-                    }
-                    catch (e) { /* ignore */ }
-                    // Request fullscreen on the wrapper (clean fullscreen area)
-                    try {
-                        if (typeof wrapper.requestFullscreen === 'function')
-                            yield wrapper.requestFullscreen();
-                        else if (typeof wrapper.webkitRequestFullscreen === 'function')
-                            yield wrapper.webkitRequestFullscreen();
-                        else if (typeof wrapper.msRequestFullscreen === 'function')
-                            yield wrapper.msRequestFullscreen();
-                    }
-                    catch (err) {
-                        console.warn('Fullscreen request failed for tournament wrapper:', err);
-                    }
-                    // Resize canvas to wrapper size
-                    try {
-                        tournamentCanvas.style.width = '100%';
-                        tournamentCanvas.style.height = '100%';
-                        tournamentCanvas.width = wrapper.clientWidth || window.innerWidth;
-                        tournamentCanvas.height = wrapper.clientHeight || window.innerHeight;
-                    }
-                    catch (e) { /* ignore */ }
-                }
-                catch (err) {
-                    console.warn('Error preparing tournament fullscreen wrapper:', err);
-                }
-            }
+            // No mobile-specific fullscreen wrapper: mobile tournament should behave like desktop.
             // allow original handler to run afterwards (they will start the game)
         }));
     }
@@ -384,15 +326,7 @@ function attachPongListeners() {
     const startBtn = document.getElementById('pong-start');
     const canvas = document.getElementById('pong-canvas');
     const statusDiv = document.getElementById('pong-status');
-    // Touch detection helper (broader than user agent)
-    const isTouchDevice = () => {
-        try {
-            return ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-        }
-        catch (e) {
-            return false;
-        }
-    };
+    // Touch detection helper removed — no mobile-specific behavior
     // Fullscreen helper
     const requestElementFullscreen = (el) => __awaiter(this, void 0, void 0, function* () {
         if (!el)
@@ -416,99 +350,10 @@ function attachPongListeners() {
         }
         return false;
     });
-    // Create a fullscreen hint overlay (will be shown on mobile until fullscreen entered)
-    let fullscreenHintElem = document.getElementById('fullscreen-hint');
-    if (!fullscreenHintElem) {
-        try {
-            const div = document.createElement('div');
-            div.id = 'fullscreen-hint';
-            div.style.position = 'fixed';
-            div.style.left = '0';
-            div.style.top = '0';
-            div.style.right = '0';
-            div.style.bottom = '0';
-            div.style.display = 'none';
-            div.style.zIndex = '9999';
-            div.style.background = 'rgba(0,0,0,0.45)';
-            div.style.color = '#fff';
-            div.style.alignItems = 'center';
-            div.style.justifyContent = 'center';
-            div.style.pointerEvents = 'auto';
-            div.style.textAlign = 'center';
-            div.innerHTML = `
-        <div style="position: absolute; left:50%; top:50%; transform: translate(-50%,-50%);">
-          <div style="font-size:18px; margin-bottom:12px;">Tocca per entrare in fullscreen</div>
-          <button id='fullscreen-hint-btn' style="padding:10px 16px; background:#10B981; color:#fff; border-radius:8px; border:none; font-weight:600;">Entra</button>
-        </div>
-      `;
-            document.body.appendChild(div);
-            fullscreenHintElem = div;
-        }
-        catch (e) {
-            fullscreenHintElem = null;
-        }
-    }
-    const showFullscreenHint = () => {
-        try {
-            if (!fullscreenHintElem)
-                return;
-            fullscreenHintElem.style.display = 'flex';
-        }
-        catch (e) { /* ignore */ }
-    };
-    const hideFullscreenHint = () => {
-        try {
-            if (!fullscreenHintElem)
-                return;
-            fullscreenHintElem.style.display = 'none';
-        }
-        catch (e) { /* ignore */ }
-    };
-    // Hook the hint button to attempt fullscreen
-    if (fullscreenHintElem) {
-        fullscreenHintElem.addEventListener('click', (ev) => __awaiter(this, void 0, void 0, function* () {
-            try {
-                ev.preventDefault();
-                ev.stopPropagation();
-            }
-            catch (e) { /* ignore */ }
-            const target = canvas && canvas.parentElement ? canvas.parentElement : canvas;
-            yield requestElementFullscreen(target);
-        }));
-    }
-    // Hide/show on fullscreenchange
-    document.addEventListener('fullscreenchange', () => {
-        try {
-            if (document.fullscreenElement)
-                hideFullscreenHint();
-            else
-                hideFullscreenHint();
-        }
-        catch (e) { /* ignore */ }
-    });
+    // Touch / fullscreen-first behavior removed: mobile should behave like desktop.
     if (startBtn && canvas) {
-        startBtn.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
-            // On touch devices, request fullscreen first (best-effort) and show hint until fullscreen is active
-            if (isTouchDevice()) {
-                // Show the hint overlay while requesting
-                showFullscreenHint();
-                const target = canvas.parentElement || canvas;
-                try {
-                    yield requestElementFullscreen(target);
-                    // After entering fullscreen, resize canvas to fill the fullscreen element
-                    const fsElem = document.fullscreenElement || target;
-                    if (canvas && fsElem) {
-                        try {
-                            canvas.width = fsElem.clientWidth || window.innerWidth;
-                            canvas.height = fsElem.clientHeight || window.innerHeight;
-                        }
-                        catch (e) { /* ignore */ }
-                    }
-                }
-                catch (e) { /* ignore */ }
-            }
+        startBtn.addEventListener('click', () => {
             startBtn.disabled = true;
-            const lang = LanguageManager.getLang();
             startBtn.textContent = getT(LanguageManager.getLang()).gameRunning;
             // Hide the start button while the match is running so it doesn't obstruct the view
             startBtn.style.display = 'none';
@@ -519,7 +364,7 @@ function attachPongListeners() {
                 player2: gameMode === 'player' ? player2Data : null
             };
             PongEngine.startGame(canvas, statusDiv, gameConfig);
-        }));
+        });
     }
     // On fullscreen change, ensure canvas is resized to fullscreen element and add an exit button
     document.addEventListener('fullscreenchange', () => {
@@ -562,14 +407,7 @@ function attachPongListeners() {
                     catch (e) {
                         document.body.appendChild(btn);
                     }
-                    // Also ensure mobile controls overlay (if present) is moved into the same visible container
-                    try {
-                        const mobileOverlay = document.getElementById('mobile-controls-overlay');
-                        if (mobileOverlay) {
-                            appendTarget.appendChild(mobileOverlay);
-                        }
-                    }
-                    catch (e) { /* ignore */ }
+                    // Do not move mobile-specific overlays; treat fullscreen the same as desktop
                     btn.addEventListener('click', (ev) => __awaiter(this, void 0, void 0, function* () {
                         try {
                             ev.preventDefault();
@@ -596,13 +434,7 @@ function attachPongListeners() {
                     }
                     catch (e) { /* ignore */ }
                 }
-                // Ensure mobile overlay is back in the document body when exiting fullscreen
-                try {
-                    const mobileOverlay = document.getElementById('mobile-controls-overlay');
-                    if (mobileOverlay)
-                        document.body.appendChild(mobileOverlay);
-                }
-                catch (e) { /* ignore */ }
+                // No mobile-specific overlay restore needed; behave like desktop
                 // If we used a tournament-fullscreen-wrapper, restore the canvas to its original parent
                 try {
                     const wrapper = document.getElementById('tournament-fullscreen-wrapper');
@@ -646,54 +478,7 @@ function attachPongListeners() {
         }
         catch (e) { /* ignore */ }
     });
-    // Helper: attach a single-use handler that requests fullscreen on first tap/click for mobile
-    const attachCanvasFullscreenOnTap = (c) => {
-        if (!c)
-            return;
-        try {
-            const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-            if (!isTouch)
-                return;
-            const requestFS = (elem) => __awaiter(this, void 0, void 0, function* () {
-                const doc = document;
-                try {
-                    if (typeof elem.requestFullscreen === 'function') {
-                        yield elem.requestFullscreen();
-                    }
-                    else if (typeof elem.webkitRequestFullscreen === 'function') {
-                        yield elem.webkitRequestFullscreen();
-                    }
-                    else if (typeof elem.msRequestFullscreen === 'function') {
-                        yield elem.msRequestFullscreen();
-                    }
-                }
-                catch (err) {
-                    console.warn('Fullscreen request failed:', err);
-                }
-            });
-            const handler = (ev) => __awaiter(this, void 0, void 0, function* () {
-                try {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                }
-                catch (e) { /* ignore */ }
-                // Prefer fullscreen on the canvas parent to include overlays
-                const targetElem = c.parentElement || c;
-                yield requestFS(targetElem);
-                // Remove the handler after first activation
-                c.removeEventListener('pointerdown', handler);
-                c.removeEventListener('touchstart', handler);
-                c.removeEventListener('click', handler);
-            });
-            c.addEventListener('pointerdown', handler, { passive: false });
-            c.addEventListener('touchstart', handler, { passive: false });
-            c.addEventListener('click', handler);
-        }
-        catch (e) { /* ignore */ }
-    };
-    // Attach fullscreen-on-tap to both canvases if present
-    attachCanvasFullscreenOnTap(canvas);
-    attachCanvasFullscreenOnTap(document.getElementById('mobile-pong-canvas'));
+    // Mobile-specific fullscreen-on-tap behavior removed; mobile now behaves like desktop.
 }
 window.addEventListener('hashchange', () => {
     const newRoute = window.location.hash.replace('#', '');

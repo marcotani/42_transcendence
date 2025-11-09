@@ -90,7 +90,9 @@ export const routes: { [key: string]: (t: any) => string } = {
             <div class="text-xl text-orange-400">VS</div>
             <div class="text-lg font-bold" id="game-player2">${t.player2}</div>
           </div>
-          <canvas id="tournament-canvas" width="600" height="400" class="border border-gray-600 bg-black mx-auto block rounded"></canvas>
+          <div class='relative mb-4'>
+            <canvas id="tournament-canvas" width="600" height="400" class="border border-gray-600 bg-black mx-auto block rounded"></canvas>
+          </div>
             <div class="text-center mt-4">
             <button id="start-tournament-game" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold mb-2">
               ${t.startGame}

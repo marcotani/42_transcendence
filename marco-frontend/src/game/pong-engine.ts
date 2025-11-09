@@ -314,15 +314,70 @@ export class PongEngine {
     // Start AI (only for AI mode) and game loop
   const aiInterval = gameState.gameConfig.mode === 'ai' ? PongEngine.startAI(gameState, canvas) : 0;
   PongEngine.initializeControls(gameState);
-  // Mobile / tablet on-screen controls (buttons) - only on touch-capable devices
-  const isTouchDevice = () => {
-    try {
-      return ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
-    } catch (e) { return false; }
-  };
-  if (isTouchDevice()) {
-    PongEngine.setupMobileButtons(gameState, canvas);
-  }
+
+  // If running on a touch device, request fullscreen and show on-screen controls
+  try {
+    // Detect touch-capable device. Also fallback to small screens (likely mobile) if touch detection is unreliable.
+    const isTouch = ('ontouchstart' in window)
+      || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)
+      || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
+      || window.innerWidth <= 900;
+    if (isTouch) {
+      // Try to request fullscreen on the canvas parent or the canvas itself
+      const target = canvas.parentElement || canvas;
+
+      // Show touch controls overlay (will be removed on cleanup/end). Append to target so they are visible in fullscreen.
+      PongEngine.showTouchControls(canvas, gameState, target);
+
+      try {
+        const req: any = (target as any).requestFullscreen || (target as any).webkitRequestFullscreen || (target as any).msRequestFullscreen;
+        if (typeof req === 'function') {
+          req.call(target);
+        }
+      } catch (e) { /* ignore fullscreen failures */ }
+
+      // When fullscreen changes, resize canvas to fill available area and ensure overlay is inside the fullscreen element
+      const fsHandler = () => {
+        try {
+          const used = document.fullscreenElement || target;
+          if (used && canvas) {
+            const w = (used as HTMLElement).clientWidth || window.innerWidth;
+            const h = (used as HTMLElement).clientHeight || window.innerHeight;
+            try {
+              // Set CSS to fill the container and also set canvas resolution
+              canvas.style.width = '100%';
+              canvas.style.height = '100%';
+            } catch (e) { /* ignore */ }
+            try { canvas.width = w; } catch (e) { /* ignore */ }
+            try { canvas.height = h; } catch (e) { /* ignore */ }
+          }
+
+          // Move touch overlay into fullscreen element if present so it remains visible
+          try {
+            const overlay = document.getElementById('touch-controls-overlay');
+            if (overlay && used) {
+              // If fullscreen element is a canvas, append overlay to its parent (canvas can't host HTML reliably)
+              const appendTarget = (used.tagName === 'CANVAS') ? (used.parentElement || document.body) : used;
+              try { appendTarget.appendChild(overlay); } catch (e) { document.body.appendChild(overlay); }
+              try { console.log('PongEngine: moved touch overlay into fullscreen element', { appendTarget: appendTarget ? (appendTarget as Element).tagName : null }); } catch (e) { /* ignore */ }
+            }
+          } catch (e) { /* ignore */ }
+
+          // Attempt to lock orientation to landscape while in fullscreen (best-effort)
+          try {
+            const screenAny: any = screen;
+            if (screenAny && screenAny.orientation && typeof screenAny.orientation.lock === 'function') {
+              screenAny.orientation.lock('landscape').catch(() => { /* ignore */ });
+            }
+          } catch (e) { /* ignore */ }
+        } catch (e) { /* ignore */ }
+      };
+      document.addEventListener('fullscreenchange', fsHandler);
+      // store for cleanup
+      (gameState as any)._touchFsHandler = fsHandler;
+    }
+  } catch (e) { /* ignore */ }
+  // No mobile-specific overlays: keep behavior identical to desktop (no on-screen touch buttons)
     
       if (statusDiv) {
       const t = getT();
@@ -896,6 +951,23 @@ export class PongEngine {
     gameState.gameOver = true;
     PongEngine.isGameRunning = false;
     if (aiInterval) clearInterval(aiInterval); // Only clear if there's an AI interval
+
+    // Remove touch controls and exit fullscreen immediately on game end to restore UI
+    try {
+      PongEngine.removeTouchControls(gameState);
+    } catch (e) { /* ignore */ }
+    try {
+      if ((gameState as any)._touchFsHandler) {
+        document.removeEventListener('fullscreenchange', (gameState as any)._touchFsHandler);
+        try { delete (gameState as any)._touchFsHandler; } catch (e) { /* ignore */ }
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      const doc: any = document;
+      if (doc.fullscreenElement && typeof doc.exitFullscreen === 'function') {
+        doc.exitFullscreen();
+      }
+    } catch (e) { /* ignore */ }
     
     const isPlayerVsPlayer = gameState.gameConfig.mode === 'player';
     const player1Name = gameState.gameConfig.player1.username;
@@ -1343,24 +1415,26 @@ export class PongEngine {
         document.removeEventListener('keydown', gameState.keyDownHandler);
         document.removeEventListener('keyup', gameState.keyUpHandler);
       }
-      // Remove mobile controls overlay if present
-      if (gameState.mobileControlsElement) {
-        try { gameState.mobileControlsElement.remove(); } catch (e) { /* ignore */ }
-        delete gameState.mobileControlsElement;
-      }
-      // Remove canvas pointer handlers for mobile shooting if present
-      if (gameState.mobileCanvasElement && gameState.mobileCanvasHandlers) {
-        try {
-          const c: HTMLCanvasElement = gameState.mobileCanvasElement;
-          const h = gameState.mobileCanvasHandlers;
-          c.removeEventListener('pointerdown', h.pointerDown);
-          c.removeEventListener('pointerup', h.pointerUp);
-          c.removeEventListener('pointercancel', h.pointerUp);
-          c.removeEventListener('pointerout', h.pointerUp);
-        } catch (e) { /* ignore */ }
-        delete gameState.mobileCanvasElement;
-        delete gameState.mobileCanvasHandlers;
-      }
+      // Remove touch controls overlay if present
+      try {
+        PongEngine.removeTouchControls(gameState);
+      } catch (e) { /* ignore */ }
+
+      // Remove fullscreenchange handler if stored
+      try {
+        if ((gameState as any)._touchFsHandler) {
+          document.removeEventListener('fullscreenchange', (gameState as any)._touchFsHandler);
+          try { delete (gameState as any)._touchFsHandler; } catch (e) { /* ignore */ }
+        }
+      } catch (e) { /* ignore */ }
+
+      // Exit fullscreen if we are inside it
+      try {
+        const doc: any = document;
+        if (doc.fullscreenElement && typeof doc.exitFullscreen === 'function') {
+          doc.exitFullscreen();
+        }
+      } catch (e) { /* ignore */ }
     };
 
     // Clean up on navigation
@@ -1370,177 +1444,160 @@ export class PongEngine {
     window.addEventListener('beforeunload', cleanup, { once: true });
   }
 
+  // Mobile on-screen controls removed: mobile should behave identically to desktop.
+
   /**
-   * Create mobile on-screen buttons for both players.
-   * Buttons simulate keyboard flags in gameState: player1 -> w/s/a/d/space, player2 -> ArrowUp/ArrowDown/ArrowLeft/ArrowRight/Enter
+   * Create and attach touch controls overlay for touch devices.
+   * Buttons will toggle the same boolean flags used by keyboard handlers.
    */
-  private static setupMobileButtons(gameState: any, canvas?: HTMLCanvasElement): void {
+  private static showTouchControls(canvas: HTMLCanvasElement, gameState: any, container?: Element | null): void {
     try {
-      // Avoid recreating
-      if ((gameState as any).mobileControlsElement) return;
+      // If already attached, skip
+      if (gameState.touchControlsElement) return;
 
-      // Helper to create small corner pads (two per player: top and bottom)
-      // Use a dynamic button width so pads can be positioned relative to button size
-      const BUTTON_WIDTH = 56; // default width used by makeButton
-      const BUTTON_MARGIN = 8; // extra margin
-      const createCornerPad = (x: string, y: string) => {
-        const el = document.createElement('div');
-        el.style.position = 'fixed';
-        // compute offset dynamically from button width + margin
-        const horizontalOffset = `${BUTTON_WIDTH + BUTTON_MARGIN}px`;
-        const verticalOffset = '12px';
-        el.style[x as any] = horizontalOffset;
-        el.style[y as any] = verticalOffset;
-        el.style.zIndex = '90';
-        el.style.display = 'flex';
-        el.style.flexDirection = 'column';
-        el.style.gap = '8px';
-        el.style.pointerEvents = 'auto';
-        return el;
+      const overlay = document.createElement('div');
+      overlay.id = 'touch-controls-overlay';
+      // Basic styles to place controls over the bottom area
+      overlay.style.position = 'fixed';
+      overlay.style.left = '0';
+      overlay.style.right = '0';
+      overlay.style.bottom = '0';
+      overlay.style.height = '34%';
+      overlay.style.display = 'flex';
+      overlay.style.justifyContent = 'space-between';
+      overlay.style.alignItems = 'flex-end';
+      overlay.style.pointerEvents = 'auto';
+      overlay.style.zIndex = '9999';
+      overlay.style.userSelect = 'none';
+
+      const makePanel = (side: 'left' | 'right') => {
+        const panel = document.createElement('div');
+        panel.style.width = '50%';
+        panel.style.display = 'flex';
+        panel.style.flexDirection = 'column';
+        panel.style.alignItems = side === 'left' ? 'flex-start' : 'flex-end';
+        panel.style.padding = '8px';
+        panel.style.boxSizing = 'border-box';
+        return panel;
       };
 
-      // Wrapper so cleanup can remove a single element
-      const container = document.createElement('div');
-      container.id = 'mobile-controls-overlay';
-      container.style.position = 'fixed';
-      container.style.left = '0';
-      container.style.top = '0';
-      container.style.right = '0';
-      container.style.bottom = '0';
-      container.style.zIndex = '89';
-      // Avoid blocking other page interactions except the pads (pads have pointerEvents=auto)
-      container.style.pointerEvents = 'none';
-
-      const makeButton = (label: string) => {
-        const b = document.createElement('button');
-        b.textContent = label;
-        b.className = 'bg-gray-800 text-white rounded-full';
-        b.style.width = '56px';
-        b.style.height = '56px';
-        b.style.fontSize = '20px';
-        b.style.display = 'flex';
-        b.style.alignItems = 'center';
-        b.style.justifyContent = 'center';
-        b.style.opacity = '0.95';
-        return b;
+      const makeButton = (label: string, aria: string) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = label;
+        btn.setAttribute('aria-label', aria);
+        btn.style.width = '64px';
+        btn.style.height = '64px';
+        btn.style.margin = '6px';
+        btn.style.borderRadius = '12px';
+        btn.style.border = 'none';
+        btn.style.background = 'rgba(255,255,255,0.12)';
+        btn.style.color = '#fff';
+        btn.style.fontSize = '20px';
+        btn.style.backdropFilter = 'blur(4px)';
+        btn.style.touchAction = 'none';
+        return btn;
       };
 
-      // Map touch/mouse events for buttons
-      const mapPress = (btn: HTMLButtonElement, downSetter: () => void, upSetter: () => void) => {
-        const start = (e: Event) => { e.preventDefault(); downSetter(); };
-        const end = (e: Event) => { e.preventDefault(); upSetter(); };
-        btn.addEventListener('touchstart', start, { passive: false });
-        btn.addEventListener('touchend', end);
-        btn.addEventListener('mousedown', start);
-        btn.addEventListener('mouseup', end);
-        btn.addEventListener('mouseleave', end);
+      const leftPanel = makePanel('left');
+      const rightPanel = makePanel('right');
+
+      // Player 1 controls (left side)
+      const p1Up = makeButton('▲', 'Move up');
+      const p1Down = makeButton('▼', 'Move down');
+      const p1TiltL = makeButton('⟲', 'Tilt left');
+      const p1TiltR = makeButton('⟳', 'Tilt right');
+      const p1Shoot = makeButton('●', 'Shoot');
+
+      // Player 2 controls (right side)
+      const p2Up = makeButton('▲', 'Move up (P2)');
+      const p2Down = makeButton('▼', 'Move down (P2)');
+      const p2TiltL = makeButton('⟲', 'Tilt left (P2)');
+      const p2TiltR = makeButton('⟳', 'Tilt right (P2)');
+      const p2Shoot = makeButton('●', 'Shoot (P2)');
+
+      // Helper to attach press/release handlers
+      const bindToggle = (el: HTMLElement, setTrue: () => void, setFalse: () => void) => {
+        const down = (ev: Event) => { try { ev.preventDefault(); } catch (e) {} ; setTrue(); };
+        const up = (ev: Event) => { try { ev.preventDefault(); } catch (e) {} ; setFalse(); };
+        el.addEventListener('pointerdown', down as any, { passive: false });
+        el.addEventListener('pointerup', up as any);
+        el.addEventListener('pointercancel', up as any);
+        // Also support touchstart/touchend for older browsers
+        el.addEventListener('touchstart', down as any, { passive: false });
+        el.addEventListener('touchend', up as any);
       };
 
-      // Left player pads (top-left and bottom-left)
-      const leftTop = createCornerPad('left', 'top');
-      const leftBottom = createCornerPad('left', 'bottom');
+      bindToggle(p1Up, () => gameState.wPressed = true, () => gameState.wPressed = false);
+      bindToggle(p1Down, () => gameState.sPressed = true, () => gameState.sPressed = false);
+      bindToggle(p1TiltL, () => gameState.aPressed = true, () => gameState.aPressed = false);
+      bindToggle(p1TiltR, () => gameState.dPressed = true, () => gameState.dPressed = false);
+      // shoot: set true on down, set false on up
+      bindToggle(p1Shoot, () => gameState.spacePressed = true, () => gameState.spacePressed = false);
 
-      const upBtnL = makeButton('▲');
-      const tiltLeftBtnL = makeButton('◀');
-      const downBtnL = makeButton('▼');
-      const tiltRightBtnL = makeButton('▶');
+      bindToggle(p2Up, () => gameState.upPressed = true, () => gameState.upPressed = false);
+      bindToggle(p2Down, () => gameState.downPressed = true, () => gameState.downPressed = false);
+      bindToggle(p2TiltL, () => gameState.leftPressed = true, () => gameState.leftPressed = false);
+      bindToggle(p2TiltR, () => gameState.rightPressed = true, () => gameState.rightPressed = false);
+      bindToggle(p2Shoot, () => gameState.enterPressed = true, () => gameState.enterPressed = false);
 
-      mapPress(upBtnL, () => { gameState.wPressed = true; }, () => { gameState.wPressed = false; });
-      mapPress(tiltLeftBtnL, () => { gameState.aPressed = true; }, () => { gameState.aPressed = false; });
-      mapPress(downBtnL, () => { gameState.sPressed = true; }, () => { gameState.sPressed = false; });
-      mapPress(tiltRightBtnL, () => { gameState.dPressed = true; }, () => { gameState.dPressed = false; });
+      // Layout: movement row on top, action row (tilt/shoot) below
+      const p1MoveRow = document.createElement('div');
+      p1MoveRow.style.display = 'flex';
+      p1MoveRow.appendChild(p1Up);
+      p1MoveRow.appendChild(p1Down);
 
-  leftTop.appendChild(upBtnL);
-  leftTop.appendChild(tiltLeftBtnL);
-  // swap: place tilt-right before down (user requested swap)
-  leftBottom.appendChild(tiltRightBtnL);
-  leftBottom.appendChild(downBtnL);
+      const p1ActionRow = document.createElement('div');
+      p1ActionRow.style.display = 'flex';
+      p1ActionRow.appendChild(p1TiltL);
+      p1ActionRow.appendChild(p1Shoot);
+      p1ActionRow.appendChild(p1TiltR);
 
-  container.appendChild(leftTop);
-  container.appendChild(leftBottom);
+      leftPanel.appendChild(p1MoveRow);
+      leftPanel.appendChild(p1ActionRow);
 
-      // Right player pads (mirrored) - only for player-vs-player
-      const mode = gameState && gameState.gameConfig ? gameState.gameConfig.mode : 'ai';
-      if (mode === 'player') {
-        const rightTop = createCornerPad('right', 'top');
-        const rightBottom = createCornerPad('right', 'bottom');
+      const p2MoveRow = document.createElement('div');
+      p2MoveRow.style.display = 'flex';
+      p2MoveRow.appendChild(p2Up);
+      p2MoveRow.appendChild(p2Down);
 
-        // For player2 we mirror tilt directions: top = up + tilt right, bottom = down + tilt left
-        const upBtnR = makeButton('▲');
-        const tiltRightBtnR = makeButton('▶');
-        const downBtnR = makeButton('▼');
-        const tiltLeftBtnR = makeButton('◀');
+      const p2ActionRow = document.createElement('div');
+      p2ActionRow.style.display = 'flex';
+      p2ActionRow.appendChild(p2TiltL);
+      p2ActionRow.appendChild(p2Shoot);
+      p2ActionRow.appendChild(p2TiltR);
 
-        mapPress(upBtnR, () => { gameState.upPressed = true; }, () => { gameState.upPressed = false; });
-        mapPress(tiltRightBtnR, () => { gameState.rightPressed = true; }, () => { gameState.rightPressed = false; });
-        mapPress(downBtnR, () => { gameState.downPressed = true; }, () => { gameState.downPressed = false; });
-        mapPress(tiltLeftBtnR, () => { gameState.leftPressed = true; }, () => { gameState.leftPressed = false; });
+      rightPanel.appendChild(p2MoveRow);
+      rightPanel.appendChild(p2ActionRow);
 
-        rightTop.appendChild(upBtnR);
-        rightTop.appendChild(tiltRightBtnR);
-        // swap: place tilt-left before down on the right-bottom pad (mirror swap)
-        rightBottom.appendChild(tiltLeftBtnR);
-        rightBottom.appendChild(downBtnR);
+      overlay.appendChild(leftPanel);
+      overlay.appendChild(rightPanel);
 
-        container.appendChild(rightTop);
-        container.appendChild(rightBottom);
+      // If single-player (AI), hide right panel
+      if (gameState.gameConfig.mode !== 'player') {
+        rightPanel.style.display = 'none';
       }
 
-      // Setup canvas tap-to-shoot handlers if canvas provided
-      if (canvas) {
-        const handlers: any = {};
-        handlers._pointerMap = new Map<number, string>();
-
-        handlers.pointerDown = (e: PointerEvent) => {
-          try {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const which = x < rect.width / 2 ? 'left' : 'right';
-            handlers._pointerMap.set(e.pointerId, which);
-            if (which === 'left') {
-              gameState.spacePressed = true;
-            } else {
-              gameState.enterPressed = true;
-            }
-          } catch (err) { /* ignore */ }
-        };
-
-        handlers.pointerUp = (e: PointerEvent) => {
-          try {
-            const which = handlers._pointerMap.get(e.pointerId);
-            if (which === 'left') {
-              gameState.spacePressed = false;
-            } else if (which === 'right') {
-              gameState.enterPressed = false;
-            }
-            handlers._pointerMap.delete(e.pointerId);
-          } catch (err) { /* ignore */ }
-        };
-
-        canvas.addEventListener('pointerdown', handlers.pointerDown);
-        canvas.addEventListener('pointerup', handlers.pointerUp);
-        canvas.addEventListener('pointercancel', handlers.pointerUp);
-        canvas.addEventListener('pointerout', handlers.pointerUp);
-
-        gameState.mobileCanvasElement = canvas;
-        gameState.mobileCanvasHandlers = handlers;
-      }
-
-  // Store references for cleanup
-  (gameState as any).mobileControlsElement = container;
-
-  // Attach wrapper to the DOM last (container has pointerEvents none; pads handle events)
-  try {
-    // Prefer to append inside fullscreen element so controls show in fullscreen
-    const fs = document.fullscreenElement as HTMLElement | null;
-    const parentToUse = fs || (canvas && canvas.parentElement) || document.body;
-    parentToUse.appendChild(container);
-  } catch (e) {
-    try { document.body.appendChild(container); } catch (err) { /* ignore */ }
+      // If a container is provided (for fullscreen), append there so controls are visible in fullscreen.
+      const appendTarget = container || document.body;
+      try { appendTarget.appendChild(overlay); } catch (e) { document.body.appendChild(overlay); }
+      gameState.touchControlsElement = overlay;
+      try { console.log('PongEngine: showTouchControls attached overlay', { overlayId: overlay.id, appendTarget: (appendTarget as Element).tagName }); } catch (e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
   }
-    } catch (e) {
-      console.warn('Could not create mobile controls', e);
-    }
+
+  /**
+   * Remove touch controls overlay if present
+   */
+  private static removeTouchControls(gameState: any): void {
+    try {
+      const el = gameState?.touchControlsElement || document.getElementById('touch-controls-overlay');
+      const node = el as HTMLElement | null;
+      if (node && node.parentElement) {
+        node.parentElement.removeChild(node);
+      }
+      try { delete gameState.touchControlsElement; } catch (e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
   }
 
   /**
@@ -1789,16 +1846,10 @@ export class PongEngine {
       sessionStorage.setItem('tournamentState', JSON.stringify(tournamentState));
       sessionStorage.setItem('currentMatchIndex', (currentMatchIndex + 1).toString());
       
-      // Show match result for 3 seconds then return to tournament
+      // Show match result for 3 seconds then return to tournament (do not manipulate tournamentMode here)
       setTimeout(() => {
-        // Clear tournament session data for this match
-        sessionStorage.removeItem('tournamentMode');
-        sessionStorage.removeItem('player1');
-        sessionStorage.removeItem('player2');
-        
         // Return to tournament page
         window.location.hash = '#tournament';
-        
         // After a brief delay, continue tournament
         setTimeout(() => {
           (window as any).continueTournament?.();
