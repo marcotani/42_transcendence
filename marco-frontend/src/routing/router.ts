@@ -57,7 +57,7 @@ export class Router {
         <div id='leaderboard-content' class='mt-6 w-full max-w-6xl mx-auto'>
           <div class='text-center py-8'>
             <div class='inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white'></div>
-            <p class='mt-2 text-gray-400'>Loading leaderboards...</p>
+            <p class='mt-2 text-gray-400'>${t.loadingLeaderboards}</p>
           </div>
         </div>`;
     } else {
@@ -65,7 +65,7 @@ export class Router {
         <div class='flex flex-col items-center justify-center space-y-4 mt-8'>
           <button class='w-48 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400' id='start-game' aria-label='${t.startGame}' tabindex='0'>${t.startGame}</button>
           <button class='w-48 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-orange-400' id='tournament' aria-label='${t.tournament}' tabindex='0'>${t.tournament}</button>
-          <button class='w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400' id='options' aria-label='${t.options}' tabindex='0'>${t.options}</button>
+          <button class='w-48 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400' id='options' data-i18n='options' data-i18n-attr="aria-label:options" tabindex='0'>${t.options}</button>
           <button class='w-48 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-purple-400' id='leaderboard' aria-label='${t.leaderboard}' tabindex='0'>${t.leaderboard}</button>
         </div>`;
     }

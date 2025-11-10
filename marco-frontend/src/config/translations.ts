@@ -17,6 +17,11 @@ export const translations: Record<'en'|'it'|'fr', {
   leaderboardTitle: string;
   leaderboardDesc: string;
   langLabel: string;
+  langEnglish: string;
+  langItalian: string;
+  langFrench: string;
+  toggleHighContrast: string;
+  toggleLargeText: string;
   friends: string;
   pong: string;
   myProfile: string;
@@ -66,6 +71,7 @@ export const translations: Record<'en'|'it'|'fr', {
   passwordLabel: string;
   showEmailPublicly: string;
   biographyLabel: string;
+  chooseFile: string;
   twoFactorTitle: string;
   twoFactorDesc: string;
   twoFactorDisabled: string;
@@ -74,6 +80,7 @@ export const translations: Record<'en'|'it'|'fr', {
   disable2FA: string;
   newPasswordLabel: string;
   currentPasswordLabel: string;
+  currentPasswordHint: string;
   failedGenerate2FA: string;
   networkErrorSettingUp2FA: string;
   failedDisable2FA: string;
@@ -83,6 +90,8 @@ export const translations: Record<'en'|'it'|'fr', {
   backToProfile: string;
   confirmColor: string;
   viewPrivacyPolicy: string;
+  gdprPrefix: string;
+  gdprSuffix: string;
   deleteProfile: string;
   paddleColorLabel: string;
   colorRed: string;
@@ -120,6 +129,12 @@ export const translations: Record<'en'|'it'|'fr', {
   // Additional common UI messages
   sessionExpired: string;
   unknownError: string;
+  userNotFound: string;
+  internalServerError: string;
+  missingFields: string;
+  invalidCredentials: string;
+  invalidEmail: string;
+  invalid2FACode: string;
   failedAcceptFriendRequest: string;
   errorAcceptingFriendRequest: string;
   confirmRejectFriendRequest: string;
@@ -134,6 +149,16 @@ export const translations: Record<'en'|'it'|'fr', {
   currentPasswordRequired: string;
   friendRequestSent: string;
   failedToSendFriendRequest: string;
+  alreadyFriends: string;
+  friendRequestPending: string;
+  recipientNotFound: string;
+  invalidUsernames: string;
+  cannotAddSelf: string;
+  requestNotFound: string;
+  notRecipient: string;
+  notAuthorizedToManageRequest: string;
+  requestNotPending: string;
+  paramForRequired: string;
   errorSendingFriendRequest: string;
   noPendingRequests: string;
   incomingRequestsTitle: string;
@@ -155,6 +180,8 @@ export const translations: Record<'en'|'it'|'fr', {
   failedCancelFriendRequest: string;
   errorCancelingFriendRequest: string;
   loadingLeaderboards: string;
+  loadingProfile: string;
+  failedToLoadProfile: string;
     // Authentication messages
     loggedInWith2FA: string;
     twoFactorError: string;
@@ -205,6 +232,16 @@ export const translations: Record<'en'|'it'|'fr', {
   enterSecretManually: string;
   enterVerificationCodeConfirm: string;
   networkErrorTryAgain: string;
+  // Game / Power-up strings
+  powerupExtendedName: string;
+  powerupExtendedDesc: string;
+  powerupMultiName: string;
+  powerupMultiDesc: string;
+  powerupSpeedName: string;
+  powerupSpeedDesc: string;
+  powerupSlowName: string;
+  powerupSlowDesc: string;
+  gameOverWinnerTemplate: string;
 }> = {
   en: {
     title: "Pong Game",
@@ -228,6 +265,12 @@ export const translations: Record<'en'|'it'|'fr', {
     pong: "Pong",
     myProfile: "My Profile"
     ,
+  // language names and accessibility labels (localized to the current language)
+  langEnglish: "English",
+  langItalian: "Italian",
+  langFrench: "French",
+  toggleHighContrast: "Toggle high contrast",
+  toggleLargeText: "Toggle large text",
     startTournament: "🚀 Start Tournament!",
     startMatch: "🚀 Start Match!",
     readyToStart: "Ready to start...",
@@ -251,6 +294,8 @@ export const translations: Record<'en'|'it'|'fr', {
     champion: "Champion",
     loadingRequests: "Loading requests...",
     loadingFriends: "Loading friends...",
+  loadingProfile: "Loading profile...",
+  failedToLoadProfile: "Failed to load profile",
     sendFriendRequestTitle: "Send Friend Request",
     enterUsernamePlaceholder: "Enter username",
     sendRequestButton: "Send Request",
@@ -272,6 +317,7 @@ export const translations: Record<'en'|'it'|'fr', {
     aliasLabel: "Alias (Display Name)",
     usernameLabel: "Username",
     emailLabel: "Email",
+    chooseFile: "Choose file",
   passwordLabel: "Password",
     showEmailPublicly: "Show email publicly",
     biographyLabel: "Biography",
@@ -287,11 +333,14 @@ export const translations: Record<'en'|'it'|'fr', {
   networkErrorDisabling2FA: "Network error while disabling 2FA.",
   confirmDisable2FA: "Are you sure you want to disable Two-Factor Authentication?",
     newPasswordLabel: "New Password",
-    currentPasswordLabel: "Current Password",
+  currentPasswordLabel: "Current Password",
+  currentPasswordHint: "(Required only for username, email and password changes)",
     editProfileLoading: "Loading...",
     backToProfile: "Back to Profile",
     confirmColor: "Confirm Color",
-    viewPrivacyPolicy: "View Privacy Policy",
+  viewPrivacyPolicy: "View Privacy Policy",
+  gdprPrefix: "I have read and accept the ",
+  gdprSuffix: ".",
     deleteProfile: "Delete Profile",
     paddleColorLabel: "Paddle Color",
     colorRed: "Red",
@@ -331,6 +380,12 @@ export const translations: Record<'en'|'it'|'fr', {
     // Additional common UI messages
     sessionExpired: "Your session has expired. Please log in again to continue.",
     unknownError: "Unknown error",
+    userNotFound: "User not found",
+    internalServerError: "Internal server error",
+    missingFields: "Please fill the required fields",
+    invalidCredentials: "Invalid username or password",
+    invalidEmail: "Invalid email address",
+    invalid2FACode: "Invalid 2FA code",
     failedAcceptFriendRequest: "Failed to accept friend request: ",
     errorAcceptingFriendRequest: "Error accepting friend request.",
     confirmRejectFriendRequest: "Are you sure you want to reject this friend request?",
@@ -343,6 +398,16 @@ export const translations: Record<'en'|'it'|'fr', {
     pleaseEnterUsername: "Please enter a username",
     friendRequestSent: "Friend request sent successfully!",
     failedToSendFriendRequest: "Failed to send friend request",
+  alreadyFriends: "You are already friends",
+  friendRequestPending: "Friend request already pending",
+  recipientNotFound: "Recipient user not found",
+  invalidUsernames: "Invalid usernames provided",
+  cannotAddSelf: "Cannot add yourself as a friend",
+  requestNotFound: "Friend request not found",
+  notRecipient: "You are not the recipient of this request",
+  notAuthorizedToManageRequest: "Not authorized to manage this request",
+  requestNotPending: "The friend request is not pending",
+  paramForRequired: 'The "for" parameter is required',
     errorSendingFriendRequest: "Error sending friend request",
     noPendingRequests: "No pending requests",
     incomingRequestsTitle: "Incoming Requests",
@@ -420,8 +485,19 @@ export const translations: Record<'en'|'it'|'fr', {
   scanQRCode: "Scan this QR code with your authenticator app:",
   enterSecretManually: "Or enter this secret manually:",
   enterVerificationCodeConfirm: "Enter verification code to confirm setup:",
-  networkErrorTryAgain: "Network error. Please try again."
+  networkErrorTryAgain: "Network error. Please try again.",
+  // Power-up translations (English)
+  powerupExtendedName: "Extended Paddle",
+  powerupExtendedDesc: "Increases paddle size",
+  powerupMultiName: "Multi Ball",
+  powerupMultiDesc: "Spawns extra balls",
+  powerupSpeedName: "Speed Boost",
+  powerupSpeedDesc: "Increases ball speed",
+  powerupSlowName: "Slow Motion",
+  powerupSlowDesc: "Slows down gameplay",
+  gameOverWinnerTemplate: "Game Over! {winner} wins {winnerScore}-{loserScore}!"
   },
+
   it: {
     title: "Gioco Pong",
     login: "Accedi",
@@ -440,6 +516,11 @@ export const translations: Record<'en'|'it'|'fr', {
     leaderboardTitle: "Classifica",
     leaderboardDesc: "Le statistiche della classifica saranno qui.",
     langLabel: "Lingua",
+  langEnglish: "Inglese",
+  langItalian: "Italiano",
+  langFrench: "Francese",
+  toggleHighContrast: "Alto contrasto",
+  toggleLargeText: "Testo grande",
     friends: "Amici",
     pong: "Pong",
     myProfile: "Il Mio Profilo"
@@ -467,6 +548,8 @@ export const translations: Record<'en'|'it'|'fr', {
     champion: "Campione",
     loadingRequests: "Caricamento richieste...",
     loadingFriends: "Caricamento amici...",
+  loadingProfile: "Caricamento profilo...",
+  failedToLoadProfile: "Impossibile caricare il profilo",
     sendFriendRequestTitle: "Invia richiesta di amicizia",
     enterUsernamePlaceholder: "Inserisci username",
     sendRequestButton: "Invia richiesta",
@@ -488,6 +571,7 @@ export const translations: Record<'en'|'it'|'fr', {
     aliasLabel: "Alias (Nome visualizzato)",
     usernameLabel: "Username",
     emailLabel: "Email",
+    chooseFile: "Scegli file",
   passwordLabel: "Password",
     showEmailPublicly: "Mostra l'email pubblicamente",
     biographyLabel: "Biografia",
@@ -503,11 +587,14 @@ export const translations: Record<'en'|'it'|'fr', {
   networkErrorDisabling2FA: "Errore di rete durante la disabilitazione della 2FA.",
   confirmDisable2FA: "Sei sicuro di voler disabilitare l'autenticazione a due fattori?",
     newPasswordLabel: "Nuova password",
-    currentPasswordLabel: "Password attuale",
+  currentPasswordLabel: "Password attuale",
+  currentPasswordHint: "(Richiesto solo per modifiche a username, email o password)",
     editProfileLoading: "Caricamento...",
     backToProfile: "Torna al profilo",
     confirmColor: "Conferma colore",
-    viewPrivacyPolicy: "Visualizza l'informativa sulla privacy",
+  viewPrivacyPolicy: "Visualizza l'informativa sulla privacy",
+  gdprPrefix: "Ho letto e accetto ",
+  gdprSuffix: ".",
     deleteProfile: "Elimina profilo",
     paddleColorLabel: "Colore della racchetta",
     colorRed: "Rosso",
@@ -547,6 +634,12 @@ export const translations: Record<'en'|'it'|'fr', {
     // Additional common UI messages (IT)
     sessionExpired: "La tua sessione è scaduta. Effettua il login per continuare.",
     unknownError: "Errore sconosciuto",
+    userNotFound: "Utente non trovato",
+    internalServerError: "Errore interno del server",
+    missingFields: "Per favore completa i campi richiesti",
+    invalidCredentials: "Username o password non validi",
+    invalidEmail: "Email non valida",
+    invalid2FACode: "Codice 2FA non valido",
     failedAcceptFriendRequest: "Impossibile accettare la richiesta di amicizia: ",
     errorAcceptingFriendRequest: "Errore durante l'accettazione della richiesta di amicizia.",
     confirmRejectFriendRequest: "Sei sicuro di voler rifiutare questa richiesta di amicizia?",
@@ -559,6 +652,16 @@ export const translations: Record<'en'|'it'|'fr', {
     pleaseEnterUsername: "Inserisci un username",
     friendRequestSent: "Richiesta di amicizia inviata con successo!",
     failedToSendFriendRequest: "Impossibile inviare la richiesta di amicizia",
+  alreadyFriends: "Siete già amici",
+  friendRequestPending: "Richiesta di amicizia già in sospeso",
+  recipientNotFound: "Utente destinatario non trovato",
+  invalidUsernames: "Username non validi forniti",
+  cannotAddSelf: "Non puoi aggiungere te stesso agli amici",
+  requestNotFound: "Richiesta di amicizia non trovata",
+  notRecipient: "Non sei il destinatario di questa richiesta",
+  notAuthorizedToManageRequest: "Non autorizzato a gestire questa richiesta",
+  requestNotPending: "La richiesta di amicizia non è in sospeso",
+  paramForRequired: 'Il parametro "for" è richiesto',
     errorSendingFriendRequest: "Errore durante l'invio della richiesta di amicizia",
     noPendingRequests: "Nessuna richiesta in sospeso",
     incomingRequestsTitle: "Richieste in ingresso",
@@ -634,7 +737,17 @@ export const translations: Record<'en'|'it'|'fr', {
     scanQRCode: "Scansiona questo codice QR con la tua app autenticatore:",
     enterSecretManually: "Oppure inserisci questo segreto manualmente:",
     enterVerificationCodeConfirm: "Inserisci il codice di verifica per confermare la configurazione:",
-    networkErrorTryAgain: "Errore di rete. Riprova."
+    networkErrorTryAgain: "Errore di rete. Riprova.",
+    // Power-up translations (Italian)
+    powerupExtendedName: "Paddle Esteso",
+    powerupExtendedDesc: "Aumenta la dimensione della racchetta",
+    powerupMultiName: "Palla Multipla",
+    powerupMultiDesc: "Genera palle extra",
+    powerupSpeedName: "Aumento Velocità",
+    powerupSpeedDesc: "Aumenta la velocità della palla",
+    powerupSlowName: "Movimento Lento",
+    powerupSlowDesc: "Rallenta il gioco",
+    gameOverWinnerTemplate: "Fine partita! {winner} vince {winnerScore}-{loserScore}!"
   },
   fr: {
     title: "Jeu Pong",
@@ -654,6 +767,11 @@ export const translations: Record<'en'|'it'|'fr', {
     leaderboardTitle: "Classement",
     leaderboardDesc: "Les statistiques du classement seront ici.",
     langLabel: "Langue",
+  langEnglish: "Anglais",
+  langItalian: "Italien",
+  langFrench: "Français",
+  toggleHighContrast: "Contraste élevé",
+  toggleLargeText: "Grand texte",
     friends: "Amis",
     pong: "Pong",
     myProfile: "Mon Profil"
@@ -681,6 +799,8 @@ export const translations: Record<'en'|'it'|'fr', {
     champion: "Champion",
     loadingRequests: "Chargement des demandes...",
     loadingFriends: "Chargement des amis...",
+  loadingProfile: "Chargement du profil...",
+  failedToLoadProfile: "Échec du chargement du profil",
     sendFriendRequestTitle: "Envoyer une demande d'ami",
     enterUsernamePlaceholder: "Entrez le nom d'utilisateur",
     sendRequestButton: "Envoyer la demande",
@@ -702,6 +822,7 @@ export const translations: Record<'en'|'it'|'fr', {
     aliasLabel: "Alias (Nom affiché)",
     usernameLabel: "Nom d'utilisateur",
     emailLabel: "Email",
+    chooseFile: "Choisir le fichier",
   passwordLabel: "Mot de passe",
     showEmailPublicly: "Afficher l'email publiquement",
     biographyLabel: "Biographie",
@@ -717,11 +838,14 @@ export const translations: Record<'en'|'it'|'fr', {
   networkErrorDisabling2FA: "Erreur réseau lors de la désactivation de la 2FA.",
   confirmDisable2FA: "Êtes-vous sûr de vouloir désactiver l'authentification à deux facteurs ?",
     newPasswordLabel: "Nouveau mot de passe",
-    currentPasswordLabel: "Mot de passe actuel",
+  currentPasswordLabel: "Mot de passe actuel",
+  currentPasswordHint: "(Requis uniquement pour les modifications de nom d'utilisateur, e-mail ou mot de passe)",
     editProfileLoading: "Chargement...",
     backToProfile: "Retour au profil",
     confirmColor: "Confirmer la couleur",
-    viewPrivacyPolicy: "Voir la politique de confidentialité",
+  viewPrivacyPolicy: "Voir la politique de confidentialité",
+  gdprPrefix: "J'ai lu et j'accepte ",
+  gdprSuffix: ".",
     deleteProfile: "Supprimer le profil",
     paddleColorLabel: "Couleur de la raquette",
     colorRed: "Rouge",
@@ -761,6 +885,12 @@ export const translations: Record<'en'|'it'|'fr', {
     // Additional common UI messages (FR)
     sessionExpired: "Votre session a expiré. Veuillez vous reconnecter.",
     unknownError: "Erreur inconnue",
+    userNotFound: "Utilisateur non trouvé",
+    internalServerError: "Erreur interne du serveur",
+    missingFields: "Veuillez remplir les champs requis",
+    invalidCredentials: "Nom d'utilisateur ou mot de passe invalide",
+    invalidEmail: "Adresse e-mail invalide",
+    invalid2FACode: "Code 2FA invalide",
     failedAcceptFriendRequest: "Échec de l'acceptation de la demande d'ami : ",
     errorAcceptingFriendRequest: "Erreur lors de l'acceptation de la demande d'ami.",
     confirmRejectFriendRequest: "Êtes-vous sûr de vouloir refuser cette demande d'ami ?",
@@ -773,6 +903,16 @@ export const translations: Record<'en'|'it'|'fr', {
     pleaseEnterUsername: "Veuillez entrer un nom d'utilisateur",
     friendRequestSent: "Demande d'ami envoyée avec succès !",
     failedToSendFriendRequest: "Échec de l'envoi de la demande d'ami",
+  alreadyFriends: "Vous êtes déjà amis",
+  friendRequestPending: "Demande d'ami déjà en attente",
+  recipientNotFound: "Utilisateur destinataire introuvable",
+  invalidUsernames: "Noms d'utilisateur invalides fournis",
+  cannotAddSelf: "Vous ne pouvez pas vous ajouter vous-même",
+  requestNotFound: "Demande d'ami introuvable",
+  notRecipient: "Vous n'êtes pas le destinataire de cette demande",
+  notAuthorizedToManageRequest: "Non autorisé à gérer cette demande",
+  requestNotPending: "La demande d'ami n'est pas en attente",
+  paramForRequired: 'Le paramètre "for" est requis',
     errorSendingFriendRequest: "Erreur lors de l'envoi de la demande d'ami",
     noPendingRequests: "Aucune demande en attente",
     incomingRequestsTitle: "Demandes entrantes",
@@ -848,7 +988,17 @@ export const translations: Record<'en'|'it'|'fr', {
     scanQRCode: "Scannez ce code QR avec votre application d'authentification :",
     enterSecretManually: "Ou entrez ce secret manuellement :",
     enterVerificationCodeConfirm: "Entrez le code de vérification pour confirmer la configuration :",
-    networkErrorTryAgain: "Erreur réseau. Veuillez réessayer."
+    networkErrorTryAgain: "Erreur réseau. Veuillez réessayer.",
+    // Power-up translations (French)
+    powerupExtendedName: "Raquette étendue",
+    powerupExtendedDesc: "Augmente la taille de la raquette",
+    powerupMultiName: "Multi Balle",
+    powerupMultiDesc: "Fait apparaître des balles supplémentaires",
+    powerupSpeedName: "Boost de Vitesse",
+    powerupSpeedDesc: "Augmente la vitesse de la balle",
+    powerupSlowName: "Ralenti",
+    powerupSlowDesc: "Ralentit le gameplay",
+    gameOverWinnerTemplate: "Fin de la partie ! {winner} gagne {winnerScore}-{loserScore}!"
   }
 };
 

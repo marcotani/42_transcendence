@@ -57,11 +57,12 @@ export class PongEngine {
    */
   private static createPowerUp(gameState: any, canvas: HTMLCanvasElement): PowerUp {
     const type = PongEngine.getRandomPowerUpType();
+    const t = getT();
     const powerUpConfig = {
-      [PowerUpType.EXTENDED_PADDLE]: { color: '#4CAF50', name: 'Extended Paddle', description: 'Increases paddle size' },
-      [PowerUpType.MULTI_BALL]: { color: '#FF9800', name: 'Multi Ball', description: 'Spawns extra balls' },
-      [PowerUpType.SPEED_BOOST]: { color: '#F44336', name: 'Speed Boost', description: 'Increases ball speed' },
-      [PowerUpType.SLOW_MOTION]: { color: '#2196F3', name: 'Slow Motion', description: 'Slows down gameplay' }
+      [PowerUpType.EXTENDED_PADDLE]: { color: '#4CAF50', name: t.powerupExtendedName, description: t.powerupExtendedDesc },
+      [PowerUpType.MULTI_BALL]: { color: '#FF9800', name: t.powerupMultiName, description: t.powerupMultiDesc },
+      [PowerUpType.SPEED_BOOST]: { color: '#F44336', name: t.powerupSpeedName, description: t.powerupSpeedDesc },
+      [PowerUpType.SLOW_MOTION]: { color: '#2196F3', name: t.powerupSlowName, description: t.powerupSlowDesc }
     };
 
     const config = powerUpConfig[type];
@@ -981,10 +982,13 @@ export class PongEngine {
     // Check if this is a tournament match
     const isTournamentMode = sessionStorage.getItem('tournamentMode') === 'true';
     
-    const message = result === 'win' 
-      ? `Game Over! ${player1Name} wins ${gameState.leftScore}-${gameState.rightScore}!`
-      : `Game Over! ${player2Name} wins ${gameState.rightScore}-${gameState.leftScore}!`;
-    
+    const t = getT();
+    const winner = result === 'win' ? player1Name : player2Name;
+    const winnerScore = result === 'win' ? gameState.leftScore : gameState.rightScore;
+    const loserScore = result === 'win' ? gameState.rightScore : gameState.leftScore;
+    const template = t.gameOverWinnerTemplate || 'Game Over! {winner} wins {winnerScore}-{loserScore}!';
+    const message = template.replace('{winner}', winner).replace('{winnerScore}', String(winnerScore)).replace('{loserScore}', String(loserScore));
+
     if (statusDiv) statusDiv.textContent = message;
     
     PongEngine.resetStartButton();

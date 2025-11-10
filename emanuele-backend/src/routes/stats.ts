@@ -11,7 +11,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
       return reply.send(stats);
     } catch (err) {
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -24,12 +24,12 @@ const statsRoute: FastifyPluginAsync = async (app) => {
         include: { stats: true }
       });
       if (!user || !user.stats) {
-        return reply.code(404).send({ error: 'User or stats not found' });
+        return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User or stats not found' });
       }
       return reply.send(user.stats);
     } catch (err) {
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -51,7 +51,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
     };
 
     if (!body || !body.userId || !body.result || !body.type) {
-      return reply.code(400).send({ error: 'Missing fields' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Missing fields' });
     }
 
     try {
@@ -63,8 +63,8 @@ const statsRoute: FastifyPluginAsync = async (app) => {
         update = body.result === 'win' ? { playerWins: { increment: 1 } } : { playerLosses: { increment: 1 } };
       } else if (body.type === 'tournament' && body.result === 'win') {
         update = { tournamentWins: { increment: 1 } };
-      } else {
-        return reply.code(400).send({ error: 'Invalid combination' });
+        } else {
+        return reply.code(400).send({ errorCode: 'INVALID_COMBINATION', error: 'Invalid combination' });
       }
 
       await app.prisma.userStat.update({
@@ -94,7 +94,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
       return reply.send({ success: true });
     } catch (err) {
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -103,7 +103,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
     const body = req.body as { username: string };
 
     if (!body || !body.username) {
-      return reply.code(400).send({ error: 'Username is required' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Username is required' });
     }
 
     try {
@@ -114,7 +114,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
       });
 
       if (!user) {
-        return reply.code(404).send({ error: 'User not found' });
+        return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
       }
 
       // Update tournament wins
@@ -127,7 +127,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
       return reply.send({ success: true });
     } catch (err) {
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -161,7 +161,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
       return reply.send(leaderboard);
     } catch (err) {
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -195,7 +195,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
       return reply.send(leaderboard);
     } catch (err) {
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -229,7 +229,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
       return reply.send(leaderboard);
     } catch (err) {
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 };

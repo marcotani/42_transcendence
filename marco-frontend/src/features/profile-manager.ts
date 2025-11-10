@@ -14,7 +14,7 @@ export class ProfileManager {
       <div class='flex flex-col items-center'>
         <div class='text-center py-8'>
           <div class='inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white'></div>
-          <p class='mt-2 text-gray-400'>Loading profile...</p>
+          <p class='mt-2 text-gray-400'>${t.loadingProfile}</p>
         </div>
         <button id='back-home-view-profile' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome}</button>
       </div>
@@ -40,6 +40,7 @@ export class ProfileManager {
       const userData = await userResponse.json();
       const statsData = statsResponse.ok ? await statsResponse.json() : null;
       const matchHistoryData = matchHistoryResponse.ok ? await matchHistoryResponse.json() : null;
+  const t = getT(LanguageManager.getLang());
 
       // Update the profile page content
       const container = document.getElementById('view-profile-page');
@@ -59,43 +60,41 @@ export class ProfileManager {
           <div class='w-full mb-6'>
             <div class='grid grid-cols-2 gap-4 mb-2'>
               <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-                <div class='text-lg font-semibold text-green-400'>Bot</div>
+                <div class='text-lg font-semibold text-green-400'>${t.botLabel}</div>
                 <div class='flex space-x-4 mt-2'>
                   <div class='text-center'>
                     <div class='text-2xl font-bold'>${statsData.botWins ?? 0}</div>
-                    <div class='text-gray-400 text-sm'>Wins</div>
+                    <div class='text-gray-400 text-sm'>${t.winsLabel}</div>
                   </div>
                   <div class='text-center'>
                     <div class='text-2xl font-bold'>${statsData.botLosses ?? 0}</div>
-                    <div class='text-gray-400 text-sm'>Losses</div>
+                    <div class='text-gray-400 text-sm'>${t.lossesLabel}</div>
                   </div>
                 </div>
               </div>
               <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-                <div class='text-lg font-semibold text-blue-400'>Player</div>
+                <div class='text-lg font-semibold text-blue-400'>${t.playerLabel}</div>
                 <div class='flex space-x-4 mt-2'>
                   <div class='text-center'>
                     <div class='text-2xl font-bold'>${statsData.playerWins ?? 0}</div>
-                    <div class='text-gray-400 text-sm'>Wins</div>
+                    <div class='text-gray-400 text-sm'>${t.winsLabel}</div>
                   </div>
                   <div class='text-center'>
                     <div class='text-2xl font-bold'>${statsData.playerLosses ?? 0}</div>
-                    <div class='text-gray-400 text-sm'>Losses</div>
+                    <div class='text-gray-400 text-sm'>${t.lossesLabel}</div>
                   </div>
                 </div>
               </div>
             </div>
             <div class='bg-gray-800 rounded-lg p-4 flex flex-col items-center'>
-              <div class='text-lg font-semibold text-yellow-400'>Tournament Wins</div>
+              <div class='text-lg font-semibold text-yellow-400'>${t.tournamentWinsLabel}</div>
               <div class='text-3xl font-bold mt-2'>${statsData.tournamentWins ?? 0}</div>
             </div>
           </div>
         ` : '';
 
         // Match History HTML
-        const matchHistoryHtml = matchHistoryData ? MatchHistoryManager.generateMatchHistoryHtml(matchHistoryData.matches || [], username) : '';
-
-        const t = getT(LanguageManager.getLang());
+  const matchHistoryHtml = matchHistoryData ? MatchHistoryManager.generateMatchHistoryHtml(matchHistoryData.matches || [], username) : '';
         container.innerHTML = `
           <div class='flex flex-col items-center'>
             <div class='mb-4'>${avatarHtml}</div>
@@ -117,12 +116,12 @@ export class ProfileManager {
     } catch (error) {
       console.error('Error loading user profile:', error);
       const container = document.getElementById('view-profile-page');
-      if (container) {
+        if (container) {
         const t = getT(LanguageManager.getLang());
         container.innerHTML = `
           <div class='flex flex-col items-center'>
             <div class='text-red-400 mb-4'>Failed to load profile</div>
-            <p class='text-gray-400 mb-6 text-center'>User not found or an error occurred.</p>
+            <p class='text-gray-400 mb-6 text-center'>${t.failedToLoadProfile}</p>
             <button id='back-home-view-profile' class='w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome}</button>
           </div>
         `;

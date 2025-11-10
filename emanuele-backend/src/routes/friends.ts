@@ -12,7 +12,7 @@ export default async function friendsRoutes(app: FastifyInstance) {
     };
 
     if (!fromUsername || !toUsername) {
-      return reply.code(400).send({ error: 'Campi mancanti' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Missing fields' });
     }
 
     // Sanitizzazione username
@@ -20,36 +20,36 @@ export default async function friendsRoutes(app: FastifyInstance) {
     const cleanToUsername = sanitizeUsername(toUsername);
     
     if (!cleanFromUsername || !cleanToUsername) {
-      return reply.code(400).send({ error: 'Username non validi' });
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAMES', error: 'Invalid usernames' });
     }
 
     if (cleanFromUsername === cleanToUsername) {
-      return reply.code(400).send({ error: 'Non puoi aggiungere te stesso' });
+      return reply.code(400).send({ errorCode: 'CANNOT_ADD_SELF', error: 'Cannot add yourself' });
     }
 
     // Verify the authenticated user matches the fromUsername
     const authenticatedUser = (req as any).user;
     if (authenticatedUser.username !== fromUsername) {
-      return reply.code(403).send({ error: 'Non autorizzato' });
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Unauthorized' });
     }
 
     const fromUser = await app.prisma.user.findUnique({
       where: { username: fromUsername },
       select: { id: true, username: true }
     });
-    if (!fromUser) return reply.code(404).send({ error: 'Utente non trovato' });
+  if (!fromUser) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
 
     const toUser = await app.prisma.user.findUnique({
       where: { username: cleanToUsername },
       select: { id: true, username: true },
     });
-    if (!toUser) return reply.code(404).send({ error: 'Utente destinatario non trovato' });
+  if (!toUser) return reply.code(404).send({ errorCode: 'RECIPIENT_NOT_FOUND', error: 'Recipient user not found' });
 
     const alreadyFriend = await app.prisma.friend.findFirst({
       where: { userId: fromUser.id, friendId: toUser.id },
     });
     if (alreadyFriend) {
-      return reply.code(409).send({ error: 'Siete già amici' });
+      return reply.code(409).send({ errorCode: 'ALREADY_FRIENDS', error: 'Already friends' });
     }
 
     const existingReq = await app.prisma.friendRequest.findFirst({
@@ -62,7 +62,7 @@ export default async function friendsRoutes(app: FastifyInstance) {
       },
     });
     if (existingReq) {
-      return reply.code(409).send({ error: 'Esiste già una richiesta pendente' });
+      return reply.code(409).send({ errorCode: 'FRIEND_REQUEST_PENDING', error: 'Friend request already pending' });
     }
 
     const fr = await app.prisma.friendRequest.create({
@@ -82,13 +82,13 @@ export default async function friendsRoutes(app: FastifyInstance) {
 
    app.get('/friends/requests', async (req, reply) => {
     const { for: forUsername } = req.query as { for?: string };
-    if (!forUsername) return reply.code(400).send({ error: 'Parametro "for" obbligatorio' });
+  if (!forUsername) return reply.code(400).send({ errorCode: 'PARAM_FOR_REQUIRED', error: '"for" parameter is required' });
 
     const user = await app.prisma.user.findUnique({
       where: { username: forUsername },
       select: { id: true },
     });
-    if (!user) return reply.code(404).send({ error: 'Utente non trovato' });
+  if (!user) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
 
     const incoming = await app.prisma.friendRequest.findMany({
       where: { toUserId: user.id, status: 'PENDING' },
@@ -110,20 +110,20 @@ export default async function friendsRoutes(app: FastifyInstance) {
     // Verify the authenticated user matches the username
     const authenticatedUser = (req as any).user;
     if (authenticatedUser.username !== username) {
-      return reply.code(403).send({ error: 'Non autorizzato' });
+  return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Unauthorized' });
     }
 
     const me = await app.prisma.user.findUnique({
       where: { username },
       select: { id: true, username: true }
     });
-    if (!me) return reply.code(404).send({ error: 'Utente non trovato' });
+  if (!me) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
 
     const request = await app.prisma.friendRequest.findUnique({
       where: { id: Number(id) },
     });
-    if (!request) return reply.code(404).send({ error: 'Richiesta non trovata' });
-    if (request.toUserId !== me.id) return reply.code(403).send({ error: 'Non sei il destinatario' });
+  if (!request) return reply.code(404).send({ errorCode: 'REQUEST_NOT_FOUND', error: 'Request not found' });
+  if (request.toUserId !== me.id) return reply.code(403).send({ errorCode: 'NOT_RECIPIENT', error: 'You are not the recipient' });
 
     try {
       // First, clean up any existing ACCEPTED friend requests between these users
@@ -157,9 +157,9 @@ export default async function friendsRoutes(app: FastifyInstance) {
 
       await app.prisma.$transaction(operations);
     } catch (error) {
-      console.error('Error accepting friend request:', error);
-      console.error('Request details:', { fromUserId: request.fromUserId, toUserId: request.toUserId, requestId: request.id });
-      return reply.code(500).send({ error: 'Errore interno del server', details: error instanceof Error ? error.message : 'Unknown error' });
+  console.error('Error accepting friend request:', error);
+  console.error('Request details:', { fromUserId: request.fromUserId, toUserId: request.toUserId, requestId: request.id });
+  return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' });
     }
 
     return reply.send({ success: true });
@@ -176,36 +176,36 @@ export default async function friendsRoutes(app: FastifyInstance) {
       where: { username },
       select: { id: true, username: true }
     });
-    if (!me) return reply.code(404).send({ error: 'Utente non trovato' });
+  if (!me) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
 
     const request = await app.prisma.friendRequest.findUnique({
       where: { id: Number(id) },
     });
-    if (!request) return reply.code(404).send({ error: 'Richiesta non trovata' });
+  if (!request) return reply.code(404).send({ errorCode: 'REQUEST_NOT_FOUND', error: 'Request not found' });
     
     // Allow both sender (cancel) and recipient (reject) to delete the request
     const isSender = request.fromUserId === me.id;
     const isRecipient = request.toUserId === me.id;
     
     if (!isSender && !isRecipient) {
-      return reply.code(403).send({ error: 'Non sei autorizzato a gestire questa richiesta' });
+      return reply.code(403).send({ errorCode: 'NOT_AUTHORIZED_TO_MANAGE_REQUEST', error: 'Not authorized to manage this request' });
     }
     
     if (request.status !== 'PENDING') {
-      return reply.code(400).send({ error: 'Puoi gestire solo richieste in attesa' });
+      return reply.code(400).send({ errorCode: 'REQUEST_NOT_PENDING', error: 'Can only manage pending requests' });
     }
 
     await app.prisma.friendRequest.delete({ where: { id: Number(id) } });
 
-    const message = isSender ? 'Richiesta di amicizia annullata' : 'Richiesta di amicizia rifiutata';
+  const message = isSender ? 'Friend request cancelled' : 'Friend request rejected';
     return reply.send({ success: true, message });
   });
 
   app.get('/friends/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
 
-    const user = await app.prisma.user.findUnique({ where: { username } });
-    if (!user) return reply.code(404).send({ error: 'Utente non trovato' });
+  const user = await app.prisma.user.findUnique({ where: { username } });
+  if (!user) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
 
     const links = await app.prisma.friend.findMany({
       where: { userId: user.id },
@@ -234,10 +234,10 @@ export default async function friendsRoutes(app: FastifyInstance) {
       where: { username },
       select: { id: true, username: true }
     });
-    if (!me) return reply.code(404).send({ error: 'Utente non trovato' });
+  if (!me) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
 
-    const other = await app.prisma.user.findUnique({ where: { username: usernameToRemove } });
-    if (!other) return reply.code(404).send({ error: 'Utente non trovato' });
+  const other = await app.prisma.user.findUnique({ where: { username: usernameToRemove } });
+  if (!other) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
 
     await app.prisma.$transaction([
       app.prisma.friend.deleteMany({ where: { userId: me.id, friendId: other.id } }),

@@ -16,13 +16,13 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     
     // Controllo campi del body
     if (!body?.email || !body?.username) {
-      return reply.code(400).send({ error: 'Missing fields: email and username are required' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Missing fields: email and username are required' });
     }
     
     // Controllo formato email (RFC 5322 compliant)
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(body.email)) {
-      return reply.code(400).send({ error: 'Invalid email format' });
+      return reply.code(400).send({ errorCode: 'INVALID_EMAIL', error: 'Invalid email format' });
     }
     
     try {
@@ -49,10 +49,10 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     } catch (err: any) {
       // Errore nel caso di username o email già utilizzati
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        return reply.code(409).send({ error: 'Email or username already in use' });
+        return reply.code(409).send({ errorCode: 'USERNAME_OR_EMAIL_IN_USE', error: 'Email or username already in use' });
       }
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
   
@@ -64,7 +64,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       include: { profile: true },
     });
     if (!user) {
-      return reply.code(404).send({ error: 'User not found' });
+      return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     if (user.profile?.gdpr === true) {
       user.email = '*************';
@@ -97,16 +97,16 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const { password } = req.body as { password?: string };
     
     if (!password) {
-      return reply.code(400).send({ error: 'Password is required' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Password is required' });
     }
     
     const user = await app.prisma.user.findUnique({ where: { username }, select: { password_hash: true, password_salt: true } });
     if (!user) {
-      return reply.code(404).send({ error: 'User not found' });
+      return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
     if (!verifyPassword(password, user.password_salt, user.password_hash)) {
-      return reply.code(401).send({ error: 'Invalid password' });
+      return reply.code(401).send({ errorCode: 'INVALID_CREDENTIALS', error: 'Invalid password' });
     }
     
     await app.prisma.user.delete({ where: { username } });
@@ -119,18 +119,18 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const { alias } = req.body as { alias?: string };
     
     if (!alias || alias.trim() === '') {
-      return reply.code(400).send({ error: 'Alias is required' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Alias is required' });
     }
 
     // Sanitizzazione username e alias
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
-      return reply.code(400).send({ error: 'Invalid username' });
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
     }
 
     const cleanAlias = sanitizeAlias(alias);
     if (!cleanAlias) {
-      return reply.code(400).send({ error: 'Invalid alias. Max 15 characters, only letters, numbers, spaces, _ and - are allowed' });
+      return reply.code(400).send({ errorCode: 'INVALID_ALIAS', error: 'Invalid alias. Max 15 characters, only letters, numbers, spaces, _ and - are allowed' });
     }
     
     const user = await app.prisma.user.findUnique({
@@ -139,7 +139,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     });
     
     if (!user) {
-      return reply.code(404).send({ error: 'User not found' });
+      return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     
     await app.prisma.profile.update({
@@ -164,12 +164,12 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       '#FFFFFF'   // bianco
     ];
     if (!skinColor || !allowedColors.includes(skinColor)) {
-      return reply.code(400).send({ error: 'skinColor must be one of: ' + allowedColors.join(', ') });
+      return reply.code(400).send({ errorCode: 'INVALID_SKIN_COLOR', error: 'skinColor must be one of: ' + allowedColors.join(', ') });
     }
     // Trova utente e aggiorna skinColor
     const user = await app.prisma.user.findUnique({ where: { username }, select: { id: true } });
     if (!user) {
-      return reply.code(404).send({ error: 'User not found' });
+      return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     await app.prisma.profile.update({
       where: { userId: user.id },
@@ -183,13 +183,13 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const { username } = req.params as { username: string };
     const { password } = req.body as { password?: string };
     if (!password)
-      return reply.code(400).send({ error: 'Password is required' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Password is required' });
   const user = await app.prisma.user.findUnique({ where: { username } });
     if (!user)
-      return reply.code(404).send({ error: 'User not found' });
+      return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
     if (!verifyPassword(password, user.password_salt, user.password_hash))
-      return reply.code(401).send({ error: 'Invalid password' });
+      return reply.code(401).send({ errorCode: 'INVALID_CREDENTIALS', error: 'Invalid password' });
     await app.prisma.profile.update({ where: { userId: user.id }, data: { gdpr: true } });
     return reply.send({ success: true, message: 'GDPR flag set to true' });
   });
@@ -200,16 +200,16 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     
     // Verify user matches token
     if ((req as any).user.username !== username) {
-      return reply.code(403).send({ error: 'Access denied' });
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
     }
     
     const user = await app.prisma.user.findUnique({ where: { username } });
     if (!user) {
-      return reply.code(404).send({ error: 'User not found' });
+      return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     
     if (user.twoFactorEnabled) {
-      return reply.code(400).send({ error: '2FA is already enabled' });
+      return reply.code(400).send({ errorCode: 'ALREADY_2FA_ENABLED', error: '2FA is already enabled' });
     }
     
     const { generate2FASecret } = await import('../leonardo-security/plugins/two-factors-authentication');
@@ -247,16 +247,16 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     
     // Verify user matches token
     if ((req as any).user.username !== username) {
-      return reply.code(403).send({ error: 'Access denied' });
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
     }
     
     const user = await app.prisma.user.findUnique({ where: { username } });
     if (!user) {
-      return reply.code(404).send({ error: 'User not found' });
+      return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     
     if (!user.twoFactorEnabled) {
-      return reply.code(400).send({ error: '2FA is not enabled' });
+      return reply.code(400).send({ errorCode: 'NOT_2FA_ENABLED', error: '2FA is not enabled' });
     }
     
     await app.prisma.user.update({ 
@@ -273,7 +273,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const { code } = req.body as { code: string };
     const user = await app.prisma.user.findUnique({ where: { username } });
     if (!user || !user.twoFactorSecret)
-      return reply.code(400).send({ error: '2FA secret not found or user not found' });
+      return reply.code(400).send({ errorCode: 'INVALID_2FA_SETUP', error: '2FA secret not found or user not found' });
     
     const { verifyTOTP } = await import('../leonardo-security/plugins/two-factors-authentication');
     if (verifyTOTP(user.twoFactorSecret, code))
@@ -293,7 +293,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.send({ success: true, token });
     }
     else
-      return reply.code(401).send({ error: 'Invalid 2FA code' });
+      return reply.code(401).send({ errorCode: 'INVALID_2FA_CODE', error: 'Invalid 2FA code' });
   });
   
   // Comando per modificare username, email o password
@@ -313,15 +313,15 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     };
 
     if (!currentPassword) {
-      return reply.code(400).send({ error: 'currentPassword is required'});
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'currentPassword is required'});
     }
     if (!newUsername && !newEmail && !newPassword) {
-      return reply.code(400).send({ error: 'Provide at least one field to update (newUsername, newEmail, newPassword).' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Provide at least one field to update (newUsername, newEmail, newPassword).' });
     }
     if (newEmail) {
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(newEmail)) {
-        return reply.code(400).send({ error: 'Invalid email format' });
+        return reply.code(400).send({ errorCode: 'INVALID_EMAIL', error: 'Invalid email format' });
       }
     }
     // ricerca dell profilo all interno del database
@@ -330,11 +330,11 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       select: { id: true, username: true, email: true, password_hash: true, password_salt: true, createdAt: true },
     });
     if (!user) {
-      return reply.code(400).send({ error: 'User not found' });
+      return reply.code(400).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     const { verifyPassword, hashPassword } = await import('../leonardo-security/plugins/password-hash');
     if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
-      return reply.code(400).send({ error: 'Invalid current password' });
+      return reply.code(400).send({ errorCode: 'INVALID_CREDENTIALS', error: 'Invalid current password' });
     }
 
     const data: Record<string, any> = {};
@@ -347,7 +347,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     }
 
     if (Object.keys(data).length === 0) {
-      return reply.code(400).send({ error: 'No valid changes provided' });
+      return reply.code(400).send({ errorCode: 'NO_VALID_CHANGES', error: 'No valid changes provided' });
     }
 
     // 4) Esecuzione di update su prisma 
@@ -361,10 +361,10 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     } catch (err: any) {
       if (err?.code === 'P2002') {
         // Messaggio di errore nel caso username o email siano già utilizzati
-        return reply.code(409).send({ error: 'Username or email already in use' });
+        return reply.code(409).send({ errorCode: 'USERNAME_OR_EMAIL_IN_USE', error: 'Username or email already in use' });
       }
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -376,11 +376,11 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       const data = await req.file();
       
       if (!data) {
-        return reply.code(400).send({ error: 'No file uploaded' });
+        return reply.code(400).send({ errorCode: 'NO_FILE_UPLOADED', error: 'No file uploaded' });
       }
       
       if (!ALLOWED_MIME.has(data.mimetype)) {
-        return reply.code(400).send({ error: 'Only PNG/JPEG/WebP allowed' });
+        return reply.code(400).send({ errorCode: 'INVALID_FILE_TYPE', error: 'Only PNG/JPEG/WebP allowed' });
       }
 
       // trova utente (no password verification needed for avatar)
@@ -389,7 +389,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
         select: { id: true },
       });
       if (!user) {
-        return reply.code(404).send({ error: 'User not found' });
+        return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
       }
 
       // Salva nuova immagine usando buffer
@@ -415,11 +415,11 @@ const usersRoute: FastifyPluginAsync = async (app) => {
         data: { avatarUrl: publicUrl },
       });
 
-      return reply.send({ success: true, avatarUrl: publicUrl });
+  return reply.send({ success: true, avatarUrl: publicUrl });
       
     } catch (error) {
       console.error('Avatar upload error:', error);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -429,17 +429,17 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const { currentPassword } = req.body as { currentPassword?: string };
 
     if (!currentPassword) {
-      return reply.code(400).send({ error: 'currentPassword is required' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'currentPassword is required' });
     }
 
     const user = await app.prisma.user.findUnique({
       where: { username },
       select: { id: true, password_hash: true, password_salt: true },
     });
-    if (!user) return reply.code(404).send({ error: 'User not found' });
+  if (!user) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
     if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
-      return reply.code(401).send({ error: 'Invalid current password' });
+      return reply.code(401).send({ errorCode: 'INVALID_CREDENTIALS', error: 'Invalid current password' });
     }
 
     await app.prisma.profile.update({
@@ -455,24 +455,24 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const { bio } = req.body as { bio?: string };
     
     if (typeof bio !== 'string') {
-      return reply.code(400).send({ error: 'Bio must be a string' });
+      return reply.code(400).send({ errorCode: 'INVALID_BIO_TYPE', error: 'Bio must be a string' });
     }
 
     // Sanitizzazione username
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
-      return reply.code(400).send({ error: 'Username non valido' });
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
     }
 
     // Sanitizzazione bio (può essere vuota)
     const cleanBio = sanitizeBio(bio);
     if (cleanBio === null) {
-      return reply.code(400).send({ error: 'Invalid bio. Max 50 characters, punctuation allowed' });
+      return reply.code(400).send({ errorCode: 'INVALID_BIO', error: 'Invalid bio. Max 50 characters, punctuation allowed' });
     }
 
     const user = await app.prisma.user.findUnique({ where: { username: cleanUsername }, select: { id: true } });
     if (!user) {
-      return reply.code(404).send({ error: 'User not found' });
+      return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     await app.prisma.profile.update({
       where: { userId: user.id },
@@ -487,7 +487,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const { emailVisible } = req.body as { emailVisible: boolean };
 
     if (typeof emailVisible !== 'boolean') {
-      return reply.code(400).send({ error: 'emailVisible must be a boolean' });
+      return reply.code(400).send({ errorCode: 'INVALID_EMAIL_VISIBLE_TYPE', error: 'emailVisible must be a boolean' });
     }
 
     try {
@@ -497,7 +497,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       });
 
       if (!user) {
-        return reply.code(404).send({ error: 'User not found' });
+        return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
       }
 
       await app.prisma.profile.update({
@@ -508,7 +508,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.send({ success: true, emailVisible });
     } catch (err: any) {
       console.error('Error updating email visibility:', err);
-      return reply.code(500).send({ error: 'Failed to update email visibility' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Failed to update email visibility' });
     }
   });
 };

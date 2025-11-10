@@ -16,14 +16,14 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
       });
 
       if (!user) {
-        return reply.code(404).send({ error: 'User not found' });
+        return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
       }
 
       const matchHistory = await MatchService.getUserMatchHistory(user.id);
       return reply.send({ matches: matchHistory });
     } catch (err) {
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -44,7 +44,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
 
     if (!body || !body.player1Id || body.player1Score === undefined || body.player2Score === undefined || !body.matchType) {
       console.log('Missing required fields in request body');
-      return reply.code(400).send({ error: 'Missing required fields' });
+      return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Missing required fields' });
     }
 
     try {
@@ -54,7 +54,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
       
       if (!validTypes.includes(matchType)) {
         console.log('Invalid match type:', matchType);
-        return reply.code(400).send({ error: 'Invalid match type' });
+        return reply.code(400).send({ errorCode: 'INVALID_MATCH_TYPE', error: 'Invalid match type' });
       }
 
       console.log('Creating match with type:', matchType);
@@ -75,11 +75,11 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
     } catch (err) {
       if (err instanceof Error && err.message.includes('Tournament matches')) {
         console.log('Tournament match error:', err.message);
-        return reply.code(400).send({ error: err.message });
+        return reply.code(400).send({ errorCode: 'TOURNAMENT_MATCH_ERROR', error: err.message });
       }
       console.error('Error creating match:', err);
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 
@@ -93,7 +93,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
       });
 
       if (!user) {
-        return reply.code(404).send({ error: 'User not found' });
+        return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
       }
 
       const matches = await prisma.match.findMany({
@@ -116,7 +116,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
       return reply.send({ matches });
     } catch (err) {
       app.log.error(err);
-      return reply.code(500).send({ error: 'Internal server error' });
+      return reply.code(500).send({ errorCode: 'INTERNAL_SERVER_ERROR', error: 'Internal server error' });
     }
   });
 };

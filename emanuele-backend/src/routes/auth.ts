@@ -9,7 +9,7 @@ export const authenticateJWT = async (request: any, reply: any) => {
   try {
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return reply.code(401).send({ error: 'JWT token required' });
+      return reply.code(401).send({ errorCode: 'JWT_REQUIRED', error: 'JWT token required' });
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
@@ -17,13 +17,13 @@ export const authenticateJWT = async (request: any, reply: any) => {
     const payload = verifyJWT(token, jwtSecret);
 
     if (!payload) {
-      return reply.code(401).send({ error: 'Invalid or expired token' });
+      return reply.code(401).send({ errorCode: 'INVALID_TOKEN', error: 'Invalid or expired token' });
     }
 
     // Add user info to request for use in route handlers
     request.user = payload;
   } catch (error) {
-    return reply.code(401).send({ error: 'Invalid token' });
+    return reply.code(401).send({ errorCode: 'INVALID_TOKEN', error: 'Invalid token' });
   }
 };
 
@@ -40,7 +40,8 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!username || !password || !email) {
       return reply.code(400).send({
         success: false,
-        error: 'Username, Email e password sono obbligatori'
+        errorCode: 'MISSING_FIELDS',
+        error: 'Username, email and password are required'
       });
     }
 
@@ -49,7 +50,8 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!cleanUsername) {
       return reply.code(400).send({
         success: false,
-        error: 'Username non valido. Usa solo lettere, numeri, _ e - (max 15 caratteri)'
+        errorCode: 'INVALID_USERNAME',
+        error: 'Invalid username. Use only letters, numbers, _ and - (max 15 chars)'
       });
     }
 
@@ -60,7 +62,8 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!emailRegex.test(cleanEmail)) {
       return reply.code(400).send({
         success: false,
-        error: 'Formato email non valido'
+        errorCode: 'INVALID_EMAIL',
+        error: 'Invalid email format'
       });
     }
 
@@ -100,13 +103,15 @@ export default async function authRoutes(app: FastifyInstance) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         return reply.code(409).send({
           success: false,
-          error: 'Username o email già in uso'
+          errorCode: 'USERNAME_OR_EMAIL_IN_USE',
+          error: 'Username or email already in use'
         });
       }
       app.log.error(err);
       return reply.code(500).send({
         success: false,
-        error: 'Errore interno'
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        error: 'Internal server error'
       });
     }
   });
@@ -121,7 +126,8 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!username || !password) {
       return reply.code(400).send({
         success: false,
-        error: 'Username e password sono obbligatori'
+        errorCode: 'MISSING_FIELDS',
+        error: 'Username and password are required'
       });
     }
 
@@ -130,7 +136,8 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!cleanUsername) {
       return reply.code(400).send({
         success: false,
-        error: 'Username non valido'
+        errorCode: 'INVALID_USERNAME',
+        error: 'Invalid username'
       });
     }
 
@@ -151,7 +158,8 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
       return reply.code(401).send({
         success: false,
-        error: 'Credenziali non valide'
+        errorCode: 'INVALID_CREDENTIALS',
+        error: 'Invalid credentials'
       });
     }
 
@@ -198,13 +206,14 @@ export default async function authRoutes(app: FastifyInstance) {
       await app.prisma.user.deleteMany({});
       return reply.send({
         success: true,
-        message: 'Tutti gli utenti sono stati eliminati'
+        message: 'All users deleted'
       });
     } catch (err) {
       app.log.error(err);
       return reply.code(500).send({
         success: false,
-        error: 'Errore durante l\'eliminazione degli utenti'
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        error: 'Error deleting users'
       });
     }
   });
@@ -217,7 +226,8 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!password) {
       return reply.code(400).send({
         success: false,
-        error: 'Password obbligatoria'
+        errorCode: 'MISSING_FIELDS',
+        error: 'Password required'
       });
     }
 
@@ -229,7 +239,8 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
       return reply.code(401).send({
         success: false,
-        error: 'Credenziali non valide'
+        errorCode: 'INVALID_CREDENTIALS',
+        error: 'Invalid credentials'
       });
     }
 
@@ -237,13 +248,14 @@ export default async function authRoutes(app: FastifyInstance) {
       await app.prisma.user.delete({ where: { username } });
       return reply.send({
         success: true,
-        message: `Utente ${username} eliminato`
+        message: `User ${username} deleted`
       });
     } catch (err) {
       app.log.error(err);
       return reply.code(500).send({
         success: false,
-        error: 'Errore durante l\'eliminazione dell\'utente'
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        error: 'Error deleting user'
       });
     }
   });

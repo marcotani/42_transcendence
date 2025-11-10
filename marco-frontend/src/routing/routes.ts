@@ -192,7 +192,11 @@ export const routes: { [key: string]: (t: any) => string } = {
       </div>
       <div class='flex items-start mb-2'>
         <input id='register-gdpr' name='gdpr' type='checkbox' class='mt-1 mr-2' required />
-        <label for='register-gdpr' class='text-sm text-gray-300'>I have read and accept the <a href="/public/static/GDPR_Compliance.pdf" target="_blank" class="underline text-blue-400 hover:text-blue-600">privacy policy</a>.</label>
+        <label for='register-gdpr' class='text-sm text-gray-300'>
+          <span data-i18n='gdprPrefix'>${t.gdprPrefix}</span>
+          <a href="/public/static/GDPR_Compliance.pdf" target="_blank" class="underline text-blue-400 hover:text-blue-600" data-i18n='viewPrivacyPolicy'>${t.viewPrivacyPolicy}</a>
+          <span data-i18n='gdprSuffix'>${t.gdprSuffix}</span>
+        </label>
       </div>
   <button type='submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>${t.register}</button>
       <div id='register-error' class='text-red-500 mt-2 hidden'></div>
@@ -309,7 +313,11 @@ export const routes: { [key: string]: (t: any) => string } = {
   <form id='edit-profile-form' class='space-y-4' method='POST' enctype='multipart/form-data'>
       <div>
   <label for='edit-avatar' class='block mb-1' data-i18n='avatarImageLabel'>${t.avatarImageLabel}</label>
-        <input type='file' id='edit-avatar' name='avatar' accept='image/png,image/jpeg,image/webp' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' />
+        <div class='flex items-center space-x-2'>
+          <input type='file' id='edit-avatar' name='avatar' accept='image/png,image/jpeg,image/webp' class='hidden' />
+          <button type='button' id='edit-avatar-trigger' class='px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded' data-i18n='chooseFile'>${t.chooseFile}</button>
+          <div id='edit-avatar-filename' class='text-sm text-gray-400'></div>
+        </div>
         <div id='edit-avatar-preview' class='mt-2'></div>
       </div>
       <div>
@@ -326,7 +334,7 @@ export const routes: { [key: string]: (t: any) => string } = {
       </div>
       <div class='flex items-center space-x-2'>
         <input type='checkbox' id='edit-email-visible' name='emailVisible' class='rounded bg-gray-800 border border-gray-700 text-green-600 focus:outline-none focus:ring-2 focus:ring-green-400' />
-        <label for='edit-email-visible' class='text-gray-300'>${t.showEmailPublicly}</label>
+        <label for='edit-email-visible' class='text-gray-300' data-i18n='showEmailPublicly'>${t.showEmailPublicly}</label>
       </div>
       <div>
   <label for='edit-bio' class='block mb-1' data-i18n='biographyLabel'>${t.biographyLabel}</label>
@@ -336,7 +344,7 @@ export const routes: { [key: string]: (t: any) => string } = {
       <!-- Two-Factor Authentication Section -->
       <div class='border-t border-gray-700 pt-4 mt-6'>
   <h3 class='text-lg font-semibold mb-3 text-blue-400' data-i18n='twoFactorTitle'>🔐 Two-Factor Authentication</h3>
-  <p class='text-sm text-gray-400 mb-4' data-i18n='twoFactorDescription'>Add an extra layer of security to your account with TOTP-based 2FA using apps like Google Authenticator or Authy.</p>
+  <p class='text-sm text-gray-400 mb-4' data-i18n='twoFactorDesc'>${t.twoFactorDesc}</p>
         
         <div id='2fa-status' class='mb-4'>
           <div id='2fa-disabled' class='hidden'>
@@ -366,7 +374,11 @@ export const routes: { [key: string]: (t: any) => string } = {
         <input type='password' id='edit-password' name='password' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400' autocomplete='new-password' />
       </div>
       <div>
-  <label for='edit-current-password' class='block mb-1' data-i18n='currentPasswordLabel'>${t.currentPasswordLabel} <span class='text-yellow-500'>*</span> <small class='text-gray-400'>(Required only for username, email and password changes)</small></label>
+  <label for='edit-current-password' class='block mb-1'>
+    <span data-i18n='currentPasswordLabel'>${t.currentPasswordLabel}</span>
+    <span class='text-yellow-500'>*</span>
+    <small class='text-gray-400' data-i18n='currentPasswordHint'>${t.currentPasswordHint}</small>
+  </label>
         <input type='password' id='edit-current-password' name='currentPassword' class='w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400' autocomplete='current-password' />
       </div>
   <button type='submit' id='edit-profile-submit' data-i18n='editProfileLoading' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400 disabled:opacity-50 disabled:cursor-not-allowed'>${t.editProfileLoading}</button>

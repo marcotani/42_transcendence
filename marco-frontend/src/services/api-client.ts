@@ -64,15 +64,77 @@ export class ApiClient {
         data = await response.text();
       }
 
+      const t = getT(LanguageManager.getLang());
       if (response.ok) {
         return {
           success: true,
           data: data
         };
       } else {
+        // Map server-side errorCode to client-side localized message when available
+        let userError: string;
+        if (data && typeof data === 'object' && 'errorCode' in data) {
+          const code = (data as any).errorCode as string;
+          switch (code) {
+            case 'MISSING_FIELDS':
+              userError = t.missingFields;
+              break;
+            case 'USER_NOT_FOUND':
+              userError = t.userNotFound;
+              break;
+            case 'INVALID_CREDENTIALS':
+              userError = t.invalidCredentials;
+              break;
+            case 'INTERNAL_SERVER_ERROR':
+              userError = t.internalServerError;
+              break;
+            case 'INVALID_EMAIL':
+              userError = t.invalidEmail;
+              break;
+            case 'INVALID_2FA_CODE':
+              userError = t.invalid2FACode;
+              break;
+            // friends-related error codes
+            case 'ALREADY_FRIENDS':
+              userError = t.alreadyFriends || t.failedToSendFriendRequest;
+              break;
+            case 'FRIEND_REQUEST_PENDING':
+              userError = t.friendRequestPending || t.failedToSendFriendRequest;
+              break;
+            case 'RECIPIENT_NOT_FOUND':
+              userError = t.recipientNotFound || t.userNotFound;
+              break;
+            case 'INVALID_USERNAMES':
+              userError = t.invalidUsernames || t.pleaseEnterUsername;
+              break;
+            case 'CANNOT_ADD_SELF':
+              userError = t.cannotAddSelf || t.failedToSendFriendRequest;
+              break;
+            case 'REQUEST_NOT_FOUND':
+              userError = t.requestNotFound || t.unknownError;
+              break;
+            case 'NOT_RECIPIENT':
+              userError = t.notRecipient || t.unknownError;
+              break;
+            case 'NOT_AUTHORIZED_TO_MANAGE_REQUEST':
+              userError = t.notAuthorizedToManageRequest || t.unknownError;
+              break;
+            case 'REQUEST_NOT_PENDING':
+              userError = t.requestNotPending || t.unknownError;
+              break;
+            case 'PARAM_FOR_REQUIRED':
+              userError = t.paramForRequired || 'Missing parameter';
+              break;
+            default:
+              userError = (data as any).error || (data as any).message || t.unknownError;
+          }
+        } else {
+          userError = data?.error || data?.message || `HTTP ${response.status}`;
+        }
+
         return {
           success: false,
-          error: data.error || data.message || `HTTP ${response.status}`,
+          error: userError,
           data: data
         };
       }

@@ -51,7 +51,8 @@ export class FriendsManager {
         }
       } else {
         const t = getT(LanguageManager.getLang());
-        alert(t.failedAcceptFriendRequest + (response.error || t.unknownError));
+            console.warn('Accept friend request failed:', response.error || response);
+            alert(response.error || (t.failedAcceptFriendRequest + t.unknownError));
       }
 
     } catch (error) {
@@ -93,7 +94,8 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        alert(t.failedRejectFriendRequest + (response.error || t.unknownError));
+            console.warn('Reject friend request failed:', response.error || response);
+            alert(response.error || (t.failedRejectFriendRequest + t.unknownError));
       }
     } catch (error) {
       console.error('Error rejecting friend request:', error);
@@ -133,7 +135,8 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        alert(t.failedRemoveFriend + (response.error || t.unknownError));
+            console.warn('Remove friend failed:', response.error || response);
+            alert(response.error || (t.failedRemoveFriend + t.unknownError));
       }
     } catch (error) {
       console.error('Error removing friend:', error);
@@ -235,7 +238,7 @@ export class FriendsManager {
         toUsername: toUsername
       });
 
-      if (response.success) {
+        if (response.success) {
         const t = getT(LanguageManager.getLang());
         showStatus(statusDiv, t.friendRequestSent, 'success');
         usernameInput.value = '';
@@ -244,7 +247,8 @@ export class FriendsManager {
         }
       } else {
         const t = getT(LanguageManager.getLang());
-        showStatus(statusDiv, response.error || t.failedToSendFriendRequest, 'error');
+            console.warn('Send friend request failed:', response.error || response);
+            showStatus(statusDiv, response.error || t.failedToSendFriendRequest, 'error');
       }
     } catch (error) {
       const t = getT(LanguageManager.getLang());
@@ -423,7 +427,8 @@ export class FriendsManager {
           refreshCallbacks.updateFriendsCount();
         }
       } else {
-        alert(response.error || t.failedCancelFriendRequest);
+            console.warn('Cancel friend request failed:', response.error || response);
+            alert(response.error || t.failedCancelFriendRequest);
       }
     } catch (error) {
       console.error('Error canceling friend request:', error);

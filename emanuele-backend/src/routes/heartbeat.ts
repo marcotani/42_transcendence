@@ -11,7 +11,8 @@ export default async function heartbeatRoutes(app: FastifyInstance) {
     if (!userId) {
       return reply.code(400).send({
         success: false,
-        error: 'userId è obbligatorio'
+        errorCode: 'USERID_REQUIRED',
+        error: 'userId is required'
       });
     }
 
@@ -27,23 +28,25 @@ export default async function heartbeatRoutes(app: FastifyInstance) {
 
       return reply.send({
         success: true,
-        message: 'Heartbeat aggiornato',
+        message: 'Heartbeat updated',
         timestamp: new Date()
       });
 
     } catch (error) {
-      console.error('Errore nell\'aggiornamento heartbeat:', error);
+  console.error('Error updating heartbeat:', error);
       
       if (error instanceof Error && error.message.includes('Record to update not found')) {
         return reply.code(404).send({
           success: false,
-          error: 'Utente non trovato'
+          errorCode: 'USER_NOT_FOUND',
+          error: 'User not found'
         });
       }
 
       return reply.code(500).send({
         success: false,
-        error: 'Errore interno del server'
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        error: 'Internal server error'
       });
     }
   });
@@ -56,7 +59,8 @@ export default async function heartbeatRoutes(app: FastifyInstance) {
     if (isNaN(userIdNumber)) {
       return reply.code(400).send({
         success: false,
-        error: 'userId non valido'
+        errorCode: 'INVALID_USERID',
+        error: 'Invalid userId'
       });
     }
 
@@ -74,7 +78,8 @@ export default async function heartbeatRoutes(app: FastifyInstance) {
       if (!user) {
         return reply.code(404).send({
           success: false,
-          error: 'Utente non trovato'
+          errorCode: 'USER_NOT_FOUND',
+          error: 'User not found'
         });
       }
 
@@ -94,10 +99,11 @@ export default async function heartbeatRoutes(app: FastifyInstance) {
       });
 
     } catch (error) {
-      console.error('Errore nel controllo status utente:', error);
+      console.error('Error checking user status:', error);
       return reply.code(500).send({
         success: false,
-        error: 'Errore interno del server'
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        error: 'Internal server error'
       });
     }
   });

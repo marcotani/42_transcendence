@@ -100,9 +100,9 @@ export class LanguageManager {
     return `<div class='fixed top-4 left-4 z-50'>
       <label for='lang-select' class='mr-2' data-i18n='langLabel'>${translations[currentLang].langLabel}:</label>
       <select id='lang-select' class='px-2 py-1 rounded bg-gray-800 text-white border border-gray-600'>
-        <option value='en' ${currentLang === 'en' ? 'selected' : ''}>English</option>
-        <option value='it' ${currentLang === 'it' ? 'selected' : ''}>Italiano</option>
-        <option value='fr' ${currentLang === 'fr' ? 'selected' : ''}>Français</option>
+        <option data-i18n='langEnglish' value='en' ${currentLang === 'en' ? 'selected' : ''}>${translations[currentLang].langEnglish}</option>
+        <option data-i18n='langItalian' value='it' ${currentLang === 'it' ? 'selected' : ''}>${translations[currentLang].langItalian}</option>
+        <option data-i18n='langFrench' value='fr' ${currentLang === 'fr' ? 'selected' : ''}>${translations[currentLang].langFrench}</option>
       </select>
     </div>`;
   }

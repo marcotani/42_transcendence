@@ -38,7 +38,9 @@ export class ProfileManager {
           });
           const data = await res.json();
           if (!res.ok) {
-            errorDiv!.textContent = data.error || getT(LanguageManager.getLang()).failedToDeleteProfile;
+            // Log server-provided error for debugging but show a localized fallback to the user
+            console.warn('Delete profile failed:', data.error || data);
+            errorDiv!.textContent = getT(LanguageManager.getLang()).failedToDeleteProfile;
             errorDiv!.classList.remove('hidden');
           } else {
             alert(getT(LanguageManager.getLang()).profileDeleted);
@@ -198,7 +200,8 @@ export class ProfileManager {
               document.getElementById('profile-skinColor-error')!.classList.add('hidden');
             })
             .catch(err => {
-              document.getElementById('profile-skinColor-error')!.textContent = err.error || t.failedToUpdateProfile;
+              console.warn('Failed to update paddle color:', err);
+              document.getElementById('profile-skinColor-error')!.textContent = t.failedToUpdateProfile;
               document.getElementById('profile-skinColor-error')!.classList.remove('hidden');
               document.getElementById('profile-skinColor-success')!.classList.add('hidden');
             });
@@ -217,18 +220,31 @@ export class ProfileManager {
 
     // Avatar preview functionality
     if (avatarInput && avatarPreview) {
+      const filenameDisplay = document.getElementById('edit-avatar-filename') as HTMLElement | null;
+
+      // When the hidden file input changes, update preview and filename
       avatarInput.addEventListener('change', () => {
         const file = avatarInput.files && avatarInput.files[0];
         if (file) {
           const reader = new FileReader();
           reader.onload = e => {
-            avatarPreview.innerHTML = `<img src='${e.target?.result}' alt='avatar preview' class='w-24 h-24 rounded-full object-cover border-2 border-gray-600' />`;
+            if (avatarPreview) avatarPreview.innerHTML = `<img src='${e.target?.result}' alt='avatar preview' class='w-24 h-24 rounded-full object-cover border-2 border-gray-600' />`;
           };
           reader.readAsDataURL(file);
+          if (filenameDisplay) filenameDisplay.textContent = file.name;
         } else {
-          avatarPreview.innerHTML = '';
+          if (avatarPreview) avatarPreview.innerHTML = '';
+          if (filenameDisplay) filenameDisplay.textContent = '';
         }
       });
+
+      // Trigger button that opens the native file chooser (visible, localized)
+      const trigger = document.getElementById('edit-avatar-trigger') as HTMLButtonElement | null;
+      if (trigger) {
+        trigger.addEventListener('click', () => {
+          avatarInput.click();
+        });
+      }
     }
 
     // Add 2FA setup listeners
@@ -526,7 +542,8 @@ export class ProfileManager {
         });
         const userResBody = await userRes.json();
         if (!userRes.ok) {
-          return { ok: false, msg: userResBody.error || t.failedToUpdateProfile, aliasTargetUser };
+          console.warn('Update user credentials failed:', userResBody.error || userResBody);
+          return { ok: false, msg: t.failedToUpdateProfile, aliasTargetUser };
         } else {
           if (updateBody.newUsername) {
             window.setLoggedInUser(updateBody.newUsername);
@@ -538,10 +555,11 @@ export class ProfileManager {
           }
         }
       } catch (err) {
-        return { 
-          ok: false, 
-          msg: err instanceof Error ? err.message : t.networkErrorGeneric,
-          aliasTargetUser 
+        console.warn('Error updating user credentials:', err);
+        return {
+          ok: false,
+          msg: t.networkErrorGeneric,
+          aliasTargetUser
         };
       }
     }
@@ -569,7 +587,8 @@ export class ProfileManager {
       });
       const avatarResBody = await avatarRes.json();
       if (!avatarRes.ok) {
-        return { ok: false, msg: avatarResBody.error || t.failedToUpdateProfile };
+        console.warn('Avatar upload failed:', avatarResBody.error || avatarResBody);
+        return { ok: false, msg: t.failedToUpdateProfile };
       } else {
         const newAvatarUrl = avatarResBody.avatarUrl;
         window.setLoggedInUser(aliasTargetUser, newAvatarUrl, true);
@@ -579,9 +598,10 @@ export class ProfileManager {
         return { ok: true, msg: '' };
       }
     } catch (err) {
-      return { 
-        ok: false, 
-        msg: err instanceof Error ? err.message : t.networkErrorGeneric 
+      console.warn('Avatar upload network/error:', err);
+      return {
+        ok: false,
+        msg: t.networkErrorGeneric
       };
     }
   }
@@ -605,7 +625,8 @@ export class ProfileManager {
         });
         const aliasResBody = await aliasRes.json();
         if (!aliasRes.ok) {
-          return { ok: false, msg: aliasResBody.error || t.failedToUpdateProfile };
+          console.warn('Alias update failed:', aliasResBody.error || aliasResBody);
+          return { ok: false, msg: t.failedToUpdateProfile };
         }
       } catch (err) {
         return { ok: false, msg: err instanceof Error ? err.message : t.networkErrorGeneric };
@@ -622,7 +643,8 @@ export class ProfileManager {
         });
         const bioResBody = await bioRes.json();
           if (!bioRes.ok) {
-            return { ok: false, msg: bioResBody.error || t.failedToUpdateProfile };
+            console.warn('Bio update failed:', bioResBody.error || bioResBody);
+            return { ok: false, msg: t.failedToUpdateProfile };
           }
       } catch (err) {
         return { ok: false, msg: err instanceof Error ? err.message : t.networkErrorGeneric };
@@ -639,10 +661,12 @@ export class ProfileManager {
         });
         const emailVisResBody = await emailVisRes.json();
         if (!emailVisRes.ok) {
-          return { ok: false, msg: emailVisResBody.error || t.failedToUpdateProfile };
+          console.warn('Email visibility update failed:', emailVisResBody.error || emailVisResBody);
+          return { ok: false, msg: t.failedToUpdateProfile };
         }
       } catch (err) {
-        return { ok: false, msg: err instanceof Error ? err.message : t.networkErrorGeneric };
+        console.warn('Error updating profile fields:', err);
+        return { ok: false, msg: t.networkErrorGeneric };
       }
     }
     

@@ -131,7 +131,14 @@ export class TwoFactorAuth {
       const data = await response.json();
 
       if (!response.ok) {
-          TwoFactorAuth.show2FAError(errorDiv, data.error || t.invalidCode);
+        // Don't show raw server messages to users; log for debugging and show a localized fallback
+        console.warn('2FA verification failed:', data.error || data);
+        const serverCode = data?.errorCode as string | undefined;
+        if (serverCode === 'INVALID_2FA_CODE') {
+          TwoFactorAuth.show2FAError(errorDiv, t.invalid2FACode || t.invalidCode);
+        } else {
+          TwoFactorAuth.show2FAError(errorDiv, t.invalidCode);
+        }
         return;
       }
 
@@ -150,7 +157,8 @@ export class TwoFactorAuth {
       }
 
     } catch (error) {
-        TwoFactorAuth.show2FAError(errorDiv, t.networkErrorTryAgain);
+      console.warn('2FA verification network error:', error);
+      TwoFactorAuth.show2FAError(errorDiv, t.networkErrorTryAgain);
     }
   }
 
@@ -190,7 +198,8 @@ export class TwoFactorAuth {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(t.failedGenerate2FA + (data.error || t.unknownError));
+        console.warn('Failed to generate 2FA setup:', data.error || data);
+        alert(t.failedGenerate2FA + t.unknownError);
         return;
       }
 
@@ -320,16 +329,23 @@ export class TwoFactorAuth {
       const data = await response.json();
 
       if (response.ok && data.success) {
-  TwoFactorAuth.closeSetupModal();
-  alert(t.twoFactorEnabled);
+        TwoFactorAuth.closeSetupModal();
+        alert(t.twoFactorEnabled);
         // Refresh the profile page to show 2FA is now enabled
         window.location.reload();
       } else {
-        TwoFactorAuth.show2FAError(errorDiv, data.error || 'Invalid code.');
+        console.warn('2FA setup verification failed:', data.error || data);
+        const serverCode = data?.errorCode as string | undefined;
+        if (serverCode === 'INVALID_2FA_CODE') {
+          TwoFactorAuth.show2FAError(errorDiv, t.invalid2FACode || t.invalidCode);
+        } else {
+          TwoFactorAuth.show2FAError(errorDiv, t.invalidCode);
+        }
       }
 
     } catch (error) {
-      TwoFactorAuth.show2FAError(errorDiv, 'Network error. Please try again.');
+      console.warn('2FA setup verification network error:', error);
+      TwoFactorAuth.show2FAError(errorDiv, t.networkErrorTryAgain);
     }
   }
 
@@ -366,7 +382,12 @@ export class TwoFactorAuth {
         alert(t.twoFactorDisabled);
         window.location.reload();
       } else {
-        alert(t.failedDisable2FA + (data.error || t.unknownError));
+        const serverCode = data?.errorCode as string | undefined;
+        if (serverCode === 'INVALID_CREDENTIALS') {
+          alert(t.failedDisable2FA + t.invalidCredentials);
+        } else {
+          alert(t.failedDisable2FA + t.unknownError);
+        }
       }
 
     } catch (error) {
