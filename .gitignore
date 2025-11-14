@@ -11,4 +11,8 @@ dist/
 .env
 emanuele-backend/uploads/
 emanuele-backend/dev.db
-emanuele-backend/prisma/dev.db
+emanuele-backend/prisma/dev.dbemanuele-backend/src/services/TLS/
+
+emanuele-backend/src/services/TLS/
+**/server.key
+**/server.crt
