@@ -1,8 +1,12 @@
+import dotenv from 'dotenv';
+import path from 'node:path';
+// Load .env from repository root (based on current working directory)
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
-import path from 'node:path';
 import fs from 'node:fs';
 
 // Plugins personalizzati

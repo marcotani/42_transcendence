@@ -4,6 +4,8 @@ services:
       context: ./emanuele-backend
     ports:
       - "3000:3000"
+    env_file:
+      - ./.env
     environment:
       - DATABASE_URL=file:/app/db/dev.db
     volumes:
