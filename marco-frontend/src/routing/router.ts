@@ -59,6 +59,9 @@ export class Router {
             <div class='inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white'></div>
             <p class='mt-2 text-gray-400'>${t.loadingLeaderboards}</p>
           </div>
+        </div>
+        <div class='w-full max-w-6xl mx-auto mt-6 text-center'>
+          <button id='back-home-leaderboard' class='mt-6 px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400' aria-label='${t.backToHome}'>${t.backToHome}</button>
         </div>`;
     } else {
       content = `<h1 class='text-4xl font-bold mb-4' tabindex='0' aria-label='${t.title}'>${t.title}</h1>
@@ -146,7 +149,16 @@ export class Router {
     }
     if (route === 'leaderboard' && !Router.attachedListeners.has('leaderboard')) {
       Router.attachedListeners.add('leaderboard');
-      setTimeout(() => Router.loadLeaderboards(), 0);
+      setTimeout(() => {
+        Router.loadLeaderboards();
+        // Attach Back-to-Home button listener (button rendered at bottom of leaderboard page)
+        try {
+          const btn = document.getElementById('back-home-leaderboard');
+          if (btn) btn.addEventListener('click', () => { window.location.hash = ''; });
+        } catch (e) {
+          // ignore listener attachment failures
+        }
+      }, 0);
     }
     if (route === 'options' && !Router.attachedListeners.has('options')) {
       Router.attachedListeners.add('options');
@@ -661,7 +673,7 @@ export class Router {
           }
         }
       } catch (error) {
-        if (errorDiv) errorDiv.textContent = 'Connection error';
+        if (errorDiv) errorDiv.textContent = t.networkErrorGeneric;
         return false;
       }
     }

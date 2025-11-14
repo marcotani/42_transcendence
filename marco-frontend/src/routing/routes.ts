@@ -46,7 +46,7 @@ export const routes: { [key: string]: (t: any) => string } = {
 
       <!-- Tournament Bracket -->
       <div id="tournament-bracket" class="hidden mb-6">
-  <h3 class="text-xl mb-4 text-center">${t.tournamentBracketTitle}</h3>
+          <h3 class="text-xl mb-4 text-center">${t.tournamentBracketTitle}</h3>
         <div id="bracket-display" class="bg-gray-800 p-4 rounded-lg">
           <!-- Bracket will be generated here -->
         </div>
@@ -56,7 +56,7 @@ export const routes: { [key: string]: (t: any) => string } = {
       <div id="current-match" class="hidden mb-6">
         <!-- Tournament Bracket Visualization -->
         <div id="bracket-visualization" class="mb-6">
-          <h3 class="text-xl mb-4 text-center">🏆 Tournament Bracket</h3>
+            <h3 class="text-xl mb-4 text-center">${t.tournamentBracketTitle}</h3>
           <div id="bracket-tree" class="bg-gray-800 p-4 rounded-lg overflow-x-auto">
             <!-- Bracket tree will be generated here -->
           </div>
@@ -173,7 +173,7 @@ export const routes: { [key: string]: (t: any) => string } = {
       <button type='submit' class='w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-blue-400'>${t.login}</button>
       <div id='login-error' class='text-red-500 mt-2 hidden'></div>
     </form>
-    <button id='back-home-login' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome || 'Back to Home'}</button>
+  <button id='back-home-login' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome}</button>
   </div>`,
   'register': (t) => `<div class='max-w-md mx-auto mt-16 p-8 bg-gray-900 rounded-lg shadow-lg'>
   <h2 class='text-2xl font-bold mb-6 text-center' tabindex='0'>${t.register}</h2>
@@ -201,7 +201,7 @@ export const routes: { [key: string]: (t: any) => string } = {
   <button type='submit' class='w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded focus:outline-none focus:ring-4 focus:ring-green-400'>${t.register}</button>
       <div id='register-error' class='text-red-500 mt-2 hidden'></div>
     </form>
-    <button id='back-home-register' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome || 'Back to Home'}</button>
+  <button id='back-home-register' class='mt-6 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome}</button>
   </div>`,
   'pong': (t) => `<div class='flex flex-col items-center justify-center min-h-screen'>
     <h2 class='text-3xl font-bold mb-6'>${t.pong || t.title || 'Pong Game'}</h2>
@@ -230,11 +230,11 @@ export const routes: { [key: string]: (t: any) => string } = {
   <h3 class='text-xl font-semibold mb-4 text-center'>${t.player2LoginTitle}</h3>
       <form id='player2-login-form' class='space-y-4'>
         <div>
-          <label for='player2-username' class='block mb-1'>Username</label>
+          <label for='player2-username' class='block mb-1'>${t.usernameLabel}</label>
           <input type='text' id='player2-username' class='w-full px-3 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-400' required />
         </div>
         <div>
-          <label for='player2-password' class='block mb-1'>Password</label>
+          <label for='player2-password' class='block mb-1'>${t.passwordLabel}</label>
           <input type='password' id='player2-password' class='w-full px-3 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-400' required />
         </div>
         <div id='player2-login-error' class='text-red-500 text-sm min-h-[20px] flex items-center' style='visibility: hidden;'></div>
@@ -343,7 +343,7 @@ export const routes: { [key: string]: (t: any) => string } = {
       
       <!-- Two-Factor Authentication Section -->
       <div class='border-t border-gray-700 pt-4 mt-6'>
-  <h3 class='text-lg font-semibold mb-3 text-blue-400' data-i18n='twoFactorTitle'>🔐 Two-Factor Authentication</h3>
+  <h3 class='text-lg font-semibold mb-3 text-blue-400' data-i18n='twoFactorTitle'>${t.twoFactorTitle}</h3>
   <p class='text-sm text-gray-400 mb-4' data-i18n='twoFactorDesc'>${t.twoFactorDesc}</p>
         
         <div id='2fa-status' class='mb-4'>

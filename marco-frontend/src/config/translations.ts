@@ -190,6 +190,7 @@ export const translations: Record<'en'|'it'|'fr', {
     authFailed: string;
   networkErrorGeneric: string;
   registrationFailed: string;
+  usernameOrEmailInUse: string;
     updateProfileButton: string;
     profileUpdatedSuccessfully: string;
     paddleColorUpdated: string;
@@ -437,8 +438,8 @@ export const translations: Record<'en'|'it'|'fr', {
     registeredAsPrefix: "Registered as ",
     authFailed: "Authentication failed.",
     networkErrorGeneric: "Network error.",
-    registrationFailed: "Registration failed."
-  ,
+    registrationFailed: "Registration failed.",
+    usernameOrEmailInUse: "Username or email already in use",
   // Additional profile / tournament messages added during i18n sweep
   updateProfileButton: "Update Profile",
   profileUpdatedSuccessfully: "Profile updated successfully!",
@@ -691,14 +692,14 @@ export const translations: Record<'en'|'it'|'fr', {
     registeredAsPrefix: "Registrato come ",
     authFailed: "Autenticazione fallita.",
     networkErrorGeneric: "Errore di rete.",
-    registrationFailed: "Registrazione fallita."
-    ,
+    registrationFailed: "Registrazione fallita.",
+    usernameOrEmailInUse: "Nome utente o email già in uso",
     updateProfileButton: "Aggiorna profilo",
     profileUpdatedSuccessfully: "Profilo aggiornato con successo!",
     paddleColorUpdated: "Colore della racchetta aggiornato!",
     waitForFormToLoad: "Attendere il caricamento completo del modulo prima di inviare.",
-  atLeastOneField: "Almeno un campo deve essere compilato.",
-  currentPasswordRequired: "La password corrente è richiesta per cambiare username, email o password.",
+    atLeastOneField: "Almeno un campo deve essere compilato.",
+    currentPasswordRequired: "La password corrente è richiesta per cambiare username, email o password.",
     failedToUpdateProfile: "Impossibile aggiornare il profilo.",
   
     usernameAlreadyUsedTournament: "Nome utente già usato nel torneo",
@@ -941,10 +942,10 @@ export const translations: Record<'en'|'it'|'fr', {
     loggedInAsPrefix: "Connecté en tant que ",
     registeredAsPrefix: "Inscrit en tant que ",
     authFailed: "Échec de l'authentification.",
-    networkErrorGeneric: "Erreur réseau.",
-    registrationFailed: "Échec de l'inscription."
-    ,
-    updateProfileButton: "Mettre à jour le profil",
+  networkErrorGeneric: "Erreur réseau.",
+  registrationFailed: "Échec de l'inscription.",
+  usernameOrEmailInUse: "Nom d'utilisateur ou e-mail déjà utilisé",
+  updateProfileButton: "Mettre à jour le profil",
     profileUpdatedSuccessfully: "Profil mis à jour avec succès!",
     paddleColorUpdated: "Couleur de la raquette mise à jour!",
     waitForFormToLoad: "Veuillez attendre le chargement complet du formulaire avant de soumettre.",

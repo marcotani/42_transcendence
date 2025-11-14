@@ -103,7 +103,7 @@ export class Authentication {
 
     // Validation
     if (!username || !password) {
-      Authentication.showError(errorDiv, 'Username and password required.');
+      Authentication.showError(errorDiv, t.missingFields);
       return;
     }
 
@@ -166,7 +166,7 @@ export class Authentication {
 
     // Validation
     if (!username || !email || !password) {
-      Authentication.showError(errorDiv, 'Username, email and password required.');
+      Authentication.showError(errorDiv, t.missingFields);
       return;
     }
 
@@ -182,7 +182,33 @@ export class Authentication {
       const data = await response.json();
 
       if (!response.ok) {
-        Authentication.showError(errorDiv, data.message || t.registrationFailed);
+        // Prefer server-provided errorCode -> map to localized messages when possible
+        let userMsg = t.registrationFailed;
+        if (data && typeof data === 'object' && 'errorCode' in data) {
+          const code = (data as any).errorCode as string;
+          switch (code) {
+            case 'MISSING_FIELDS':
+              userMsg = t.missingFields;
+              break;
+            case 'INVALID_USERNAME':
+              userMsg = t.invalidUsernames || t.invalidUsernameOrPassword || t.registrationFailed;
+              break;
+            case 'INVALID_EMAIL':
+              userMsg = t.invalidEmail;
+              break;
+            case 'USERNAME_OR_EMAIL_IN_USE':
+              userMsg = t.usernameOrEmailInUse;
+              break;
+            case 'INTERNAL_SERVER_ERROR':
+              userMsg = t.internalServerError;
+              break;
+            default:
+              userMsg = (data as any).message || (data as any).error || t.registrationFailed;
+          }
+        } else {
+          userMsg = data?.message || t.registrationFailed;
+        }
+        Authentication.showError(errorDiv, userMsg);
         return;
       }
       alert(t.registeredAsPrefix + username);
