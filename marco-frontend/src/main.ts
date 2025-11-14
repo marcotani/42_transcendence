@@ -352,13 +352,69 @@ function attachPongListeners() {
   // Touch / fullscreen-first behavior removed: mobile should behave like desktop.
 
   if (startBtn && canvas) {
-    startBtn.addEventListener('click', () => {
+    const isTouchDevice = ('ontouchstart' in window)
+      || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)
+      || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+
+    const ensureFullscreenLandscape = async (): Promise<void> => {
+      // Solo su device touch / mobile
+      if (!isTouchDevice) return;
+      // Se siamo già in landscape (larghezza > altezza) prosegui subito
+      if (window.innerWidth > window.innerHeight && document.fullscreenElement) return;
+
+      // Richiedi fullscreen sul parent del canvas (o canvas) prima di avviare il gioco
+      const target = canvas.parentElement || canvas;
+      try {
+        const req: any = (target as any).requestFullscreen || (target as any).webkitRequestFullscreen || (target as any).msRequestFullscreen;
+        if (typeof req === 'function') {
+          await req.call(target);
+        }
+      } catch (e) {
+        // Ignora fallimenti: il gioco funzionerà comunque, anche se inizialmente potrà presentare stretch
+      }
+
+      // Prova lock orientamento (best effort, funziona su Android Chrome, non su iOS Safari)
+      try {
+        const screenAny: any = screen;
+        if (screenAny?.orientation?.lock) {
+          screenAny.orientation.lock('landscape').catch(() => {});
+        }
+      } catch (e) { /* ignore */ }
+
+      // Attendi che le dimensioni riflettano la rotazione (fino a 30 tentativi ~300ms)
+      let attempts = 0;
+      await new Promise<void>((resolve) => {
+        const check = () => {
+          attempts++;
+            if (window.innerWidth > window.innerHeight || attempts > 30) {
+            // Ridimensiona canvas ai nuovi bounds
+            try {
+              const container = (document.fullscreenElement as HTMLElement) || (canvas.parentElement as HTMLElement) || document.body;
+              const w = container.clientWidth || window.innerWidth;
+              const h = container.clientHeight || window.innerHeight;
+              canvas.style.width = '100%';
+              canvas.style.height = '100%';
+              canvas.width = w;
+              canvas.height = h;
+            } catch (e) { /* ignore */ }
+            resolve();
+          } else {
+            requestAnimationFrame(check);
+          }
+        };
+        requestAnimationFrame(check);
+      });
+    };
+
+    startBtn.addEventListener('click', async () => {
       startBtn.disabled = true;
       startBtn.textContent = getT(LanguageManager.getLang()).gameRunning;
-      // Hide the start button while the match is running so it doesn't obstruct the view
-      startBtn.style.display = 'none';
+      startBtn.style.display = 'none'; // Nasconde il bottone durante la partita
 
-      // Pass game mode and player 2 data to the engine
+      // Prima forziamo fullscreen + landscape (se mobile) così le dimensioni iniziali sono corrette
+      await ensureFullscreenLandscape();
+
+      // Pass game mode e player 2 data al motore
       const gameConfig = {
         mode: gameMode,
         player1: { username: UserSession.getCurrentUser() || 'Guest' },

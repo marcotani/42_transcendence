@@ -40,21 +40,19 @@ const app = Fastify(fastifyOptions);
 async function buildServer() {
   // Abilita CORS per il frontend
   await app.register(cors, {
-    origin: (origin, cb) => {
-      // Accept localhost and 127.0.0.1 for port 8080 and 5173
+    origin: (origin: string | undefined, cb: (err: Error | null, allow: boolean) => void) => {
+      // Permettiamo il frontend servito da:
+      // - localhost/127.0.0.1 alle porte 8080 e 5173
+      // - qualsiasi hostname/IP locale alle porte 8080 e 5173 (per accesso via LAN)
       if (!origin) return cb(null, true);
-      if (
-        origin.startsWith('http://localhost:8080') ||
-        origin.startsWith('https://localhost:8080') ||
-        origin.startsWith('http://127.0.0.1:8080') ||
-        origin.startsWith('https://127.0.0.1:8080') ||
-        origin.startsWith('http://localhost:5173') ||
-        origin.startsWith('https://localhost:5173') ||
-        origin.startsWith('http://127.0.0.1:5173') ||
-        origin.startsWith('https://127.0.0.1:5173')
-      ) {
-        return cb(null, true);
-      }
+      const allowList = [
+        /^https?:\/\/localhost:(8080|5173)$/i,
+        /^https?:\/\/127\.0\.0\.1:(8080|5173)$/i,
+        // IP v4 privati (192.168.x.x, 10.x.x.x, 172.16-31.x.x) o hostname locale/generico, su 8080 o 5173
+        /^https?:\/\/(?:\d{1,3}(?:\.\d{1,3}){3}|[a-z0-9.-]+):(8080|5173)$/i,
+      ];
+      const allowed = allowList.some((re) => re.test(origin));
+      if (allowed) return cb(null, true);
       cb(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
