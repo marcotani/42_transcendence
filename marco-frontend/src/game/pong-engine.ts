@@ -382,10 +382,10 @@ export class PongEngine {
     
       if (statusDiv) {
       const t = getT();
-      const controlsText = gameState.gameConfig.mode === 'player' 
-        ? 'P1: WASD+Space | P2: Arrows+Enter | Tilt to aim!'
-        : 'Tank Controls: WS=Move, AD=Tilt, Space=Shoot';
-      statusDiv.textContent = `🚀 TANK BATTLE! Score: ${gameState.leftScore} - ${gameState.rightScore}. ${controlsText}`;
+      const controlsText = gameState.gameConfig.mode === 'player'
+        ? t.tankControlsPlayer
+        : t.tankControlsAI;
+      statusDiv.textContent = `${t.tankBattleTitle} Score: ${gameState.leftScore} - ${gameState.rightScore}. ${controlsText}`;
     }
     
     PongEngine.gameLoop(ctx, canvas, gameState, statusDiv, aiInterval);
@@ -924,7 +924,8 @@ export class PongEngine {
       } else {
         PongEngine.resetBall(gameState, canvas);
         if (statusDiv) {
-          statusDiv.textContent = `Ball respawning...`;
+          const t = getT();
+          statusDiv.textContent = t.ballRespawning;
         }
         setTimeout(() => {
           if (statusDiv) {
@@ -1139,11 +1140,22 @@ export class PongEngine {
           ctx.stroke();
           ctx.closePath();
           
-          // Draw power-up icon/text
+          // Draw power-up icon/text using localized name initials (so it's visible in the selected language)
           ctx.fillStyle = '#fff';
           ctx.font = 'bold 12px Arial';
           ctx.textAlign = 'center';
-          ctx.fillText(powerUp.type.charAt(0).toUpperCase(), powerUp.x, powerUp.y + 4);
+          try {
+            const name = (powerUp.name || powerUp.type) as string;
+            // Build a short label from the localized name (first letters of up to two words)
+            const parts = name.split(/\s+/).filter(p => p.length > 0);
+            let label = parts.length === 0 ? powerUp.type.charAt(0).toUpperCase() : parts[0].charAt(0).toUpperCase();
+            if (parts.length > 1) {
+              label += parts[1].charAt(0).toUpperCase();
+            }
+            ctx.fillText(label, powerUp.x, powerUp.y + 4);
+          } catch (e) {
+            ctx.fillText(powerUp.type.charAt(0).toUpperCase(), powerUp.x, powerUp.y + 4);
+          }
         }
       });
     }
@@ -1156,7 +1168,31 @@ export class PongEngine {
       let yOffset = 60;
       gameState.activeEffects.forEach((effect: ActiveEffect) => {
         const remaining = Math.ceil((effect.duration - (Date.now() - effect.startTime)) / 1000);
-        ctx.fillText(`${effect.type.replace('_', ' ').toUpperCase()}: ${remaining}s`, 10, yOffset);
+        // Use localized power-up name when available
+        const t = getT();
+  let effectLabel = String(effect.type).replace('_', ' ').toUpperCase();
+        try {
+          switch (effect.type) {
+            case PowerUpType.EXTENDED_PADDLE:
+              effectLabel = t.powerupExtendedName;
+              break;
+            case PowerUpType.MULTI_BALL:
+              effectLabel = t.powerupMultiName;
+              break;
+            case PowerUpType.SPEED_BOOST:
+              effectLabel = t.powerupSpeedName;
+              break;
+            case PowerUpType.SLOW_MOTION:
+              effectLabel = t.powerupSlowName;
+              break;
+              default:
+                effectLabel = String(effect.type).replace('_', ' ').toUpperCase();
+          }
+        } catch (e) {
+          // fallback to type-based label
+          effectLabel = effect.type.replace('_', ' ').toUpperCase();
+        }
+        ctx.fillText(`${effectLabel}: ${remaining}s`, 10, yOffset);
         yOffset += 20;
       });
     }

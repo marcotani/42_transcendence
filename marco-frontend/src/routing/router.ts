@@ -537,7 +537,7 @@ export class Router {
     const player1Form = document.createElement('div');
     player1Form.className = 'bg-green-800 p-4 rounded-lg';
     player1Form.innerHTML = `
-      <h4 class="text-lg font-bold mb-3">Player 1 (You)</h4>
+      <h4 class="text-lg font-bold mb-3">${t.player1} (${t.youLabel})</h4>
       <div class="space-y-3">
         <input 
           type="text" 
@@ -545,7 +545,7 @@ export class Router {
           class="w-full px-3 py-2 bg-gray-600 text-white rounded border border-gray-500"
           readonly
         />
-        <div class="text-green-400 text-sm">✓ Already logged in</div>
+        <div class="text-green-400 text-sm">✓ ${t.alreadyLoggedIn}</div>
       </div>
     `;
     formsContainer.appendChild(player1Form);
@@ -555,7 +555,7 @@ export class Router {
       const playerForm = document.createElement('div');
       playerForm.className = 'bg-gray-800 p-4 rounded-lg';
       playerForm.innerHTML = `
-        <h4 class="text-lg font-bold mb-3">Player ${i}</h4>
+        <h4 class="text-lg font-bold mb-3">${t.playerLabel} ${i}</h4>
         <div class="space-y-3">
           <input 
             type="text" 

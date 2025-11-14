@@ -41,6 +41,8 @@ export const translations: Record<'en'|'it'|'fr', {
   vsText: string;
   player1: string;
   player2: string;
+  youLabel: string;
+  alreadyLoggedIn: string;
   tournamentMatch: string;
   tournamentWinnerTitle: string;
   tournamentWinnerText: string;
@@ -212,6 +214,9 @@ export const translations: Record<'en'|'it'|'fr', {
   vsLabel: string;
   lastMatchesPrefix: string;
   matchesLabel: string;
+  tankControlsPlayer: string;
+  tankControlsAI: string;
+  tankBattleTitle: string;
   // Leaderboards
   leaderboardBotTitle: string;
   leaderboardPlayerTitle: string;
@@ -289,6 +294,8 @@ export const translations: Record<'en'|'it'|'fr', {
     vsText: "VS",
     player1: "Player 1",
     player2: "Player 2",
+  youLabel: "You",
+  alreadyLoggedIn: "Already logged in",
     tournamentMatch: "Tournament Match",
     tournamentWinnerTitle: "Tournament Champion",
     tournamentWinnerText: "Tournament Winner!",
@@ -466,6 +473,9 @@ export const translations: Record<'en'|'it'|'fr', {
   vsLabel: "vs",
   lastMatchesPrefix: "Last ",
   matchesLabel: "matches",
+  tankControlsPlayer: "P1: WASD+Space | P2: Arrows+Enter | Tilt to aim!",
+  tankControlsAI: "Tank Controls: WS=Move, AD=Tilt, Space=Shoot",
+  tankBattleTitle: "🚀 TANK BATTLE!",
   // Leaderboards
   leaderboardBotTitle: "🤖 Bot Wins",
   leaderboardPlayerTitle: "👥 Player Wins",
@@ -543,6 +553,8 @@ export const translations: Record<'en'|'it'|'fr', {
     vsText: "VS",
     player1: "Giocatore 1",
     player2: "Giocatore 2",
+  youLabel: "Tu",
+  alreadyLoggedIn: "Già connesso",
     tournamentMatch: "Partita del Torneo",
     tournamentWinnerTitle: "Campione del Torneo",
     tournamentWinnerText: "Vincitore del torneo!",
@@ -718,6 +730,9 @@ export const translations: Record<'en'|'it'|'fr', {
     vsLabel: "vs",
     lastMatchesPrefix: "Ultime ",
   matchesLabel: "partite",
+  tankControlsPlayer: "P1: WASD+Spazio | P2: Frecce+Invio | Inclina per mirare!",
+  tankControlsAI: "Controlli Carro: WS=Muovi, AD=Inclina, Spazio=Spara",
+  tankBattleTitle: "🚀 BATTAGLIA TRA CARRI!",
     // Leaderboards
     leaderboardBotTitle: "🤖 Vittorie Bot",
     leaderboardPlayerTitle: "👥 Vittorie Giocatori",
@@ -794,6 +809,8 @@ export const translations: Record<'en'|'it'|'fr', {
     vsText: "VS",
     player1: "Joueur 1",
     player2: "Joueur 2",
+  youLabel: "Vous",
+  alreadyLoggedIn: "Déjà connecté",
     tournamentMatch: "Match du tournoi",
     tournamentWinnerTitle: "Champion du tournoi",
     tournamentWinnerText: "Gagnant du tournoi !",
@@ -969,6 +986,9 @@ export const translations: Record<'en'|'it'|'fr', {
     vsLabel: "vs",
     lastMatchesPrefix: "Dernières ",
   matchesLabel: "matchs",
+  tankControlsPlayer: "J1: WASD+Espace | J2: Flèches+Entrée | Incliner pour viser !",
+  tankControlsAI: "Contrôles Char : WS=Déplacer, AD=Incliner, Espace=Tirer",
+  tankBattleTitle: "🚀 BATAILLE DE CHARS !",
     // Leaderboards
     leaderboardBotTitle: "🤖 Victoires Bot",
     leaderboardPlayerTitle: "👥 Victoires Joueurs",
