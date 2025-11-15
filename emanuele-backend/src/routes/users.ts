@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { authenticateJWT } from './auth';
+import { generateJWT } from '../leonardo-security/plugins/jwt';
 import { sanitizeUsername, sanitizeAlias, sanitizeBio, sanitizeHtml, sanitizePassword } from '../utils/sanitizer';
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -147,6 +148,9 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   app.patch('/users/:username/alias', { preHandler: authenticateJWT }, async (req, reply) => {
     const { username } = req.params as { username: string };
     const { alias } = req.body as { alias?: string };
+
+    console.log('[PATCH] /users/:username/alias called for', username, 'body:', { alias });
+    console.log('Auth user (from token):', (req as any).user);
 
     // Ensure authenticated user matches target username
     const authUser = (req as any).user;
@@ -449,7 +453,19 @@ const usersRoute: FastifyPluginAsync = async (app) => {
         data,
         select: { id: true, username: true, email: true, createdAt: true },
       });
-      return reply.send({ success: true, user: updated });
+
+      // Issue a new JWT token reflecting potential username change so the client
+      // can continue making authenticated requests with the updated identity.
+      try {
+        const jwtSecret = process.env.JWT_SECRET || 'your-very-secret-key';
+        const token = generateJWT({ userId: updated.id, username: updated.username }, jwtSecret, 86400);
+        return reply.send({ success: true, user: updated, token });
+      } catch (tokenErr) {
+        // If token generation fails for any reason, still return updated user.
+        // Log a stringified error to satisfy logger typings and avoid TS overload issues.
+        app.log.warn('Failed to generate JWT after username update: ' + String(tokenErr));
+        return reply.send({ success: true, user: updated });
+      }
     } catch (err: any) {
       if (err?.code === 'P2002') {
         // Messaggio di errore nel caso username o email siano già utilizzati
@@ -565,6 +581,8 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const { username } = req.params as { username: string };
     const { bio } = req.body as { bio?: string };
     const authUser = (req as any).user;
+    console.log('[PATCH] /users/:username/bio called for', username, 'body:', { bio });
+    console.log('Auth user (from token):', authUser);
     if (!authUser || authUser.username !== username) {
       return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
     }

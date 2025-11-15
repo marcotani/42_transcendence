@@ -1,4 +1,5 @@
 import { API_BASE } from '../config/constants.js';
+import { TokenManager } from '../services/token-manager.js';
 import { getT } from '../config/translations.js';
 import { GameSettingsService } from '../services/game-settings.js';
 
@@ -1341,9 +1342,9 @@ export class PongEngine {
       
       const winnerId = params.result === 'win' ? user.id : null;
       
-      await fetch(`${API_BASE}/matches`, {
+      const response = await fetch(`${API_BASE}/matches`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...TokenManager.getAuthHeader() },
         body: JSON.stringify({
           player1Id: user.id,
           player2BotName: params.opponent,
@@ -1353,6 +1354,17 @@ export class PongEngine {
           matchType: 'bot'
         })
       });
+
+      try {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          console.error('Failed to record bot match (non-OK):', response.status, data);
+        } else {
+          console.log('Bot match recorded successfully:', data);
+        }
+      } catch (err) {
+        console.error('Failed to parse response for bot match recording:', err);
+      }
     } catch (e) {
       console.error('Failed to send match result:', e);
     }
@@ -1412,7 +1424,7 @@ export class PongEngine {
       // Record the match
       const response = await fetch(`${API_BASE}/matches`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...TokenManager.getAuthHeader() },
         body: JSON.stringify(matchPayload)
       });
       

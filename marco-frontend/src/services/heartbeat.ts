@@ -1,5 +1,6 @@
 // Heartbeat service for tracking online status
-import { API_BASE, HEARTBEAT_INTERVAL_MS } from '../config/constants.js';
+import { HEARTBEAT_INTERVAL_MS } from '../config/constants.js';
+import { ApiClient } from './api-client.js';
 
 export class HeartbeatService {
   private static interval: number | null = null;
@@ -9,23 +10,23 @@ export class HeartbeatService {
     this.updateFriendsCallback = callback;
   }
 
+  /**
+   * Send heartbeat using ApiClient so the JWT Authorization header is included.
+   */
   private static async sendHeartbeat(loggedInUser: string): Promise<void> {
     if (!loggedInUser) return;
-    
+
     try {
-      // First get the user ID
-      const userRes = await fetch(`${API_BASE}/users/${loggedInUser}`);
-      const user = await userRes.json();
+      // Get the user object (public endpoint)
+      const userRes = await ApiClient.get(`/users/${loggedInUser}`);
+      if (!userRes.success || !userRes.data) return;
+      const user = userRes.data as any;
       if (!user || !user.id) return;
-      
-      // Send heartbeat
-      await fetch(`${API_BASE}/api/heartbeat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
-      });
-      
-      // Update friends count to keep the button updated across all pages
+
+      // POST heartbeat using ApiClient so token is attached
+      await ApiClient.post('/api/heartbeat', { userId: user.id });
+
+      // Update friends count to keep the UI synced
       if (this.updateFriendsCallback) {
         this.updateFriendsCallback();
       }
@@ -36,11 +37,11 @@ export class HeartbeatService {
 
   static start(loggedInUser: string): void {
     if (this.interval) return; // Already running
-    
+
     if (loggedInUser) {
       // Send initial heartbeat immediately
       this.sendHeartbeat(loggedInUser);
-      
+
       // Set up periodic heartbeat
       this.interval = window.setInterval(() => {
         this.sendHeartbeat(loggedInUser);

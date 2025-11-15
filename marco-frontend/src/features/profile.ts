@@ -546,6 +546,16 @@ export class ProfileManager {
           console.warn('Update user credentials failed:', userResBody.error || userResBody);
           return { ok: false, msg: t.failedToUpdateProfile, aliasTargetUser };
         } else {
+          // If backend returned a new token (username changed), store it so subsequent
+          // authenticated requests use the updated username embedded in the token.
+          if (userResBody && userResBody.token && userResBody.user) {
+            try {
+              TokenManager.storeToken(userResBody.token, userResBody.user.id, userResBody.user.username);
+            } catch (e) {
+              console.warn('Failed to store returned token after username update:', e);
+            }
+          }
+
           if (updateBody.newUsername) {
             window.setLoggedInUser(updateBody.newUsername);
             aliasTargetUser = updateBody.newUsername;

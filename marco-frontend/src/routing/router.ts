@@ -2,6 +2,7 @@
 import { routes } from './routes.js';
 import { translations, getT } from '../config/translations.js';
 import { API_BASE } from '../config/constants.js';
+import { TokenManager } from '../services/token-manager.js';
 import { accessibilityTogglesUI, showStatus } from '../utils/dom-helpers.js';
 import { LanguageManager } from '../features/language.js';
 import { ProfileManager } from '../features/profile.js';
@@ -411,6 +412,8 @@ export class Router {
    */
   private static initializeTournamentPage(): void {
     const t = translations[LanguageManager.getLang()];
+    // Temporary map of username -> token for tournament participants logged in during validation
+    (window as any).tournamentTokens = {};
     // Tournament state
     let tournamentPlayers: Array<{username: string, password: string}> = [];
     let tournamentSize = 0;
@@ -654,23 +657,40 @@ export class Router {
         });
 
         if (!response.ok) {
-         if (errorDiv) errorDiv.textContent = t.invalidUsernameOrPassword;
+          if (errorDiv) errorDiv.textContent = t.invalidUsernameOrPassword;
           return false;
-        } else {
-          if (errorDiv) errorDiv.textContent = '';
-          
-          // After successful login, fetch user profile data
+        }
+
+        // Parse response to check for 2FA or token
+        const loginData = await response.json().catch(() => ({}));
+        // If user requires 2FA, we cannot validate automatically for tournament
+        if ((loginData as any).requiresTwoFactor) {
+          if (errorDiv) errorDiv.textContent = t.invalidUsernameOrPassword;
+          return false;
+        }
+
+        // If we received a token, store it temporarily for tournament operations
+        if ((loginData as any).token) {
           try {
-            const profileResponse = await fetch(`${API_BASE}/users/${player.username}`);
-            if (profileResponse.ok) {
-              const userData = await profileResponse.json();
-              // Store profile data with the player
-              (player as any).profile = userData.profile;
-              (player as any).id = userData.id;
-            }
-          } catch (profileError) {
-            console.warn('Failed to fetch profile for player:', player.username, profileError);
+            (window as any).tournamentTokens = (window as any).tournamentTokens || {};
+            (window as any).tournamentTokens[player.username] = (loginData as any).token;
+            // also attach to the player object for convenience
+            (player as any).token = (loginData as any).token;
+          } catch (e) { /* ignore */ }
+        }
+
+        // After successful login, fetch user profile data
+        try {
+          const profileResponse = await fetch(`${API_BASE}/users/${player.username}`);
+          if (profileResponse.ok) {
+            const userData = await profileResponse.json();
+            // Store profile data with the player
+            (player as any).profile = userData.profile;
+            (player as any).id = userData.id;
           }
+          if (errorDiv) errorDiv.textContent = '';
+        } catch (profileError) {
+          console.warn('Failed to fetch profile for player:', player.username, profileError);
         }
       } catch (error) {
         if (errorDiv) errorDiv.textContent = t.networkErrorGeneric;
@@ -958,11 +978,34 @@ export class Router {
    */
   private static async updateTournamentWinner(username: string): Promise<void> {
     try {
-      await fetch(`${API_BASE}/stats/tournament-win`, {
+      // Use the winner's token if we captured it during validation. If the winner is the
+      // currently logged-in user, fall back to the session token.
+      const loggedInUser = (window as any).loggedInUser as string | undefined;
+      const winnerToken = (window as any).tournamentTokens?.[username];
+      const sessionToken = TokenManager.getToken();
+
+      let tokenToUse: string | undefined;
+      if (winnerToken) tokenToUse = winnerToken;
+      else if (loggedInUser && loggedInUser === username && sessionToken) tokenToUse = sessionToken;
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (tokenToUse) headers.Authorization = `Bearer ${tokenToUse}`;
+
+      const res = await fetch(`${API_BASE}/stats/tournament-win`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ username })
       });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error('Failed to update tournament winner stats (server error):', res.status, errBody);
+        if (res.status === 403) {
+          console.warn('403 from tournament-win: likely the request did not include the correct user token.\n',
+            'Winner:', username, 'loggedInUser:', (window as any).loggedInUser, 'usedTokenPresent:', !!tokenToUse);
+        }
+      } else {
+        console.log('Tournament winner stats updated for', username);
+      }
     } catch (error) {
       console.error('Failed to update tournament winner stats:', error);
     }
