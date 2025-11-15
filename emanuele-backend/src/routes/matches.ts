@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { MatchService, MatchData } from '../services/matchService';
+import { authenticateJWT } from './auth';
 
 const prisma = new PrismaClient();
 
@@ -28,10 +29,9 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Crea una nuova partita e aggiorna le statistiche utente
-  app.post('/matches', async (req, reply) => {
+  app.post('/matches', { preHandler: authenticateJWT, config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req, reply) => {
     console.log('=== POST /matches endpoint called ===');
     console.log('Request body:', req.body);
-    
     const body = req.body as {
       player1Id: number;
       player2Id?: number;
@@ -41,6 +41,11 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
       winnerId?: number;
       matchType: string;
     };
+
+    const authUser = (req as any).user;
+    if (!authUser || authUser.userId !== body.player1Id) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
 
     if (!body || !body.player1Id || body.player1Score === undefined || body.player2Score === undefined || !body.matchType) {
       console.log('Missing required fields in request body');

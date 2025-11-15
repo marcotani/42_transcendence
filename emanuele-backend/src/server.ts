@@ -7,6 +7,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
+import rateLimit from '@fastify/rate-limit';
 import fs from 'node:fs';
 
 // Plugins personalizzati
@@ -80,6 +81,9 @@ async function buildServer() {
 
   // Registra il plugin Prisma (aggiunge app.prisma)
   await app.register(prismaPlugin);
+
+  // Rate limiting (per-route only)
+  await app.register(rateLimit, { global: false });
 
   // Registra le rotte
   await app.register(usersRoute);

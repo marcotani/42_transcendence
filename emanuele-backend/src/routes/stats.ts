@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify';
 import { MatchService } from '../services/matchService';
+import { authenticateJWT } from './auth';
 
 const statsRoute: FastifyPluginAsync = async (app) => {
   // Statistiche di tutti gli utenti
@@ -34,28 +35,26 @@ const statsRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Aggiorna statistiche utente e registra il match
-  app.post('/stats/update', async (req, reply) => {
+  app.post('/stats/update', { preHandler: authenticateJWT, config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req, reply) => {
     const body = req.body as {
       userId: number;
       result: 'win' | 'loss';
       type: 'bot' | 'player' | 'tournament';
-
-      opponent?: {
-        id?: number;
-        botName?: string;
-      };
-      scores?: {
-        userScore: number;
-        opponentScore: number;
-      };
+      opponent?: { id?: number; botName?: string };
+      scores?: { userScore: number; opponentScore: number };
     };
+
+    // Verifica autenticazione utente corrispondente
+    const authUser = (req as any).user;
+    if (!authUser || authUser.userId !== body.userId) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
 
     if (!body || !body.userId || !body.result || !body.type) {
       return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Missing fields' });
     }
 
     try {
-      // Update statistiche in base al body
       let update: any = {};
       if (body.type === 'bot') {
         update = body.result === 'win' ? { botWins: { increment: 1 } } : { botLosses: { increment: 1 } };
@@ -63,7 +62,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
         update = body.result === 'win' ? { playerWins: { increment: 1 } } : { playerLosses: { increment: 1 } };
       } else if (body.type === 'tournament' && body.result === 'win') {
         update = { tournamentWins: { increment: 1 } };
-        } else {
+      } else {
         return reply.code(400).send({ errorCode: 'INVALID_COMBINATION', error: 'Invalid combination' });
       }
 
@@ -72,22 +71,20 @@ const statsRoute: FastifyPluginAsync = async (app) => {
         data: update,
       });
 
-      // Registrazione match 
       if (body.type !== 'tournament' && body.opponent && body.scores) {
         try {
           const winnerId = body.result === 'win' ? body.userId : body.opponent.id;
-          
           await MatchService.createMatch({
             player1Id: body.userId,
             player2Id: body.opponent.id,
             player2BotName: body.opponent.botName,
             player1Score: body.scores.userScore,
             player2Score: body.scores.opponentScore,
-            winnerId: winnerId,
+            winnerId,
             matchType: body.type
           });
         } catch (matchError) {
-          app.log.warn('Failed to create match record:', matchError);
+          app.log.warn('Failed to create match record:', matchError as any);
         }
       }
 
@@ -99,8 +96,12 @@ const statsRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Tournament win endpoint - accepts username and updates tournament statistics
-  app.post('/stats/tournament-win', async (req, reply) => {
+  app.post('/stats/tournament-win', { preHandler: authenticateJWT, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     const body = req.body as { username: string };
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== body.username) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
 
     if (!body || !body.username) {
       return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Username is required' });

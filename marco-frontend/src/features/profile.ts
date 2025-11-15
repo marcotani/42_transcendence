@@ -1,4 +1,5 @@
 import { API_BASE } from '../config/constants.js';
+import { TokenManager } from '../services/token-manager.js';
 import { StorageService } from '../services/storage.js';
 import { MatchHistoryManager } from './match-history.js';
 import { TwoFactorAuth } from './two-factor-auth.js';
@@ -33,7 +34,7 @@ export class ProfileManager {
         try {
           const res = await fetch(`${API_BASE}/users/${window.loggedInUser}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...TokenManager.getAuthHeader() },
             body: JSON.stringify({ password })
           });
           const data = await res.json();
@@ -190,7 +191,7 @@ export class ProfileManager {
           const newColor = skinColorSelect.value;
           fetch(`${API_BASE}/users/${window.loggedInUser}/skin`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...TokenManager.getAuthHeader() },
             body: JSON.stringify({ skinColor: newColor })
           })
             .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
@@ -537,7 +538,7 @@ export class ProfileManager {
       try {
         const userRes = await fetch(`${API_BASE}/users/${window.loggedInUser}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...TokenManager.getAuthHeader() },
           body: JSON.stringify(updateBody)
         });
         const userResBody = await userRes.json();
@@ -583,6 +584,7 @@ export class ProfileManager {
     try {
       const avatarRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/avatar`, {
         method: 'PATCH',
+        headers: { ...TokenManager.getAuthHeader() },
         body: formData
       });
       const avatarResBody = await avatarRes.json();
@@ -620,7 +622,7 @@ export class ProfileManager {
       try {
         const aliasRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/alias`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...TokenManager.getAuthHeader() },
           body: JSON.stringify({ alias })
         });
         const aliasResBody = await aliasRes.json();
@@ -638,7 +640,7 @@ export class ProfileManager {
       try {
         const bioRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/bio`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...TokenManager.getAuthHeader() },
           body: JSON.stringify({ bio })
         });
         const bioResBody = await bioRes.json();
@@ -656,7 +658,7 @@ export class ProfileManager {
       try {
         const emailVisRes = await fetch(`${API_BASE}/users/${aliasTargetUser}/email-visibility`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...TokenManager.getAuthHeader() },
           body: JSON.stringify({ emailVisible })
         });
         const emailVisResBody = await emailVisRes.json();

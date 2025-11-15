@@ -29,7 +29,9 @@ export const authenticateJWT = async (request: any, reply: any) => {
 
 export default async function authRoutes(app: FastifyInstance) {
   // POST /api/register
-  app.post('/api/register', async (request, reply) => {
+  app.post('/api/register', {
+    config: { rateLimit: { max: 20, timeWindow: '1 hour' } }
+  }, async (request, reply) => {
     const { username, password, email } = request.body as {
       username: string;
       password: string;
@@ -127,7 +129,9 @@ export default async function authRoutes(app: FastifyInstance) {
   });
 
   // POST /api/login
-  app.post('/api/login', async (request, reply) => {
+  app.post('/api/login', {
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } }
+  }, async (request, reply) => {
     const { username, password } = request.body as {
       username: string;
       password: string;
@@ -212,8 +216,13 @@ export default async function authRoutes(app: FastifyInstance) {
     });
   });
 
-  // DELETE /api/users
-  app.delete('/api/users', async (req, reply) => {
+  // DELETE /api/users (protected - bulk delete)
+  app.delete('/api/users', { preHandler: authenticateJWT }, async (req, reply) => {
+    // Optional: restrict bulk delete to a specific admin username via env
+    const adminUser = process.env.ADMIN_USER;
+    if (!adminUser || (req as any).user.username !== adminUser) {
+      return reply.code(403).send({ success: false, errorCode: 'UNAUTHORIZED', error: 'Bulk delete not allowed' });
+    }
     try {
       await app.prisma.user.deleteMany({});
       return reply.send({
@@ -230,10 +239,16 @@ export default async function authRoutes(app: FastifyInstance) {
     }
   });
 
-  // DELETE /api/users/:username
-  app.delete('/api/users/:username', async (req, reply) => {
+  // DELETE /api/users/:username (protected - self deletion)
+  app.delete('/api/users/:username', { preHandler: authenticateJWT }, async (req, reply) => {
     const { username } = req.params as { username: string };
     const { password } = req.body as { password: string };
+
+    // Ensure authenticated user matches target username
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== username) {
+      return reply.code(403).send({ success: false, errorCode: 'UNAUTHORIZED', error: 'Cannot delete other users' });
+    }
 
     if (!password) {
       return reply.code(400).send({
