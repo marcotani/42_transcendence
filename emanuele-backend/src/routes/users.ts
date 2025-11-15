@@ -378,6 +378,11 @@ const usersRoute: FastifyPluginAsync = async (app) => {
         if (!authUser || authUser.username !== username) {
           return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
         }
+    // Validate and sanitize username early
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
     const {
       currentPassword,
       newUsername,
@@ -476,6 +481,12 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     const authUser = (req as any).user;
     if (!authUser || authUser.username !== username) {
       return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
+
+    // Validate and sanitize username
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
     }
 
     try {
