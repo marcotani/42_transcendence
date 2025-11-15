@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { FastifyPluginAsync } from 'fastify';
+import { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { authenticateJWT } from './auth';
 import { generateJWT } from '../leonardo-security/plugins/jwt';
@@ -12,7 +12,7 @@ const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const usersRoute: FastifyPluginAsync = async (app) => {
   
   // Creazione utente
-  app.post('/users', async (req, reply) => {
+  app.post('/users', async (req: FastifyRequest, reply: FastifyReply) => {
     const body = req.body as { email: string; username: string; password?: string };
     
     // Controllo campi del body
@@ -69,7 +69,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
   
   // Comando per recuperare un utente specifico, se esistente, dal database
-  app.get('/users/:username', async (req, reply) => {
+  app.get('/users/:username', async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -111,13 +111,13 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
   
   // Comando per eliminare tutti i profili sul database
-  app.delete('/users', async (_, reply) => {
+  app.delete('/users', async (_req: FastifyRequest, reply: FastifyReply) => {
     await app.prisma.user.deleteMany({});
     return reply.send({ message: 'All users deleted successfully' });
   });
   
   // Comando per eliminare un utente specifico sul database
-  app.delete('/users/:username', async (req, reply) => {
+  app.delete('/users/:username', async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -145,7 +145,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
   
   // Comando per modificare l'alias di un utente
-  app.patch('/users/:username/alias', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.patch('/users/:username/alias', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const { alias } = req.body as { alias?: string };
 
@@ -191,7 +191,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // PATCH per cambiare solo la skin (colore) del player
-  app.patch('/users/:username/skin', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.patch('/users/:username/skin', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -227,7 +227,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Rotta per accettare GDPR
-  app.patch('/users/:username/gdpr', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.patch('/users/:username/gdpr', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -255,7 +255,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Rotta per abilitare 2FA (ora protetta da JWT)
-  app.post('/users/:username/2fa/enable', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.post('/users/:username/2fa/enable', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -306,7 +306,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Rotta per disabilitare 2FA (ora protetta da JWT)
-  app.post('/users/:username/2fa/disable', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.post('/users/:username/2fa/disable', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -338,7 +338,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // Rotta per verificare il codice TOTP di un utente (e abilitare 2FA se setup)
   app.post('/users/:username/2fa/verify', {
     config: { rateLimit: { max: 6, timeWindow: '1 minute' } }
-  }, async (req, reply) => {
+  }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -372,19 +372,12 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   
   // Comando per modificare username, email o password
   // dopo aver controllato che la password passata sia corretta per l'utente
-  app.patch('/users/:username', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.patch('/users/:username', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
-    // Ensure authenticated user matches target username
-    const authUser = (req as any).user;
-    if (!authUser || authUser.username !== username) {
-      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
-    }
-
-    // Validate and sanitize username early
-    const cleanUsername = sanitizeUsername(username);
-    if (!cleanUsername) {
-      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
-    }
+        const authUser = (req as any).user;
+        if (!authUser || authUser.username !== username) {
+          return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+        }
     const {
       currentPassword,
       newUsername,
@@ -477,18 +470,12 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // comando per cambiare immagine profilo
-  app.patch('/users/:username/avatar', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.patch('/users/:username/avatar', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     // Ensure authenticated user matches target username
     const authUser = (req as any).user;
     if (!authUser || authUser.username !== username) {
       return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
-    }
-
-    // Validate username
-    const cleanUsername = sanitizeUsername(username);
-    if (!cleanUsername) {
-      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
     }
 
     try {
@@ -543,7 +530,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // comando per resettare immagine profilo a default
-  app.patch('/users/:username/avatar/reset', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.patch('/users/:username/avatar/reset', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
@@ -577,7 +564,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     return reply.send({ success: true, avatarUrl: '/static/default_avatar.png' });
   });
 
-  app.patch('/users/:username/bio', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.patch('/users/:username/bio', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const { bio } = req.body as { bio?: string };
     const authUser = (req as any).user;
@@ -615,7 +602,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Update email visibility
-  app.patch('/users/:username/email-visibility', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.patch('/users/:username/email-visibility', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const { emailVisible } = req.body as { emailVisible: boolean };
     const authUser = (req as any).user;
