@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { hashPassword, verifyPassword } from '../leonardo-security/plugins/password-hash';
 import { generateJWT, verifyJWT } from '../leonardo-security/plugins/jwt';
-import { sanitizeUsername, sanitizeHtml } from '../utils/sanitizer';
+import { sanitizeUsername, sanitizeHtml, sanitizePassword } from '../utils/sanitizer';
 
 // JWT Middleware for protected routes
 export const authenticateJWT = async (request: any, reply: any) => {
@@ -67,8 +67,18 @@ export default async function authRoutes(app: FastifyInstance) {
       });
     }
 
+    // Validate password (don't mutate it)
+    const cleanPassword = sanitizePassword(password);
+    if (!cleanPassword) {
+      return reply.code(400).send({
+        success: false,
+        errorCode: 'INVALID_PASSWORD',
+        error: 'Invalid password. Minimum 8 characters, no control characters.'
+      });
+    }
+
     try {
-      const { hash, salt } = hashPassword(password);
+      const { hash, salt } = hashPassword(cleanPassword);
       const newUser = await app.prisma.user.create({
         data: {
           username: cleanUsername,
@@ -155,7 +165,9 @@ export default async function authRoutes(app: FastifyInstance) {
       },
     });
 
-    if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
+    // Validate password input before verification
+    const cleanPassword = sanitizePassword(password);
+    if (!cleanPassword || !user || !verifyPassword(cleanPassword, user.password_salt, user.password_hash)) {
       return reply.code(401).send({
         success: false,
         errorCode: 'INVALID_CREDENTIALS',
@@ -231,12 +243,22 @@ export default async function authRoutes(app: FastifyInstance) {
       });
     }
 
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ success: false, errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
+
+    const cleanPassword = sanitizePassword(password);
+    if (!cleanPassword) {
+      return reply.code(400).send({ success: false, errorCode: 'INVALID_PASSWORD', error: 'Invalid password' });
+    }
+
     const user = await app.prisma.user.findUnique({
-      where: { username },
+      where: { username: cleanUsername },
       select: { id: true, password_hash: true, password_salt: true },
     });
 
-    if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
+    if (!user || !verifyPassword(cleanPassword, user.password_salt, user.password_hash)) {
       return reply.code(401).send({
         success: false,
         errorCode: 'INVALID_CREDENTIALS',

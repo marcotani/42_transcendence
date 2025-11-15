@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { authenticateJWT } from './auth';
-import { sanitizeUsername, sanitizeAlias, sanitizeBio, sanitizeHtml } from '../utils/sanitizer';
+import { sanitizeUsername, sanitizeAlias, sanitizeBio, sanitizeHtml, sanitizePassword } from '../utils/sanitizer';
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
@@ -19,9 +19,16 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Missing fields: email and username are required' });
     }
     
+    // Sanitizzazione e controllo formato email e username
+    const cleanUsername = sanitizeUsername(body.username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
+
+    const cleanEmail = sanitizeHtml(body.email.trim().toLowerCase());
     // Controllo formato email (RFC 5322 compliant)
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(body.email)) {
+    if (!emailRegex.test(cleanEmail)) {
       return reply.code(400).send({ errorCode: 'INVALID_EMAIL', error: 'Invalid email format' });
     }
     
@@ -29,17 +36,21 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       // Creazione utente tramite i parametri passati
       let hash, salt;
       if (body.password) {
+        const cleanPassword = sanitizePassword(body.password);
+        if (!cleanPassword) {
+          return reply.code(400).send({ errorCode: 'INVALID_PASSWORD', error: 'Invalid password. Min 8, max 128 characters, no control characters' });
+        }
         const result = await import('../leonardo-security/plugins/password-hash');
-        ({ hash, salt } = result.hashPassword(body.password));
+        ({ hash, salt } = result.hashPassword(cleanPassword));
       }
       const user = await app.prisma.user.create({
         data: {
-          email: body.email,
-          username: body.username,
+          email: cleanEmail,
+          username: cleanUsername,
           password_hash: hash ?? "",
           password_salt: salt ?? "",
           online: false,
-          profile: { create: { bio: '', alias: body.username, gdpr: false } },
+          profile: { create: { bio: '', alias: cleanUsername, gdpr: false } },
           stats: { create: {} }
         }
       });
@@ -59,12 +70,21 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // Comando per recuperare un utente specifico, se esistente, dal database
   app.get('/users/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
     const user = await app.prisma.user.findUnique({
-      where: { username },
+      where: { username: cleanUsername },
       include: { profile: true },
     });
     if (!user) {
       return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
+    }
+    // Escape any profile fields before returning to prevent XSS
+    if (user.profile) {
+      user.profile.alias = sanitizeHtml(user.profile.alias ?? '');
+      user.profile.bio = sanitizeHtml(user.profile.bio ?? '');
     }
     if (user.profile?.gdpr === true) {
       user.email = '*************';
@@ -78,6 +98,10 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       include: { profile: true, stats: true }
     });
     for (const user of users) {
+      if (user.profile) {
+        user.profile.alias = sanitizeHtml(user.profile.alias ?? '');
+        user.profile.bio = sanitizeHtml(user.profile.bio ?? '');
+      }
       if (user.profile?.gdpr === true) {
         user.email = '*************';
       }
@@ -94,23 +118,29 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // Comando per eliminare un utente specifico sul database
   app.delete('/users/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
     const { password } = req.body as { password?: string };
     
     if (!password) {
       return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Password is required' });
     }
-    
-    const user = await app.prisma.user.findUnique({ where: { username }, select: { password_hash: true, password_salt: true } });
+    const cleanPassword = sanitizePassword(password);
+    if (!cleanPassword) return reply.code(400).send({ errorCode: 'INVALID_PASSWORD', error: 'Invalid password' });
+
+  const user = await app.prisma.user.findUnique({ where: { username: cleanUsername }, select: { password_hash: true, password_salt: true } });
     if (!user) {
       return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
-    if (!verifyPassword(password, user.password_salt, user.password_hash)) {
+    if (!verifyPassword(cleanPassword, user.password_salt, user.password_hash)) {
       return reply.code(401).send({ errorCode: 'INVALID_CREDENTIALS', error: 'Invalid password' });
     }
     
-    await app.prisma.user.delete({ where: { username } });
-    return reply.send({ message: `User '${username}' deleted successfully` });
+    await app.prisma.user.delete({ where: { username: cleanUsername } });
+    return reply.send({ message: `User '${cleanUsername}' deleted successfully` });
   });
   
   // Comando per modificare l'alias di un utente
@@ -153,6 +183,10 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // PATCH per cambiare solo la skin (colore) del player
   app.patch('/users/:username/skin', async (req, reply) => {
     const { username } = req.params as { username: string };
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
     const { skinColor } = req.body as { skinColor?: string };
     // 5 colori predefiniti
     const allowedColors = [
@@ -167,7 +201,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       return reply.code(400).send({ errorCode: 'INVALID_SKIN_COLOR', error: 'skinColor must be one of: ' + allowedColors.join(', ') });
     }
     // Trova utente e aggiorna skinColor
-    const user = await app.prisma.user.findUnique({ where: { username }, select: { id: true } });
+  const user = await app.prisma.user.findUnique({ where: { username: cleanUsername }, select: { id: true } });
     if (!user) {
       return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
@@ -181,14 +215,22 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // Rotta per accettare GDPR
   app.patch('/users/:username/gdpr', async (req, reply) => {
     const { username } = req.params as { username: string };
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
     const { password } = req.body as { password?: string };
     if (!password)
       return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Password is required' });
-  const user = await app.prisma.user.findUnique({ where: { username } });
+
+    const cleanPassword = sanitizePassword(password);
+    if (!cleanPassword) return reply.code(400).send({ errorCode: 'INVALID_PASSWORD', error: 'Invalid password' });
+
+    const user = await app.prisma.user.findUnique({ where: { username: cleanUsername } });
     if (!user)
       return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
-    if (!verifyPassword(password, user.password_salt, user.password_hash))
+    if (!verifyPassword(cleanPassword, user.password_salt, user.password_hash))
       return reply.code(401).send({ errorCode: 'INVALID_CREDENTIALS', error: 'Invalid password' });
     await app.prisma.profile.update({ where: { userId: user.id }, data: { gdpr: true } });
     return reply.send({ success: true, message: 'GDPR flag set to true' });
@@ -197,13 +239,17 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // Rotta per abilitare 2FA (ora protetta da JWT)
   app.post('/users/:username/2fa/enable', { preHandler: authenticateJWT }, async (req, reply) => {
     const { username } = req.params as { username: string };
-    
-    // Verify user matches token
-    if ((req as any).user.username !== username) {
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
+
+    // Verify user matches token (token username assumed already validated elsewhere)
+    if ((req as any).user.username !== cleanUsername) {
       return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
     }
-    
-    const user = await app.prisma.user.findUnique({ where: { username } });
+
+    const user = await app.prisma.user.findUnique({ where: { username: cleanUsername } });
     if (!user) {
       return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
@@ -244,13 +290,17 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // Rotta per disabilitare 2FA (ora protetta da JWT)
   app.post('/users/:username/2fa/disable', { preHandler: authenticateJWT }, async (req, reply) => {
     const { username } = req.params as { username: string };
-    
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
+
     // Verify user matches token
-    if ((req as any).user.username !== username) {
+    if ((req as any).user.username !== cleanUsername) {
       return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
     }
-    
-    const user = await app.prisma.user.findUnique({ where: { username } });
+
+    const user = await app.prisma.user.findUnique({ where: { username: cleanUsername } });
     if (!user) {
       return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
@@ -270,8 +320,12 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // Rotta per verificare il codice TOTP di un utente (e abilitare 2FA se setup)
   app.post('/users/:username/2fa/verify', async (req, reply) => {
     const { username } = req.params as { username: string };
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
     const { code } = req.body as { code: string };
-    const user = await app.prisma.user.findUnique({ where: { username } });
+    const user = await app.prisma.user.findUnique({ where: { username: cleanUsername } });
     if (!user || !user.twoFactorSecret)
       return reply.code(400).send({ errorCode: 'INVALID_2FA_SETUP', error: '2FA secret not found or user not found' });
     
@@ -300,6 +354,10 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // dopo aver controllato che la password passata sia corretta per l'utente
   app.patch('/users/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
     const {
       currentPassword,
       newUsername,
@@ -326,22 +384,33 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     }
     // ricerca dell profilo all interno del database
     const user = await app.prisma.user.findUnique({
-      where: { username },
+      where: { username: cleanUsername },
       select: { id: true, username: true, email: true, password_hash: true, password_salt: true, createdAt: true },
     });
     if (!user) {
       return reply.code(400).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
     }
     const { verifyPassword, hashPassword } = await import('../leonardo-security/plugins/password-hash');
-    if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
+    const cleanCurrentPassword = sanitizePassword(currentPassword);
+    if (!cleanCurrentPassword || !verifyPassword(cleanCurrentPassword, user.password_salt, user.password_hash)) {
       return reply.code(400).send({ errorCode: 'INVALID_CREDENTIALS', error: 'Invalid current password' });
     }
 
     const data: Record<string, any> = {};
-    if (typeof newUsername === 'string' && newUsername.trim() !== '') data.username = newUsername.trim();
+    if (typeof newUsername === 'string' && newUsername.trim() !== '') {
+      const cleanNewUsername = sanitizeUsername(newUsername.trim());
+      if (!cleanNewUsername) {
+        return reply.code(400).send({ errorCode: 'INVALID_NEW_USERNAME', error: 'Invalid new username' });
+      }
+      data.username = cleanNewUsername;
+    }
     if (typeof newEmail === 'string') data.email = newEmail;
     if (typeof newPassword === 'string' && newPassword.trim() !== '') {
-      const { hash, salt } = hashPassword(newPassword);
+      const cleanNewPassword = sanitizePassword(newPassword);
+      if (!cleanNewPassword) {
+        return reply.code(400).send({ errorCode: 'INVALID_NEW_PASSWORD', error: 'Invalid new password' });
+      }
+      const { hash, salt } = hashPassword(cleanNewPassword);
       data.password_hash = hash;
       data.password_salt = salt;
     }
@@ -371,6 +440,8 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // comando per cambiare immagine profilo
   app.patch('/users/:username/avatar', async (req, reply) => {
     const { username } = req.params as { username: string };
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
 
     try {
       const data = await req.file();
@@ -385,7 +456,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
 
       // trova utente (no password verification needed for avatar)
       const user = await app.prisma.user.findUnique({
-        where: { username },
+        where: { username: cleanUsername },
         select: { id: true },
       });
       if (!user) {
@@ -426,6 +497,8 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // comando per resettare immagine profilo a default
   app.patch('/users/:username/avatar/reset', async (req, reply) => {
     const { username } = req.params as { username: string };
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
     const { currentPassword } = req.body as { currentPassword?: string };
 
     if (!currentPassword) {
@@ -433,12 +506,14 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     }
 
     const user = await app.prisma.user.findUnique({
-      where: { username },
+      where: { username: cleanUsername },
       select: { id: true, password_hash: true, password_salt: true },
     });
   if (!user) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
+    const cleanCurrentPassword = sanitizePassword(currentPassword ?? '');
+    if (!cleanCurrentPassword) return reply.code(400).send({ errorCode: 'INVALID_PASSWORD', error: 'Invalid current password' });
     const { verifyPassword } = await import('../leonardo-security/plugins/password-hash');
-    if (!verifyPassword(currentPassword, user.password_salt, user.password_hash)) {
+    if (!verifyPassword(cleanCurrentPassword, user.password_salt, user.password_hash)) {
       return reply.code(401).send({ errorCode: 'INVALID_CREDENTIALS', error: 'Invalid current password' });
     }
 
