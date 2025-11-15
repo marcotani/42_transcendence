@@ -1,5 +1,37 @@
 ## Transcendence
 
+-------------- MODULI SCELTI ------------
+
+• Major module: Use a framework to build the backend.
+
+• Minor module: Use a framework or toolkit to build the front-end.
+
+• Minor module: Use a database for the backend -and more.
+
+• Major module: Standard user management, authentication and users across tour-
+naments.
+
+• Major module: Introduce an AI opponent.
+
+• Minor module: GDPR compliance options with user anonymization, local data
+management, and account deletion.
+
+• Major module: Implement Two-Factor Authentication (2FA) and JWT.
+
+• Minor module: Support on all devices.
+
+• Minor module: Expanding Browser Compatibility.
+
+• Minor module: Multiple language support.
+
+• Minor module: Add accessibility for Visually Impaired Users.
+
+• Minor module: User and Game Stats Dashboards.
+
+• Minor module: Game customization options.
+
+Punti totali: 8 1/2
+
 ---------- START & STOP DOCKER ----------
 
 sudo docker compose build
