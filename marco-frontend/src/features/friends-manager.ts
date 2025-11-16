@@ -1,6 +1,7 @@
 // Friends Manager - Handles friends-related functionality
 // Starting with incremental extraction approach
 import { API_BASE } from '../config/constants.js';
+import { escapeHtml } from '../utils/dom-helpers.js';
 import { ApiClient } from '../services/api-client.js';
 import { StorageService } from '../services/storage.js';
 import { showStatus } from '../utils/dom-helpers.js';
@@ -373,8 +374,8 @@ export class FriendsManager {
                 <div class="flex items-center space-x-3">
                   <img src="${avatarUrl}" alt="Avatar" class="w-8 h-8 rounded-full object-cover bg-gray-600" />
                   <div>
-                    <button class="text-blue-400 hover:text-blue-300 font-medium" onclick="viewProfile('${friend.username}')">${friend.username}</button>
-                    ${friend.alias ? `<p class="text-gray-400 text-sm">${friend.alias}</p>` : ''}
+                    <button class="text-blue-400 hover:text-blue-300 font-medium" onclick="viewProfile('${friend.username}')">${escapeHtml(String(friend.username))}</button>
+                    ${friend.alias ? `<p class="text-gray-400 text-sm">${escapeHtml(String(friend.alias))}</p>` : ''}
                   </div>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -391,7 +392,7 @@ export class FriendsManager {
 
         container.innerHTML = html;
       } else {
-        container.innerHTML = `<p class="text-red-400 text-center">${response.error}</p>`;
+        container.innerHTML = `<p class="text-red-400 text-center">${escapeHtml(String(response.error || ''))}</p>`;
       }
     } catch (error) {
       console.error('Error loading friends list:', error);

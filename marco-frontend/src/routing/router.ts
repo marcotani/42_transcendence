@@ -3,7 +3,7 @@ import { routes } from './routes.js';
 import { translations, getT } from '../config/translations.js';
 import { API_BASE } from '../config/constants.js';
 import { TokenManager } from '../services/token-manager.js';
-import { accessibilityTogglesUI, showStatus } from '../utils/dom-helpers.js';
+import { accessibilityTogglesUI, showStatus, escapeHtml } from '../utils/dom-helpers.js';
 import { LanguageManager } from '../features/language.js';
 import { ProfileManager } from '../features/profile.js';
 import { StorageService } from '../services/storage.js';
@@ -105,7 +105,7 @@ export class Router {
           </div>
         </button>
         <div class='relative'>
-          <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400 flex items-center' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${avatarImg}<span>${loggedInUser}</span></button>
+          <button id='user-dropdown-btn' class='px-4 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400 flex items-center' aria-haspopup='true' aria-expanded='false' aria-controls='user-dropdown-menu'>${avatarImg}<span>${escapeHtml(String(loggedInUser))}</span></button>
           <div id='user-dropdown-menu' class='absolute right-0 top-full mt-1 w-40 bg-gray-900 border border-gray-700 rounded shadow-lg hidden' role='menu' aria-label='User menu'>
             <button id='dropdown-my-profile' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem' aria-label='${t.myProfile}'>${t.myProfile}</button>
             <button id='dropdown-logout' class='block w-full text-left px-4 py-2 hover:bg-gray-800 text-white rounded focus:outline-none' role='menuitem' aria-label='${t.logout}'>${t.logout}</button>

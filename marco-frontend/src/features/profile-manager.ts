@@ -3,6 +3,7 @@ import { API_BASE } from '../config/constants.js';
 import { getT } from '../config/translations.js';
 import { LanguageManager } from './language.js';
 import { MatchHistoryManager } from './match-history.js';
+import { escapeHtml } from '../utils/dom-helpers.js';
 
 export class ProfileManager {
   /**
@@ -98,10 +99,10 @@ export class ProfileManager {
         container.innerHTML = `
           <div class='flex flex-col items-center'>
             <div class='mb-4'>${avatarHtml}</div>
-            <div class='text-2xl font-bold mb-2'>${userData.profile?.alias || userData.username}</div>
-            <div class='text-gray-400 mb-2'>@${userData.username}</div>
-            ${userData.profile?.emailVisible && userData.email && userData.email !== '*************' ? `<div class='text-gray-400 mb-4'>${userData.email}</div>` : ''}
-            ${userData.profile?.bio ? `<div class='text-base text-white mb-6'>${userData.profile.bio}</div>` : ''}
+            <div class='text-2xl font-bold mb-2'>${escapeHtml(String(userData.profile?.alias || userData.username))}</div>
+            <div class='text-gray-400 mb-2'>@${escapeHtml(String(userData.username))}</div>
+            ${userData.profile?.emailVisible && userData.email && userData.email !== '*************' ? `<div class='text-gray-400 mb-4'>${escapeHtml(String(userData.email))}</div>` : ''}
+            ${userData.profile?.bio ? `<div class='text-base text-white mb-6'>${escapeHtml(String(userData.profile.bio))}</div>` : ''}
             ${statsHtml}
             <div class='w-full mb-6'>${matchHistoryHtml}</div>
             <button id='back-home-view-profile' class='mt-2 w-full px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded focus:outline-none focus:ring-4 focus:ring-gray-400'>${t.backToHome}</button>

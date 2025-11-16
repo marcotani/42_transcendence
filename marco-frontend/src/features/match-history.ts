@@ -1,5 +1,6 @@
 import { getT } from '../config/translations.js';
 import { LanguageManager } from './language.js';
+import { escapeHtml } from '../utils/dom-helpers.js';
 
 export class MatchHistoryManager {
   /**
@@ -49,7 +50,7 @@ export class MatchHistoryManager {
                 <span class='${resultColor} font-bold text-sm'>${match.userResult}</span>
                 <span class='${typeColor} text-xs uppercase'>${match.matchType}</span>
               </div>
-              <div class='text-white font-medium'><span data-i18n='vsLabel'>${t.vsLabel}</span> ${opponent}</div>
+              <div class='text-white font-medium'><span data-i18n='vsLabel'>${t.vsLabel}</span> ${escapeHtml(String(opponent))}</div>
               <div class='text-gray-300 text-sm'>${matchDate}</div>
             </div>
             <div class='text-right'>
@@ -57,7 +58,7 @@ export class MatchHistoryManager {
                 ${match.scores.player1Score}-${match.scores.player2Score}
               </div>
               <div class='text-gray-400 text-xs'>
-                <span data-i18n='winnerLabel'>${t.winnerLabel}</span> ${match.winner}
+                <span data-i18n='winnerLabel'>${t.winnerLabel}</span> ${escapeHtml(String(match.winner))}
               </div>
             </div>
           </div>

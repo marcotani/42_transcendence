@@ -261,28 +261,54 @@ function attachPongListeners() {
     }
     
     try {
-      const response = await fetch(`${API_BASE}/api/login`, {
+      // First, verify credentials without side effects (no token, no online=true)
+      const verifyRes = await fetch(`${API_BASE}/api/verify-credentials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        console.log('Player 2 login response:', userData);
-        console.log('userData.user.id:', userData.user?.id);
-        player2Data = { username, id: userData.user?.id };
-        console.log('player2Data set to:', player2Data);
-        setupGameArea('player');
-        if (errorDiv) errorDiv.style.visibility = 'hidden';
-      } else {
-        const error = await response.json();
-        console.warn('Player2 login error from server:', error);
+
+      if (!verifyRes.ok) {
+        const err = await verifyRes.json().catch(() => ({}));
+        console.warn('Player2 verify error from server:', err);
         if (errorDiv) {
           errorDiv.textContent = getT(LanguageManager.getLang()).loginFailed;
           errorDiv.style.visibility = 'visible';
         }
+        return;
       }
+
+      const verifyData = await verifyRes.json();
+      if (verifyData?.requiresTwoFactor) {
+        if (errorDiv) {
+          errorDiv.textContent = getT(LanguageManager.getLang()).twoFactorRequired || getT(LanguageManager.getLang()).loginFailed;
+          errorDiv.style.visibility = 'visible';
+        }
+        return;
+      }
+
+      // Fetch user info to get the numeric id (needed by match payload)
+      const userRes = await fetch(`${API_BASE}/users/${encodeURIComponent(username)}`);
+      if (!userRes.ok) {
+        if (errorDiv) {
+          errorDiv.textContent = getT(LanguageManager.getLang()).userNotFound || getT(LanguageManager.getLang()).loginFailed;
+          errorDiv.style.visibility = 'visible';
+        }
+        return;
+      }
+      const userJson = await userRes.json();
+      if (!userJson?.id) {
+        if (errorDiv) {
+          errorDiv.textContent = getT(LanguageManager.getLang()).unknownError || getT(LanguageManager.getLang()).loginFailed;
+          errorDiv.style.visibility = 'visible';
+        }
+        return;
+      }
+
+      player2Data = { username, id: userJson.id };
+      console.log('player2Data set to:', player2Data);
+      setupGameArea('player');
+      if (errorDiv) errorDiv.style.visibility = 'hidden';
     } catch (error) {
       if (errorDiv) {
         errorDiv.textContent = getT(LanguageManager.getLang()).networkErrorOccurred;

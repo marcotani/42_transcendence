@@ -1,6 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { sanitizeHtml } from '../utils/sanitizer';
 
-const prisma = new PrismaClient();
+// The PrismaClient instance is now injected to avoid multiple SQLite connections.
+let prisma: PrismaClient;
+export function setPrisma(client: PrismaClient) { prisma = client; }
 
 export interface MatchData {
   player1Id: number;
@@ -13,7 +16,10 @@ export interface MatchData {
 }
 
 export class MatchService {
-  static async updateUserStats(matchData: MatchData): Promise<void> {
+  static async updateUserStats(
+    matchData: MatchData,
+    client: PrismaClient | Prisma.TransactionClient = prisma
+  ): Promise<void> {
     try {
       console.log('updateUserStats called with:', matchData);
       
@@ -22,38 +28,21 @@ export class MatchService {
       console.log(`Player 1 (ID: ${matchData.player1Id}) is winner: ${player1IsWinner}`);
       
       // Check if user stats exist, create if not
-      const player1Stats = await prisma.userStat.findUnique({
-        where: { userId: matchData.player1Id }
-      });
-      
-      if (!player1Stats) {
-        console.log('Creating new stats record for player 1');
-        // Create initial stats record
-        const initialStats = {
+      // Upsert player1 stats (atomic against races)
+      const player1Initial = this.getStatsUpdate(matchData.matchType, player1IsWinner);
+      const player1Increment = this.getStatsUpdateIncrement(matchData.matchType, player1IsWinner);
+      await client.userStat.upsert({
+        where: { userId: matchData.player1Id },
+        create: {
           userId: matchData.player1Id,
-          botWins: 0,
-          botLosses: 0,
-          playerWins: 0,
-          playerLosses: 0,
-          tournamentWins: 0
-        };
-        
-        // Apply the update for this match
-        const player1Update = this.getStatsUpdate(matchData.matchType, player1IsWinner);
-        Object.assign(initialStats, player1Update);
-        
-        await prisma.userStat.create({ data: initialStats });
-        console.log('Player 1 stats created:', initialStats);
-      } else {
-        console.log('Updating existing stats for player 1');
-        // Update existing stats
-        const player1Update = this.getStatsUpdateIncrement(matchData.matchType, player1IsWinner);
-        await prisma.userStat.update({
-          where: { userId: matchData.player1Id },
-          data: player1Update
-        });
-        console.log('Player 1 stats update:', player1Update);
-      }
+          botWins: player1Initial.botWins ?? 0,
+          botLosses: player1Initial.botLosses ?? 0,
+          playerWins: player1Initial.playerWins ?? 0,
+          playerLosses: player1Initial.playerLosses ?? 0,
+          tournamentWins: player1Initial.tournamentWins ?? 0
+        },
+        update: player1Increment
+      });
 
       // Update stats for player2 if it's not a bot
       if (matchData.player2Id) {
@@ -61,38 +50,20 @@ export class MatchService {
         const player2IsWinner = matchData.winnerId === matchData.player2Id;
         console.log(`Player 2 is winner: ${player2IsWinner}`);
         
-        const player2Stats = await prisma.userStat.findUnique({
-          where: { userId: matchData.player2Id }
-        });
-        
-        if (!player2Stats) {
-          console.log('Creating new stats record for player 2');
-          // Create initial stats record
-          const initialStats = {
+        const player2Initial = this.getStatsUpdate(matchData.matchType, player2IsWinner);
+        const player2Increment = this.getStatsUpdateIncrement(matchData.matchType, player2IsWinner);
+        await client.userStat.upsert({
+          where: { userId: matchData.player2Id },
+          create: {
             userId: matchData.player2Id,
-            botWins: 0,
-            botLosses: 0,
-            playerWins: 0,
-            playerLosses: 0,
-            tournamentWins: 0
-          };
-          
-          // Apply the update for this match
-          const player2Update = this.getStatsUpdate(matchData.matchType, player2IsWinner);
-          Object.assign(initialStats, player2Update);
-          
-          await prisma.userStat.create({ data: initialStats });
-          console.log('Player 2 stats created:', initialStats);
-        } else {
-          console.log('Updating existing stats for player 2');
-          // Update existing stats
-          const player2Update = this.getStatsUpdateIncrement(matchData.matchType, player2IsWinner);
-          await prisma.userStat.update({
-            where: { userId: matchData.player2Id },
-            data: player2Update
-          });
-          console.log('Player 2 stats update:', player2Update);
-        }
+            botWins: player2Initial.botWins ?? 0,
+            botLosses: player2Initial.botLosses ?? 0,
+            playerWins: player2Initial.playerWins ?? 0,
+            playerLosses: player2Initial.playerLosses ?? 0,
+            tournamentWins: player2Initial.tournamentWins ?? 0
+          },
+          update: player2Increment
+        });
       } else {
         console.log('No player 2 ID provided, skipping player 2 stats update');
       }
@@ -145,57 +116,53 @@ export class MatchService {
   static async createMatch(matchData: MatchData): Promise<any> {
     try {
       console.log('Creating match with data:', matchData);
+      // Sanitize any user-supplied textual fields to avoid XSS via history rendering
+      const safeMatchData: MatchData = {
+        ...matchData,
+        player2BotName: matchData.player2BotName
+          ? sanitizeHtml(String(matchData.player2BotName)).slice(0, 32)
+          : undefined
+      };
       
       // Verifica che non sia un torneo, temporaneo
-      if (matchData.matchType.toLowerCase() === 'tournament') {
+      if (safeMatchData.matchType.toLowerCase() === 'tournament') {
         throw new Error('Tournament matches should not be added to history');
       }
 
-      // Update user statistics first
-      console.log('Updating user statistics...');
-      await this.updateUserStats(matchData);
-      console.log('User statistics updated successfully');
+      // Wrap all operations in a transaction to avoid race conditions.
+      const match = await prisma.$transaction(async (tx) => {
+        // Update user statistics (atomic)
+        console.log('Updating user statistics (transaction)...');
+        await this.updateUserStats(safeMatchData, tx);
 
-      // Controllo delle partite salvate
-      const player1MatchCount = await prisma.match.count({
-        where: {
-          OR: [
-            { player1Id: matchData.player1Id },
-            { player2Id: matchData.player1Id }
-          ]
+        // Prune player1 history if needed
+        const player1MatchCount = await tx.match.count({
+          where: { OR: [ { player1Id: safeMatchData.player1Id }, { player2Id: safeMatchData.player1Id } ] }
+        });
+        if (player1MatchCount >= 10) {
+          await this.removeOldestMatchForUser(safeMatchData.player1Id, tx);
         }
-      });
 
-      // Rimozione della più vecchia in caso siano più di 10
-      if (player1MatchCount >= 10) {
-        await this.removeOldestMatchForUser(matchData.player1Id);
-      }
+        // Prune player2 history if needed
+        if (safeMatchData.player2Id) {
+          const player2MatchCount = await tx.match.count({
+            where: { OR: [ { player1Id: safeMatchData.player2Id }, { player2Id: safeMatchData.player2Id } ] }
+          });
+            if (player2MatchCount >= 10) {
+            await this.removeOldestMatchForUser(safeMatchData.player2Id, tx);
+          }
+        }
 
-      // Se il player2 non è un bot controlla anche per lui
-      if (matchData.player2Id) {
-        const player2MatchCount = await prisma.match.count({
-          where: {
-            OR: [
-              { player1Id: matchData.player2Id },
-              { player2Id: matchData.player2Id }
-            ]
+        // Create match
+        console.log('Creating match (transaction)...');
+        return tx.match.create({
+          data: safeMatchData,
+          include: {
+            player1: { select: { username: true } },
+            player2: { select: { username: true } },
+            winner: { select: { username: true } }
           }
         });
-
-        if (player2MatchCount >= 10) {
-          await this.removeOldestMatchForUser(matchData.player2Id);
-        }
-      }
-
-      // Crea il nuovo match
-      console.log('Creating match in database...');
-      const match = await prisma.match.create({
-        data: matchData,
-        include: {
-          player1: { select: { username: true } },
-          player2: { select: { username: true } },
-          winner: { select: { username: true } }
-        }
       });
       
       console.log('Match created successfully:', {
@@ -215,10 +182,13 @@ export class MatchService {
     }
   }
 
-  static async removeOldestMatchForUser(userId: number): Promise<void> {
+  static async removeOldestMatchForUser(
+    userId: number,
+    client: PrismaClient | Prisma.TransactionClient = prisma
+  ): Promise<void> {
     try {
       // Trova la partita più vecchia dell'utente
-      const oldestMatch = await prisma.match.findFirst({
+      const oldestMatch = await client.match.findFirst({
         where: {
           OR: [
             { player1Id: userId },
@@ -231,7 +201,7 @@ export class MatchService {
       });
 
       if (oldestMatch) {
-        await prisma.match.delete({
+        await client.match.delete({
           where: { id: oldestMatch.id }
         });
       }
@@ -276,12 +246,12 @@ export class MatchService {
         });
       });
 
-      // Formatta i risultati per migliore leggibilità
+      // Formatta i risultati per migliore leggibilità, sanificando nomi liberi
       return matches.map((match: any) => ({
         id: match.id,
         participants: {
           player1: match.player1.username,
-          player2: match.player2?.username || match.player2BotName || 'BOT'
+          player2: match.player2?.username || (match.player2BotName ? sanitizeHtml(match.player2BotName) : 'BOT')
         },
         scores: {
           player1Score: match.player1Score,

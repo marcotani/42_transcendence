@@ -1,8 +1,10 @@
 import { FastifyPluginAsync } from 'fastify';
-import { MatchService } from '../services/matchService';
+import { MatchService, setPrisma } from '../services/matchService';
 import { authenticateJWT } from './auth';
 
 const statsRoute: FastifyPluginAsync = async (app) => {
+  // Inietta il PrismaClient condiviso nel MatchService
+  setPrisma(app.prisma);
   // Statistiche di tutti gli utenti
   app.get('/stats', async (req, reply) => {
     try {
@@ -55,39 +57,38 @@ const statsRoute: FastifyPluginAsync = async (app) => {
     }
 
     try {
-      let update: any = {};
-      if (body.type === 'bot') {
-        update = body.result === 'win' ? { botWins: { increment: 1 } } : { botLosses: { increment: 1 } };
-      } else if (body.type === 'player') {
-        update = body.result === 'win' ? { playerWins: { increment: 1 } } : { playerLosses: { increment: 1 } };
-      } else if (body.type === 'tournament' && body.result === 'win') {
-        update = { tournamentWins: { increment: 1 } };
-      } else {
-        return reply.code(400).send({ errorCode: 'INVALID_COMBINATION', error: 'Invalid combination' });
-      }
-
-      await app.prisma.userStat.update({
-        where: { userId: body.userId },
-        data: update,
-      });
-
-      if (body.type !== 'tournament' && body.opponent && body.scores) {
-        try {
-          const winnerId = body.result === 'win' ? body.userId : body.opponent.id;
-          await MatchService.createMatch({
-            player1Id: body.userId,
-            player2Id: body.opponent.id,
-            player2BotName: body.opponent.botName,
-            player1Score: body.scores.userScore,
-            player2Score: body.scores.opponentScore,
-            winnerId,
-            matchType: body.type
-          });
-        } catch (matchError) {
-          app.log.warn('Failed to create match record:', matchError as any);
+      // Tornei: solo incremento statistiche, nessun match in history
+      if (body.type === 'tournament') {
+        if (body.result !== 'win') {
+          return reply.code(400).send({ errorCode: 'INVALID_COMBINATION', error: 'Invalid combination' });
         }
+        await app.prisma.userStat.update({
+          where: { userId: body.userId },
+          data: { tournamentWins: { increment: 1 } },
+        });
+        return reply.send({ success: true });
       }
 
+      // Bot/Player: delega completamente a MatchService (transazione: stats + match)
+      if (body.opponent && body.scores) {
+        const winnerId = body.result === 'win' ? body.userId : body.opponent.id;
+        await MatchService.createMatch({
+          player1Id: body.userId,
+          player2Id: body.opponent.id,
+          player2BotName: body.opponent.botName,
+          player1Score: body.scores.userScore,
+          player2Score: body.scores.opponentScore,
+          winnerId,
+          matchType: body.type
+        });
+        return reply.send({ success: true });
+      }
+
+      // Fallback: se mancano dettagli, aggiorna solo stats minime
+      const update = body.type === 'bot'
+        ? (body.result === 'win' ? { botWins: { increment: 1 } } : { botLosses: { increment: 1 } })
+        : (body.result === 'win' ? { playerWins: { increment: 1 } } : { playerLosses: { increment: 1 } });
+      await app.prisma.userStat.update({ where: { userId: body.userId }, data: update });
       return reply.send({ success: true });
     } catch (err) {
       app.log.error(err);

@@ -130,7 +130,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
   // POST /api/login
   app.post('/api/login', {
-    config: { rateLimit: { max: 5, timeWindow: '1 minute' } }
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } }
   }, async (request, reply) => {
     const { username, password } = request.body as {
       username: string;
@@ -217,6 +217,60 @@ export default async function authRoutes(app: FastifyInstance) {
     return app.prisma.user.findMany({
       select: { id: true, username: true, email: true, createdAt: true },
       orderBy: { id: 'asc' },
+    });
+  });
+
+  // POST /api/verify-credentials (no token, no online flag)
+  app.post('/api/verify-credentials', {
+    config: { rateLimit: { max: 60, timeWindow: '1 minute' } }
+  }, async (request, reply) => {
+    const { username, password } = request.body as {
+      username: string;
+      password: string;
+    };
+
+    if (!username || !password) {
+      return reply.code(400).send({
+        success: false,
+        errorCode: 'MISSING_FIELDS',
+        error: 'Username and password are required'
+      });
+    }
+
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({
+        success: false,
+        errorCode: 'INVALID_USERNAME',
+        error: 'Invalid username'
+      });
+    }
+
+    const user = await app.prisma.user.findUnique({
+      where: { username: cleanUsername },
+      select: {
+        id: true,
+        username: true,
+        password_hash: true,
+        password_salt: true,
+        twoFactorEnabled: true
+      }
+    });
+
+    const cleanPassword = sanitizePassword(password);
+    if (!cleanPassword || !user || !verifyPassword(cleanPassword, user.password_salt, user.password_hash)) {
+      return reply.code(401).send({
+        success: false,
+        errorCode: 'INVALID_CREDENTIALS',
+        error: 'Invalid credentials'
+      });
+    }
+
+    // Do not update any state or return sensitive info
+    return reply.send({
+      success: true,
+      username: user.username,
+      requiresTwoFactor: user.twoFactorEnabled
     });
   });
 

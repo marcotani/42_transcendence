@@ -1,17 +1,19 @@
 import { FastifyPluginAsync } from 'fastify';
-import { PrismaClient } from '@prisma/client';
 import { MatchService, MatchData } from '../services/matchService';
 import { authenticateJWT } from './auth';
 
-const prisma = new PrismaClient();
+import { setPrisma } from '../services/matchService';
 
 const matchesRoute: FastifyPluginAsync = async (app) => {
+  // Inietta il PrismaClient condiviso nel MatchService una sola volta
+  setPrisma(app.prisma);
+
   // Recupera la cronologia delle partite di un utente
   app.get('/matches/history/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
     
     try {
-      const user = await prisma.user.findUnique({
+      const user = await app.prisma.user.findUnique({
         where: { username },
         select: { id: true }
       });
@@ -93,7 +95,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
     const { username } = req.params as { username: string };
     
     try {
-      const user = await prisma.user.findUnique({
+      const user = await app.prisma.user.findUnique({
         where: { username }
       });
 
@@ -101,7 +103,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
         return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
       }
 
-      const matches = await prisma.match.findMany({
+      const matches = await app.prisma.match.findMany({
         where: {
           OR: [
             { player1Id: user.id },

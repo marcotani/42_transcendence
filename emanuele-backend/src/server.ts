@@ -82,6 +82,14 @@ async function buildServer() {
   // Registra il plugin Prisma (aggiunge app.prisma)
   await app.register(prismaPlugin);
 
+  // Impostazioni SQLite per ridurre contention su scritture concorrenti
+  try {
+    await app.prisma.$executeRawUnsafe('PRAGMA journal_mode=WAL;');
+    await app.prisma.$executeRawUnsafe('PRAGMA busy_timeout=3000;');
+  } catch (e) {
+    app.log.warn('Failed to set WAL/busy_timeout pragmas: ' + String(e));
+  }
+
   // Rate limiting (per-route only)
   await app.register(rateLimit, { global: false });
 
