@@ -7,7 +7,7 @@ const statsRoute: FastifyPluginAsync = async (app) => {
   app.get('/stats', async (req, reply) => {
     try {
       const stats = await app.prisma.userStat.findMany({
-        include: { user: { select: { username: true, email: true } } }
+        include: { user: { select: { username: true } } }
       });
       return reply.send(stats);
     } catch (err) {

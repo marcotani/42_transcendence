@@ -80,12 +80,20 @@ export default async function friendsRoutes(app: FastifyInstance) {
     return reply.code(201).send({ success: true, request: fr });
   });
 
-   app.get('/friends/requests', async (req, reply) => {
+   app.get('/friends/requests', { preHandler: authenticateJWT }, async (req, reply) => {
     const { for: forUsername } = req.query as { for?: string };
   if (!forUsername) return reply.code(400).send({ errorCode: 'PARAM_FOR_REQUIRED', error: '"for" parameter is required' });
 
+    // Ensure authenticated user matches query username
+    const authenticatedUser = (req as any).user;
+    const cleanFor = sanitizeUsername(forUsername);
+    if (!cleanFor) return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    if (!authenticatedUser || authenticatedUser.username !== cleanFor) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Unauthorized' });
+    }
+
     const user = await app.prisma.user.findUnique({
-      where: { username: forUsername },
+      where: { username: cleanFor },
       select: { id: true },
     });
   if (!user) return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });

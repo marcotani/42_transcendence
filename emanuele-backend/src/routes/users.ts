@@ -53,7 +53,8 @@ const usersRoute: FastifyPluginAsync = async (app) => {
           online: false,
           profile: { create: { bio: '', alias: cleanUsername, gdpr: false } },
           stats: { create: {} }
-        }
+        },
+        select: { id: true, username: true, email: true, createdAt: true }
       });
       
       return reply.code(201).send(user);
@@ -77,7 +78,31 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     }
     const user = await app.prisma.user.findUnique({
       where: { username: cleanUsername },
-      include: { profile: true },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        createdAt: true,
+        profile: {
+          select: {
+            alias: true,
+            avatarUrl: true,
+            bio: true,
+            skinColor: true,
+            gdpr: true,
+            emailVisible: true
+          }
+        },
+        stats: {
+          select: {
+            botWins: true,
+            botLosses: true,
+            playerWins: true,
+            playerLosses: true,
+            tournamentWins: true
+          }
+        }
+      }
     });
     if (!user) {
       return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
@@ -87,7 +112,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       user.profile.alias = sanitizeHtml(user.profile.alias ?? '');
       user.profile.bio = sanitizeHtml(user.profile.bio ?? '');
     }
-    if (user.profile?.gdpr === true) {
+    if (user.profile && (user.profile.gdpr === true || user.profile.emailVisible === false)) {
       user.email = '*************';
     }
     return user;
@@ -96,14 +121,39 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // Comando per stampare l'intero database
   app.get('/users', async () => {
     const users = await app.prisma.user.findMany({
-      include: { profile: true, stats: true }
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        createdAt: true,
+        profile: {
+          select: {
+            alias: true,
+            avatarUrl: true,
+            bio: true,
+            skinColor: true,
+            gdpr: true,
+            emailVisible: true
+          }
+        },
+        stats: {
+          select: {
+            botWins: true,
+            botLosses: true,
+            playerWins: true,
+            playerLosses: true,
+            tournamentWins: true
+          }
+        }
+      },
+      orderBy: { id: 'asc' }
     });
     for (const user of users) {
       if (user.profile) {
         user.profile.alias = sanitizeHtml(user.profile.alias ?? '');
         user.profile.bio = sanitizeHtml(user.profile.bio ?? '');
       }
-      if (user.profile?.gdpr === true) {
+      if (user.profile && (user.profile.gdpr === true || user.profile.emailVisible === false)) {
         user.email = '*************';
       }
     }
@@ -112,6 +162,10 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   
   // Comando per eliminare tutti i profili sul database
   app.delete('/users', async (_req: FastifyRequest, reply: FastifyReply) => {
+    const isDev = process.env.NODE_ENV === 'development' || process.env.DEV_ROUTES === 'true';
+    if (!isDev) {
+      return reply.code(403).send({ success: false, errorCode: 'DEV_ONLY_ROUTE', error: 'This endpoint is available in development only' });
+    }
     await app.prisma.user.deleteMany({});
     return reply.send({ message: 'All users deleted successfully' });
   });

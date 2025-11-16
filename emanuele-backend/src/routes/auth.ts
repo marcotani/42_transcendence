@@ -208,8 +208,12 @@ export default async function authRoutes(app: FastifyInstance) {
         requiresTwoFactor: false
       });
     }
-  });  // GET /api/users 
-  app.get('/api/users', async () => {
+  });  // GET /api/users (DEV ONLY)
+  app.get('/api/users', async (req, reply) => {
+    const isDev = process.env.NODE_ENV === 'development' || process.env.DEV_ROUTES === 'true';
+    if (!isDev) {
+      return reply.code(403).send({ success: false, errorCode: 'DEV_ONLY_ROUTE', error: 'This endpoint is available in development only' });
+    }
     return app.prisma.user.findMany({
       select: { id: true, username: true, email: true, createdAt: true },
       orderBy: { id: 'asc' },
