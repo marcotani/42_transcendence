@@ -280,11 +280,42 @@ function attachPongListeners() {
 
       const verifyData = await verifyRes.json();
       if (verifyData?.requiresTwoFactor) {
-        if (errorDiv) {
-          errorDiv.textContent = getT(LanguageManager.getLang()).twoFactorRequired || getT(LanguageManager.getLang()).loginFailed;
-          errorDiv.style.visibility = 'visible';
+        // Prompt for 2FA code for this specific player
+        const code = await promptTwoFactorCodeFor(username);
+        if (!code || code.trim().length !== 6) {
+          if (errorDiv) {
+            errorDiv.textContent = getT(LanguageManager.getLang()).twoFactorRequired || getT(LanguageManager.getLang()).loginFailed;
+            errorDiv.style.visibility = 'visible';
+          }
+          return;
         }
-        return;
+        try {
+          const verify2faResp = await fetch(`${API_BASE}/users/${encodeURIComponent(username)}/2fa/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: code.trim() })
+          });
+          const verify2faData = await verify2faResp.json().catch(() => ({}));
+          if (!verify2faResp.ok || !verify2faData?.success) {
+            if (errorDiv) {
+              const t = getT(LanguageManager.getLang());
+              errorDiv.textContent = verify2faData?.errorCode === 'INVALID_2FA_CODE' ? (t.invalid2FACode || t.loginFailed) : (t.twoFactorRequired || t.loginFailed);
+              errorDiv.style.visibility = 'visible';
+            }
+            return;
+          }
+          // Optional: store token for player2 if needed later
+          try {
+            (window as any).pvpTokens = (window as any).pvpTokens || {};
+            (window as any).pvpTokens[username] = verify2faData.token;
+          } catch (_) { /* ignore */ }
+        } catch (err) {
+          if (errorDiv) {
+            errorDiv.textContent = getT(LanguageManager.getLang()).networkErrorTryAgain || getT(LanguageManager.getLang()).loginFailed;
+            errorDiv.style.visibility = 'visible';
+          }
+          return;
+        }
       }
 
       // Fetch user info to get the numeric id (needed by match payload)
@@ -326,6 +357,53 @@ function attachPongListeners() {
     const errorDiv = document.getElementById('player2-login-error');
     if (errorDiv) errorDiv.style.visibility = 'hidden';
   });
+
+  // Inline helper: prompt a labeled 2FA modal for a given username
+  function promptTwoFactorCodeFor(username: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      const t = getT(LanguageManager.getLang());
+      const modal = document.createElement('div');
+      modal.id = 'twofa-player2-modal';
+      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+      modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" style="color:#374151 !important;">
+          <h2 class="text-xl font-bold mb-2" style="color:#1f2937 !important;">${t.twoFactorTitle}</h2>
+          <p class="text-sm text-gray-600 mb-4" style="color:#4b5563 !important;">Enter the 6-digit code for <strong>${username}</strong></p>
+          <form id="twofa-player2-form" class="space-y-3">
+            <input id="twofa-player2-code" type="text" maxlength="6" pattern="[0-9]{6}"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-center text-lg tracking-widest"
+              style="color:#1f2937 !important; background-color:#ffffff !important;" placeholder="000000" required />
+            <div id="twofa-player2-error" class="hidden text-red-600 text-sm"></div>
+            <div class="flex space-x-3">
+              <button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">${t.verifyButton || 'Verify'}</button>
+              <button type="button" id="twofa-player2-cancel" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400">${t.cancelButton || 'Cancel'}</button>
+            </div>
+          </form>
+        </div>`;
+
+      document.body.appendChild(modal);
+      const form = modal.querySelector('#twofa-player2-form') as HTMLFormElement;
+      const codeInput = modal.querySelector('#twofa-player2-code') as HTMLInputElement;
+      const cancelBtn = modal.querySelector('#twofa-player2-cancel') as HTMLButtonElement;
+      const errorDiv = modal.querySelector('#twofa-player2-error') as HTMLElement;
+
+      const close = () => modal.remove();
+      codeInput.addEventListener('input', () => { codeInput.value = codeInput.value.replace(/\D/g, ''); });
+      cancelBtn.addEventListener('click', () => { close(); resolve(null); });
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (codeInput.value.trim().length !== 6) {
+          errorDiv.textContent = t.enter6DigitCode;
+          errorDiv.classList.remove('hidden');
+          return;
+        }
+        const code = codeInput.value.trim();
+        close();
+        resolve(code);
+      });
+      codeInput.focus();
+    });
+  }
   
   function setupGameArea(mode: 'ai' | 'player') {
     gameModeSelection?.classList.add('hidden');

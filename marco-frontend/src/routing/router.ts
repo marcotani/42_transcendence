@@ -656,27 +656,55 @@ export class Router {
           body: JSON.stringify({ username: player.username, password: player.password })
         });
 
+        // Parse response to check for 2FA or token
+        let loginData: any = {};
+        try { loginData = await response.json(); } catch (_) { loginData = {}; }
+
+        // If credentials are wrong (non-OK), bail out early
         if (!response.ok) {
           if (errorDiv) errorDiv.textContent = t.invalidUsernameOrPassword;
           return false;
         }
 
-        // Parse response to check for 2FA or token
-        const loginData = await response.json().catch(() => ({}));
-        // If user requires 2FA, we cannot validate automatically for tournament
-        if ((loginData as any).requiresTwoFactor) {
-          if (errorDiv) errorDiv.textContent = t.invalidUsernameOrPassword;
-          return false;
-        }
-
-        // If we received a token, store it temporarily for tournament operations
-        if ((loginData as any).token) {
+        // Handle users that require 2FA for login
+        if (loginData?.requiresTwoFactor) {
+          // Ask for a 6-digit 2FA code for this player
+          const code = await Router.promptTwoFactorCodeFor(player.username);
+          if (!code || code.trim().length !== 6) {
+            if (errorDiv) errorDiv.textContent = t.twoFactorRequired || t.invalidUsernameOrPassword;
+            return false;
+          }
           try {
-            (window as any).tournamentTokens = (window as any).tournamentTokens || {};
-            (window as any).tournamentTokens[player.username] = (loginData as any).token;
-            // also attach to the player object for convenience
-            (player as any).token = (loginData as any).token;
-          } catch (e) { /* ignore */ }
+            const verifyResp = await fetch(`${API_BASE}/users/${encodeURIComponent(player.username)}/2fa/verify`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: code.trim() })
+            });
+            const verifyData = await verifyResp.json().catch(() => ({}));
+            if (!verifyResp.ok || !verifyData?.token) {
+              if (errorDiv) errorDiv.textContent = verifyData?.errorCode === 'INVALID_2FA_CODE' ? t.invalid2FACode : (t.twoFactorRequired || t.invalidUsernameOrPassword);
+              return false;
+            }
+            // Store token for this player
+            try {
+              (window as any).tournamentTokens = (window as any).tournamentTokens || {};
+              (window as any).tournamentTokens[player.username] = verifyData.token;
+              (player as any).token = verifyData.token;
+            } catch (_) { /* ignore */ }
+          } catch (err) {
+            if (errorDiv) errorDiv.textContent = t.networkErrorTryAgain;
+            return false;
+          }
+        } else {
+          // If we received a token directly, store it temporarily for tournament operations
+          if (loginData?.token) {
+            try {
+              (window as any).tournamentTokens = (window as any).tournamentTokens || {};
+              (window as any).tournamentTokens[player.username] = loginData.token;
+              // also attach to the player object for convenience
+              (player as any).token = loginData.token;
+            } catch (e) { /* ignore */ }
+          }
         }
 
         // After successful login, fetch user profile data
@@ -734,6 +762,76 @@ export class Router {
     rounds.push(matches);
     
     return rounds;
+  }
+
+  /**
+   * Prompt a clear 2FA code modal for a specific username during tournament login
+   */
+  private static promptTwoFactorCodeFor(username: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      const t = getT(LanguageManager.getLang());
+      const modal = document.createElement('div');
+      modal.id = 'twofa-tournament-modal';
+      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+      modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" style="color:#374151 !important;">
+          <h2 class="text-xl font-bold mb-2" style="color:#1f2937 !important;">${t.twoFactorTitle}</h2>
+          <p class="text-sm text-gray-600 mb-4" style="color:#4b5563 !important;">
+            Enter the 6-digit code for <strong>${username}</strong>
+          </p>
+          <form id="twofa-tournament-form" class="space-y-3">
+            <input
+              id="twofa-tournament-code"
+              type="text"
+              maxlength="6"
+              pattern="[0-9]{6}"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-center text-lg tracking-widest"
+              style="color:#1f2937 !important; background-color:#ffffff !important;"
+              placeholder="000000"
+              required
+            />
+            <div id="twofa-tournament-error" class="hidden text-red-600 text-sm"></div>
+            <div class="flex space-x-3">
+              <button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">${t.verifyButton || 'Verify'}</button>
+              <button type="button" id="twofa-tournament-cancel" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400">${t.cancelButton || 'Cancel'}</button>
+            </div>
+          </form>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      const form = modal.querySelector('#twofa-tournament-form') as HTMLFormElement;
+      const codeInput = modal.querySelector('#twofa-tournament-code') as HTMLInputElement;
+      const cancelBtn = modal.querySelector('#twofa-tournament-cancel') as HTMLButtonElement;
+      const errorDiv = modal.querySelector('#twofa-tournament-error') as HTMLElement;
+
+      const close = () => { modal.remove(); };
+
+      codeInput.addEventListener('input', () => {
+        codeInput.value = codeInput.value.replace(/\D/g, '');
+      });
+
+      cancelBtn.addEventListener('click', () => {
+        close();
+        resolve(null);
+      });
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const code = codeInput.value.trim();
+        if (code.length !== 6) {
+          errorDiv.textContent = t.enter6DigitCode;
+          errorDiv.classList.remove('hidden');
+          return;
+        }
+        close();
+        resolve(code);
+      });
+
+      // Focus input
+      codeInput.focus();
+    });
   }
 
   /**
