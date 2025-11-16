@@ -310,7 +310,22 @@ export class ProfileManager {
         };
         (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
         (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-        (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+        // If the backend returned a masked email (e.g. '*************') don't put that into
+        // the email input (it would trigger HTML5 "please enter an email" validation).
+        const emailInput = document.getElementById('edit-email') as HTMLInputElement;
+        if (emailInput) {
+          if (original.email === '*************') {
+            emailInput.value = '';
+            emailInput.required = false;
+            emailInput.placeholder = t.emailHidden;
+          } else {
+            emailInput.value = original.email;
+            emailInput.required = true;
+            emailInput.placeholder = '';
+          }
+          // Ensure browser-required toggles when user types
+          emailInput.oninput = () => { emailInput.required = emailInput.value.trim() !== ''; };
+        }
         (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
         (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
         
@@ -691,6 +706,7 @@ export class ProfileManager {
    */
   private static async updateFormAfterUsernameChange(newUsername: string, original: any): Promise<void> {
     try {
+  const t = getT(LanguageManager.getLang());
   const newUserRes = await ApiClient.legacyFetch(`${API_BASE}/users/${newUsername}`);
       if (newUserRes.ok) {
         const newUser = await newUserRes.json();
@@ -708,7 +724,20 @@ export class ProfileManager {
         try {
           (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
           (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-          (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+          // Avoid showing masked email in the editable input
+          const emailInput2 = document.getElementById('edit-email') as HTMLInputElement;
+          if (emailInput2) {
+            if (original.email === '*************') {
+              emailInput2.value = '';
+              emailInput2.required = false;
+              emailInput2.placeholder = t.emailHidden;
+            } else {
+              emailInput2.value = original.email;
+              emailInput2.required = true;
+              emailInput2.placeholder = '';
+            }
+            emailInput2.oninput = () => { emailInput2.required = emailInput2.value.trim() !== ''; };
+          }
           (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
           (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
           
@@ -730,6 +759,7 @@ export class ProfileManager {
    */
   private static async updateFormAfterEmailChange(aliasTargetUser: string, original: any): Promise<void> {
     try {
+  const t = getT(LanguageManager.getLang());
   const newUserRes = await ApiClient.legacyFetch(`${API_BASE}/users/${aliasTargetUser}`);
       if (newUserRes.ok) {
         const newUser = await newUserRes.json();
@@ -746,7 +776,20 @@ export class ProfileManager {
         
         (document.getElementById('edit-alias') as HTMLInputElement).value = original.alias;
         (document.getElementById('edit-username') as HTMLInputElement).value = original.username;
-        (document.getElementById('edit-email') as HTMLInputElement).value = original.email;
+        // Avoid showing masked email in the editable input
+        const emailInput3 = document.getElementById('edit-email') as HTMLInputElement;
+        if (emailInput3) {
+          if (original.email === '*************') {
+            emailInput3.value = '';
+            emailInput3.required = false;
+            emailInput3.placeholder = t.emailHidden;
+          } else {
+            emailInput3.value = original.email;
+            emailInput3.required = true;
+            emailInput3.placeholder = '';
+          }
+          emailInput3.oninput = () => { emailInput3.required = emailInput3.value.trim() !== ''; };
+        }
         (document.getElementById('edit-bio') as HTMLTextAreaElement).value = original.bio;
         (document.getElementById('edit-email-visible') as HTMLInputElement).checked = original.emailVisible;
         

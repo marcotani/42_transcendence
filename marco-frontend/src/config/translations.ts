@@ -70,6 +70,7 @@ export const translations: Record<'en'|'it'|'fr', {
   aliasLabel: string;
   usernameLabel: string;
   emailLabel: string;
+  emailHidden: string;
   passwordLabel: string;
   showEmailPublicly: string;
   biographyLabel: string;
@@ -329,6 +330,7 @@ export const translations: Record<'en'|'it'|'fr', {
     aliasLabel: "Alias (Display Name)",
     usernameLabel: "Username",
     emailLabel: "Email",
+  emailHidden: "Email hidden from public",
     chooseFile: "Choose file",
   passwordLabel: "Password",
     showEmailPublicly: "Show email publicly",
@@ -590,6 +592,7 @@ export const translations: Record<'en'|'it'|'fr', {
     aliasLabel: "Alias (Nome visualizzato)",
     usernameLabel: "Username",
     emailLabel: "Email",
+  emailHidden: "Email nascosta al pubblico",
     chooseFile: "Scegli file",
   passwordLabel: "Password",
     showEmailPublicly: "Mostra l'email pubblicamente",
@@ -848,6 +851,7 @@ export const translations: Record<'en'|'it'|'fr', {
     aliasLabel: "Alias (Nom affiché)",
     usernameLabel: "Nom d'utilisateur",
     emailLabel: "Email",
+  emailHidden: "E-mail masquée du public",
     chooseFile: "Choisir le fichier",
   passwordLabel: "Mot de passe",
     showEmailPublicly: "Afficher l'email publiquement",
