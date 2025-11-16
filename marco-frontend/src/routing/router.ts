@@ -635,7 +635,7 @@ export class Router {
       if (i === 0) {
         // For logged-in user, fetch their profile data
         try {
-          const response = await fetch(`${API_BASE}/users/${player.username}`);
+          const response = await fetch(`${API_BASE}/users/${player.username}`, { headers: { ...TokenManager.getAuthHeader() } });
           if (response.ok) {
             const userData = await response.json();
             // Store profile data with the player
@@ -709,7 +709,10 @@ export class Router {
 
         // After successful login, fetch user profile data
         try {
-          const profileResponse = await fetch(`${API_BASE}/users/${player.username}`);
+          // Use the player's own token if available (2FA/normal login), else fall back to session token
+          const playerToken: string | undefined = (player as any).token || (window as any).tournamentTokens?.[player.username];
+          const headers: Record<string, string> = playerToken ? { Authorization: `Bearer ${playerToken}` } : { ...TokenManager.getAuthHeader() };
+          const profileResponse = await fetch(`${API_BASE}/users/${player.username}`, { headers });
           if (profileResponse.ok) {
             const userData = await profileResponse.json();
             // Store profile data with the player

@@ -380,17 +380,11 @@ function attachPongListeners() {
         }
       }
 
-      // Fetch user info to get the numeric id (needed by match payload)
-      const userRes = await fetch(`${API_BASE}/users/${encodeURIComponent(username)}`);
-      if (!userRes.ok) {
-        if (errorDiv) {
-          errorDiv.textContent = getT(LanguageManager.getLang()).userNotFound || getT(LanguageManager.getLang()).loginFailed;
-          errorDiv.style.visibility = 'visible';
-        }
-        return;
-      }
-      const userJson = await userRes.json();
-      if (!userJson?.id) {
+      // Obtain numeric id directly from verify-credentials response (backend now returns id)
+      let player2Id: number | undefined = verifyData?.id;
+
+      // Backend now returns id; if absent, consider it a failure to avoid calling protected GET without a token
+      if (!player2Id) {
         if (errorDiv) {
           errorDiv.textContent = getT(LanguageManager.getLang()).unknownError || getT(LanguageManager.getLang()).loginFailed;
           errorDiv.style.visibility = 'visible';
@@ -398,7 +392,7 @@ function attachPongListeners() {
         return;
       }
 
-      player2Data = { username, id: userJson.id };
+      player2Data = { username, id: player2Id };
       console.log('player2Data set to:', player2Data);
       setupGameArea('player');
       if (errorDiv) errorDiv.style.visibility = 'hidden';

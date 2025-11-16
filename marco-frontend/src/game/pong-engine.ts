@@ -288,7 +288,7 @@ export class PongEngine {
       // Fallback to fetching logged-in user data for regular games
       const loggedInUser = (window as any).loggedInUser;
       if (loggedInUser) {
-        fetch(`${API_BASE}/users/${loggedInUser}`)
+        fetch(`${API_BASE}/users/${loggedInUser}`, { headers: { ...TokenManager.getAuthHeader() } })
           .then(res => res.json())
           .then(user => {
             gameState.userPaddleColor = user.profile?.skinColor || '#FFFFFF';
@@ -304,7 +304,7 @@ export class PongEngine {
         console.log('Set player2 paddle color from config:', gameState.player2PaddleColor, 'for player:', gameState.gameConfig.player2.username);
       } else {
         // Fallback to fetching user data for regular games
-        fetch(`${API_BASE}/users/${gameState.gameConfig.player2.username}`)
+        fetch(`${API_BASE}/users/${gameState.gameConfig.player2.username}`, { headers: { ...TokenManager.getAuthHeader() } })
           .then(res => res.json())
           .then(user => {
             gameState.player2PaddleColor = user.profile?.skinColor || '#FFFFFF';
@@ -1336,7 +1336,7 @@ export class PongEngine {
     if (!loggedInUser) return;
     
     try {
-      const userRes = await fetch(`${API_BASE}/users/${loggedInUser}`);
+  const userRes = await fetch(`${API_BASE}/users/${loggedInUser}`, { headers: { ...TokenManager.getAuthHeader() } });
       const user = await userRes.json();
       if (!user || !user.id) return;
       
@@ -1398,7 +1398,7 @@ export class PongEngine {
       
       // Get player 1 ID
       console.log('Fetching player 1 data for username:', params.player1.username);
-      const player1Res = await fetch(`${API_BASE}/users/${params.player1.username}`);
+  const player1Res = await fetch(`${API_BASE}/users/${params.player1.username}`, { headers: { ...TokenManager.getAuthHeader() } });
       const player1Data = await player1Res.json();
       console.log('Player 1 API response:', player1Data);
       

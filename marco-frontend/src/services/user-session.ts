@@ -103,7 +103,9 @@ export class UserSession {
   private static async fetchUserAvatar(username: string) {
     try {
       const cacheBuster = Date.now();
-      const response = await fetch(`${API_BASE}/users/${username}?_t=${cacheBuster}`);
+      const response = await fetch(`${API_BASE}/users/${username}?_t=${cacheBuster}`, {
+        headers: { ...TokenManager.getAuthHeader() }
+      });
       const user = await response.json();
       
       const avatarUrl = user.profile?.avatarUrl || null;

@@ -266,9 +266,10 @@ export default async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    // Do not update any state or return sensitive info
+    // Do not update any state or return sensitive info; include id for tournament flow
     return reply.send({
       success: true,
+      id: user.id,
       username: user.username,
       requiresTwoFactor: user.twoFactorEnabled
     });

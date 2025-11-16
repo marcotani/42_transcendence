@@ -1,4 +1,5 @@
 import { API_BASE } from '../config/constants.js';
+import { ApiClient } from '../services/api-client.js';
 import { TokenManager } from '../services/token-manager.js';
 import { StorageService } from '../services/storage.js';
 import { MatchHistoryManager } from './match-history.js';
@@ -60,7 +61,7 @@ export class ProfileManager {
 
     // Fetch user info, stats, and match history
     Promise.all([
-      fetch(`${API_BASE}/users/${loggedInUser}`).then(res => res.json()),
+      ApiClient.legacyFetch(`${API_BASE}/users/${loggedInUser}`).then(res => res.json()),
       fetch(`${API_BASE}/stats/${loggedInUser}`).then(res => res.json()),
       fetch(`${API_BASE}/matches/history/${loggedInUser}`).then(res => res.json())
     ]).then(([user, stats, matchHistory]) => {
@@ -296,7 +297,7 @@ export class ProfileManager {
     // const loggedInUser is already imported
     
     // Prefill form with current user info
-    fetch(`${API_BASE}/users/${window.loggedInUser}`)
+    ApiClient.legacyFetch(`${API_BASE}/users/${window.loggedInUser}`)
       .then(res => res.json())
       .then(user => {
         original = {
@@ -690,7 +691,7 @@ export class ProfileManager {
    */
   private static async updateFormAfterUsernameChange(newUsername: string, original: any): Promise<void> {
     try {
-      const newUserRes = await fetch(`${API_BASE}/users/${newUsername}`);
+  const newUserRes = await ApiClient.legacyFetch(`${API_BASE}/users/${newUsername}`);
       if (newUserRes.ok) {
         const newUser = await newUserRes.json();
         original.alias = newUser.profile?.alias || '';
@@ -729,7 +730,7 @@ export class ProfileManager {
    */
   private static async updateFormAfterEmailChange(aliasTargetUser: string, original: any): Promise<void> {
     try {
-      const newUserRes = await fetch(`${API_BASE}/users/${aliasTargetUser}`);
+  const newUserRes = await ApiClient.legacyFetch(`${API_BASE}/users/${aliasTargetUser}`);
       if (newUserRes.ok) {
         const newUser = await newUserRes.json();
         original.alias = newUser.profile?.alias || '';

@@ -381,24 +381,29 @@ function attachPongListeners() {
                     return;
                 }
             }
-            // Fetch user info to get the numeric id (needed by match payload)
-            const userRes = yield fetch(`${API_BASE}/users/${encodeURIComponent(username)}`);
-            if (!userRes.ok) {
-                if (errorDiv) {
-                    errorDiv.textContent = getT(LanguageManager.getLang()).userNotFound || getT(LanguageManager.getLang()).loginFailed;
-                    errorDiv.style.visibility = 'visible';
+            // Obtain numeric id directly from verify-credentials response (backend now returns id)
+            let player2Id = verifyData === null || verifyData === void 0 ? void 0 : verifyData.id;
+            // Fallback: if backend is older and didn't return id, fetch public user info once
+            if (!player2Id) {
+                const userRes = yield fetch(`${API_BASE}/users/${encodeURIComponent(username)}`);
+                if (!userRes.ok) {
+                    if (errorDiv) {
+                        errorDiv.textContent = getT(LanguageManager.getLang()).userNotFound || getT(LanguageManager.getLang()).loginFailed;
+                        errorDiv.style.visibility = 'visible';
+                    }
+                    return;
                 }
-                return;
-            }
-            const userJson = yield userRes.json();
-            if (!(userJson === null || userJson === void 0 ? void 0 : userJson.id)) {
-                if (errorDiv) {
-                    errorDiv.textContent = getT(LanguageManager.getLang()).unknownError || getT(LanguageManager.getLang()).loginFailed;
-                    errorDiv.style.visibility = 'visible';
+                const userJson = yield userRes.json();
+                player2Id = userJson === null || userJson === void 0 ? void 0 : userJson.id;
+                if (!player2Id) {
+                    if (errorDiv) {
+                        errorDiv.textContent = getT(LanguageManager.getLang()).unknownError || getT(LanguageManager.getLang()).loginFailed;
+                        errorDiv.style.visibility = 'visible';
+                    }
+                    return;
                 }
-                return;
             }
-            player2Data = { username, id: userJson.id };
+            player2Data = { username, id: player2Id };
             console.log('player2Data set to:', player2Data);
             setupGameArea('player');
             if (errorDiv)

@@ -1,5 +1,6 @@
 // Profile Manager - Handles user profile viewing functionality
 import { API_BASE } from '../config/constants.js';
+import { ApiClient } from '../services/api-client.js';
 import { getT } from '../config/translations.js';
 import { LanguageManager } from './language.js';
 import { MatchHistoryManager } from './match-history.js';
@@ -29,7 +30,7 @@ export class ProfileManager {
     try {
       // Fetch user profile, stats, and match history
       const [userResponse, statsResponse, matchHistoryResponse] = await Promise.all([
-        fetch(`${API_BASE}/users/${username}`),
+        ApiClient.legacyFetch(`${API_BASE}/users/${username}`),
         fetch(`${API_BASE}/stats/${username}`),
         fetch(`${API_BASE}/matches/history/${username}`)
       ]);

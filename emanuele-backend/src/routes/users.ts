@@ -70,7 +70,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
   
   // Comando per recuperare un utente specifico, se esistente, dal database
-  app.get('/users/:username', async (req: FastifyRequest, reply: FastifyReply) => {
+  app.get('/users/:username', { preHandler: authenticateJWT, config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -119,8 +119,13 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     return user;
   });
 
-  // Comando per stampare l'intero database
-  app.get('/users', async () => {
+  // Comando per stampare l'intero database (DEV ONLY)
+  app.get('/users', async (_req: FastifyRequest, reply: FastifyReply) => {
+    const isDev = process.env.NODE_ENV === 'development' || process.env.DEV_ROUTES === 'true';
+    if (!isDev) {
+      return reply.code(403).send({ success: false, errorCode: 'DEV_ONLY_ROUTE', error: 'This endpoint is available in development only' });
+    }
+
     const users = await app.prisma.user.findMany({
       select: {
         id: true,
@@ -173,11 +178,16 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
   
   // Comando per eliminare un utente specifico sul database
-  app.delete('/users/:username', async (req: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/users/:username', { preHandler: authenticateJWT, config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
       return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
+    // Ensure authenticated user matches target username
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== cleanUsername) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
     }
     const { password } = req.body as { password?: string };
     
