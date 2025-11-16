@@ -28,7 +28,7 @@ const migrationCheck = () => {
     console.log('Migrating to JWT authentication - clearing old session');
     // Clear old session data
     StorageService.setLoggedInUser(null);
-    StorageService.setLoggedInUserAvatar(null);
+  StorageService.setLoggedInUserAvatar(null);
     
     // Show migration message
   alert(getT(LanguageManager.getLang()).securityUpgradeAlert);
@@ -47,6 +47,22 @@ const currentPendingRequestsCount = UserSession.getCurrentPendingRequestsCount()
 export const setLoggedInUser = UserSession.setLoggedInUser;
 
 function render(route: string) {
+  // Route guard: redirect unauthenticated users away from protected pages
+  const requiresAuth = (r: string): boolean => {
+    if (!r) return false; // home
+    return (
+      r === 'profile' ||
+      r === 'edit-profile' ||
+      r === 'friends' ||
+      r.startsWith('profile/')
+    );
+  };
+  if (requiresAuth(route) && !TokenManager.isAuthenticated()) {
+    // Send user back to the main page when not authenticated
+    try { window.location.hash = ''; } catch (_) { /* ignore */ }
+    return;
+  }
+
   // Get fresh values from UserSession
   const currentUser = UserSession.getCurrentUser();
   const currentAvatar = UserSession.getCurrentUserAvatar();
@@ -196,6 +212,8 @@ function attachUserDropdownListeners() {
   });
   document.getElementById('dropdown-logout')?.addEventListener('click', () => {
     closeMenu();
+    // Clear JWT token and session
+    try { TokenManager.clearToken(); } catch (e) { /* ignore */ }
     setLoggedInUser(null);
     window.location.hash = '';
     render('');

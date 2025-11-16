@@ -28,5 +28,11 @@ This is the skeleton for the Pong frontend project. It uses TypeScript and Tailw
 - Stats dashboards
 - AI opponent
 
+## Route protection (JWT)
+- Protected routes: `#profile`, `#profile/<username>`, `#edit-profile`, `#friends`.
+- Enforcement lives in `src/main.ts` inside the `render(route)` function via a small guard that checks `TokenManager.isAuthenticated()`.
+- On logout we clear both the session and the stored JWT (`TokenManager.clearToken()`), so navigating to a protected hash redirects back to the home page.
+- To add or remove protected paths, update the `requiresAuth` function in `src/main.ts`.
+
 ---
 This README will be updated as features are implemented.

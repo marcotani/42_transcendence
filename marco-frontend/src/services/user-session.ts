@@ -4,6 +4,7 @@ import { StorageService } from './storage.js';
 import { HeartbeatService } from './heartbeat.js';
 import { Router } from '../routing/router.js';
 import { FriendsManager } from '../features/friends-manager.js';
+import { TokenManager } from './token-manager.js';
 
 export class UserSession {
   private static loggedInUser: string | null = StorageService.getLoggedInUser();
@@ -87,6 +88,8 @@ export class UserSession {
     } else {
       // Stop heartbeat when logging out
       HeartbeatService.stop();
+      // Clear JWT token on logout for safety
+      try { TokenManager.clearToken(); } catch (e) { /* ignore */ }
       StorageService.clearUserData();
       UserSession.loggedInUserAvatar = null;
       UserSession.currentOnlineFriendsCount = 0;

@@ -45,6 +45,23 @@ const currentOnlineFriendsCount = UserSession.getCurrentOnlineFriendsCount();
 const currentPendingRequestsCount = UserSession.getCurrentPendingRequestsCount();
 export const setLoggedInUser = UserSession.setLoggedInUser;
 function render(route) {
+    // Route guard: redirect unauthenticated users away from protected pages
+    const requiresAuth = (r) => {
+        if (!r)
+            return false; // home
+        return (r === 'profile' ||
+            r === 'edit-profile' ||
+            r === 'friends' ||
+            r.startsWith('profile/'));
+    };
+    if (requiresAuth(route) && !TokenManager.isAuthenticated()) {
+        // Send user back to the main page when not authenticated
+        try {
+            window.location.hash = '';
+        }
+        catch (_) { /* ignore */ }
+        return;
+    }
     // Get fresh values from UserSession
     const currentUser = UserSession.getCurrentUser();
     const currentAvatar = UserSession.getCurrentUserAvatar();
@@ -198,6 +215,11 @@ function attachUserDropdownListeners() {
     });
     (_b = document.getElementById('dropdown-logout')) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
         closeMenu();
+        // Clear JWT token and session
+        try {
+            TokenManager.clearToken();
+        }
+        catch (e) { /* ignore */ }
         setLoggedInUser(null);
         window.location.hash = '';
         render('');
@@ -239,7 +261,6 @@ function attachPongListeners() {
     const player2LoginForm = document.getElementById('player2-login-form');
     const cancelPlayer2Login = document.getElementById('cancel-player2-login');
     player2LoginForm === null || player2LoginForm === void 0 ? void 0 : player2LoginForm.addEventListener('submit', (e) => __awaiter(this, void 0, void 0, function* () {
-        var _a, _b;
         e.preventDefault();
         const lang = LanguageManager.getLang();
         const username = document.getElementById('player2-username').value;
@@ -255,29 +276,84 @@ function attachPongListeners() {
             return;
         }
         try {
-            const response = yield fetch(`${API_BASE}/api/login`, {
+            // First, verify credentials without side effects (no token, no online=true)
+            const verifyRes = yield fetch(`${API_BASE}/api/verify-credentials`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
             });
-            if (response.ok) {
-                const userData = yield response.json();
-                console.log('Player 2 login response:', userData);
-                console.log('userData.user.id:', (_a = userData.user) === null || _a === void 0 ? void 0 : _a.id);
-                player2Data = { username, id: (_b = userData.user) === null || _b === void 0 ? void 0 : _b.id };
-                console.log('player2Data set to:', player2Data);
-                setupGameArea('player');
-                if (errorDiv)
-                    errorDiv.style.visibility = 'hidden';
-            }
-            else {
-                const error = yield response.json();
-                console.warn('Player2 login error from server:', error);
+            if (!verifyRes.ok) {
+                const err = yield verifyRes.json().catch(() => ({}));
+                console.warn('Player2 verify error from server:', err);
                 if (errorDiv) {
                     errorDiv.textContent = getT(LanguageManager.getLang()).loginFailed;
                     errorDiv.style.visibility = 'visible';
                 }
+                return;
             }
+            const verifyData = yield verifyRes.json();
+            if (verifyData === null || verifyData === void 0 ? void 0 : verifyData.requiresTwoFactor) {
+                // Prompt for 2FA code for this specific player
+                const code = yield promptTwoFactorCodeFor(username);
+                if (!code || code.trim().length !== 6) {
+                    if (errorDiv) {
+                        errorDiv.textContent = getT(LanguageManager.getLang()).twoFactorRequired || getT(LanguageManager.getLang()).loginFailed;
+                        errorDiv.style.visibility = 'visible';
+                    }
+                    return;
+                }
+                try {
+                    const verify2faResp = yield fetch(`${API_BASE}/users/${encodeURIComponent(username)}/2fa/verify`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: code.trim() })
+                    });
+                    const verify2faData = yield verify2faResp.json().catch(() => ({}));
+                    if (!verify2faResp.ok || !(verify2faData === null || verify2faData === void 0 ? void 0 : verify2faData.success)) {
+                        if (errorDiv) {
+                            const t = getT(LanguageManager.getLang());
+                            errorDiv.textContent = (verify2faData === null || verify2faData === void 0 ? void 0 : verify2faData.errorCode) === 'INVALID_2FA_CODE' ? (t.invalid2FACode || t.loginFailed) : (t.twoFactorRequired || t.loginFailed);
+                            errorDiv.style.visibility = 'visible';
+                        }
+                        return;
+                    }
+                    // Optional: store token for player2 if needed later
+                    try {
+                        window.pvpTokens = window.pvpTokens || {};
+                        window.pvpTokens[username] = verify2faData.token;
+                    }
+                    catch (_) { /* ignore */ }
+                }
+                catch (err) {
+                    if (errorDiv) {
+                        errorDiv.textContent = getT(LanguageManager.getLang()).networkErrorTryAgain || getT(LanguageManager.getLang()).loginFailed;
+                        errorDiv.style.visibility = 'visible';
+                    }
+                    return;
+                }
+            }
+            // Fetch user info to get the numeric id (needed by match payload)
+            const userRes = yield fetch(`${API_BASE}/users/${encodeURIComponent(username)}`);
+            if (!userRes.ok) {
+                if (errorDiv) {
+                    errorDiv.textContent = getT(LanguageManager.getLang()).userNotFound || getT(LanguageManager.getLang()).loginFailed;
+                    errorDiv.style.visibility = 'visible';
+                }
+                return;
+            }
+            const userJson = yield userRes.json();
+            if (!(userJson === null || userJson === void 0 ? void 0 : userJson.id)) {
+                if (errorDiv) {
+                    errorDiv.textContent = getT(LanguageManager.getLang()).unknownError || getT(LanguageManager.getLang()).loginFailed;
+                    errorDiv.style.visibility = 'visible';
+                }
+                return;
+            }
+            player2Data = { username, id: userJson.id };
+            console.log('player2Data set to:', player2Data);
+            setupGameArea('player');
+            if (errorDiv)
+                errorDiv.style.visibility = 'hidden';
         }
         catch (error) {
             if (errorDiv) {
@@ -296,6 +372,50 @@ function attachPongListeners() {
         if (errorDiv)
             errorDiv.style.visibility = 'hidden';
     });
+    // Inline helper: prompt a labeled 2FA modal for a given username
+    function promptTwoFactorCodeFor(username) {
+        return new Promise((resolve) => {
+            const t = getT(LanguageManager.getLang());
+            const modal = document.createElement('div');
+            modal.id = 'twofa-player2-modal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" style="color:#374151 !important;">
+          <h2 class="text-xl font-bold mb-2" style="color:#1f2937 !important;">${t.twoFactorTitle}</h2>
+          <p class="text-sm text-gray-600 mb-4" style="color:#4b5563 !important;">Enter the 6-digit code for <strong>${username}</strong></p>
+          <form id="twofa-player2-form" class="space-y-3">
+            <input id="twofa-player2-code" type="text" maxlength="6" pattern="[0-9]{6}"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-center text-lg tracking-widest"
+              style="color:#1f2937 !important; background-color:#ffffff !important;" placeholder="000000" required />
+            <div id="twofa-player2-error" class="hidden text-red-600 text-sm"></div>
+            <div class="flex space-x-3">
+              <button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">${t.verifyButton || 'Verify'}</button>
+              <button type="button" id="twofa-player2-cancel" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400">${t.cancelButton || 'Cancel'}</button>
+            </div>
+          </form>
+        </div>`;
+            document.body.appendChild(modal);
+            const form = modal.querySelector('#twofa-player2-form');
+            const codeInput = modal.querySelector('#twofa-player2-code');
+            const cancelBtn = modal.querySelector('#twofa-player2-cancel');
+            const errorDiv = modal.querySelector('#twofa-player2-error');
+            const close = () => modal.remove();
+            codeInput.addEventListener('input', () => { codeInput.value = codeInput.value.replace(/\D/g, ''); });
+            cancelBtn.addEventListener('click', () => { close(); resolve(null); });
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (codeInput.value.trim().length !== 6) {
+                    errorDiv.textContent = t.enter6DigitCode;
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
+                const code = codeInput.value.trim();
+                close();
+                resolve(code);
+            });
+            codeInput.focus();
+        });
+    }
     function setupGameArea(mode) {
         gameModeSelection === null || gameModeSelection === void 0 ? void 0 : gameModeSelection.classList.add('hidden');
         player2Login === null || player2Login === void 0 ? void 0 : player2Login.classList.add('hidden');
@@ -352,19 +472,76 @@ function attachPongListeners() {
     });
     // Touch / fullscreen-first behavior removed: mobile should behave like desktop.
     if (startBtn && canvas) {
-        startBtn.addEventListener('click', () => {
+        const isTouchDevice = ('ontouchstart' in window)
+            || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)
+            || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+        const ensureFullscreenLandscape = () => __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            // Solo su device touch / mobile
+            if (!isTouchDevice)
+                return;
+            // Se siamo già in landscape (larghezza > altezza) prosegui subito
+            if (window.innerWidth > window.innerHeight && document.fullscreenElement)
+                return;
+            // Richiedi fullscreen sul parent del canvas (o canvas) prima di avviare il gioco
+            const target = canvas.parentElement || canvas;
+            try {
+                const req = target.requestFullscreen || target.webkitRequestFullscreen || target.msRequestFullscreen;
+                if (typeof req === 'function') {
+                    yield req.call(target);
+                }
+            }
+            catch (e) {
+                // Ignora fallimenti: il gioco funzionerà comunque, anche se inizialmente potrà presentare stretch
+            }
+            // Prova lock orientamento (best effort, funziona su Android Chrome, non su iOS Safari)
+            try {
+                const screenAny = screen;
+                if ((_a = screenAny === null || screenAny === void 0 ? void 0 : screenAny.orientation) === null || _a === void 0 ? void 0 : _a.lock) {
+                    screenAny.orientation.lock('landscape').catch(() => { });
+                }
+            }
+            catch (e) { /* ignore */ }
+            // Attendi che le dimensioni riflettano la rotazione (fino a 30 tentativi ~300ms)
+            let attempts = 0;
+            yield new Promise((resolve) => {
+                const check = () => {
+                    attempts++;
+                    if (window.innerWidth > window.innerHeight || attempts > 30) {
+                        // Ridimensiona canvas ai nuovi bounds
+                        try {
+                            const container = document.fullscreenElement || canvas.parentElement || document.body;
+                            const w = container.clientWidth || window.innerWidth;
+                            const h = container.clientHeight || window.innerHeight;
+                            canvas.style.width = '100%';
+                            canvas.style.height = '100%';
+                            canvas.width = w;
+                            canvas.height = h;
+                        }
+                        catch (e) { /* ignore */ }
+                        resolve();
+                    }
+                    else {
+                        requestAnimationFrame(check);
+                    }
+                };
+                requestAnimationFrame(check);
+            });
+        });
+        startBtn.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
             startBtn.disabled = true;
             startBtn.textContent = getT(LanguageManager.getLang()).gameRunning;
-            // Hide the start button while the match is running so it doesn't obstruct the view
-            startBtn.style.display = 'none';
-            // Pass game mode and player 2 data to the engine
+            startBtn.style.display = 'none'; // Nasconde il bottone durante la partita
+            // Prima forziamo fullscreen + landscape (se mobile) così le dimensioni iniziali sono corrette
+            yield ensureFullscreenLandscape();
+            // Pass game mode e player 2 data al motore
             const gameConfig = {
                 mode: gameMode,
                 player1: { username: UserSession.getCurrentUser() || 'Guest' },
                 player2: gameMode === 'player' ? player2Data : null
             };
             PongEngine.startGame(canvas, statusDiv, gameConfig);
-        });
+        }));
     }
     // On fullscreen change, ensure canvas is resized to fullscreen element and add an exit button
     document.addEventListener('fullscreenchange', () => {
