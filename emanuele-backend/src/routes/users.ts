@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { FastifyPluginAsync } from 'fastify';
+import { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { authenticateJWT } from './auth';
+import { generateJWT } from '../leonardo-security/plugins/jwt';
 import { sanitizeUsername, sanitizeAlias, sanitizeBio, sanitizeHtml, sanitizePassword } from '../utils/sanitizer';
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -11,7 +12,7 @@ const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const usersRoute: FastifyPluginAsync = async (app) => {
   
   // Creazione utente
-  app.post('/users', async (req, reply) => {
+  app.post('/users', async (req: FastifyRequest, reply: FastifyReply) => {
     const body = req.body as { email: string; username: string; password?: string };
     
     // Controllo campi del body
@@ -52,7 +53,8 @@ const usersRoute: FastifyPluginAsync = async (app) => {
           online: false,
           profile: { create: { bio: '', alias: cleanUsername, gdpr: false } },
           stats: { create: {} }
-        }
+        },
+        select: { id: true, username: true, email: true, createdAt: true }
       });
       
       return reply.code(201).send(user);
@@ -68,7 +70,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
   
   // Comando per recuperare un utente specifico, se esistente, dal database
-  app.get('/users/:username', async (req, reply) => {
+  app.get('/users/:username', async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -76,7 +78,32 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     }
     const user = await app.prisma.user.findUnique({
       where: { username: cleanUsername },
-      include: { profile: true },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        twoFactorEnabled: true,
+        createdAt: true,
+        profile: {
+          select: {
+            alias: true,
+            avatarUrl: true,
+            bio: true,
+            skinColor: true,
+            gdpr: true,
+            emailVisible: true
+          }
+        },
+        stats: {
+          select: {
+            botWins: true,
+            botLosses: true,
+            playerWins: true,
+            playerLosses: true,
+            tournamentWins: true
+          }
+        }
+      }
     });
     if (!user) {
       return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
@@ -86,7 +113,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
       user.profile.alias = sanitizeHtml(user.profile.alias ?? '');
       user.profile.bio = sanitizeHtml(user.profile.bio ?? '');
     }
-    if (user.profile?.gdpr === true) {
+    if (user.profile && (user.profile.gdpr === true || user.profile.emailVisible === false)) {
       user.email = '*************';
     }
     return user;
@@ -95,14 +122,40 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   // Comando per stampare l'intero database
   app.get('/users', async () => {
     const users = await app.prisma.user.findMany({
-      include: { profile: true, stats: true }
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        twoFactorEnabled: true,
+        createdAt: true,
+        profile: {
+          select: {
+            alias: true,
+            avatarUrl: true,
+            bio: true,
+            skinColor: true,
+            gdpr: true,
+            emailVisible: true
+          }
+        },
+        stats: {
+          select: {
+            botWins: true,
+            botLosses: true,
+            playerWins: true,
+            playerLosses: true,
+            tournamentWins: true
+          }
+        }
+      },
+      orderBy: { id: 'asc' }
     });
     for (const user of users) {
       if (user.profile) {
         user.profile.alias = sanitizeHtml(user.profile.alias ?? '');
         user.profile.bio = sanitizeHtml(user.profile.bio ?? '');
       }
-      if (user.profile?.gdpr === true) {
+      if (user.profile && (user.profile.gdpr === true || user.profile.emailVisible === false)) {
         user.email = '*************';
       }
     }
@@ -110,13 +163,17 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
   
   // Comando per eliminare tutti i profili sul database
-  app.delete('/users', async (_, reply) => {
+  app.delete('/users', async (_req: FastifyRequest, reply: FastifyReply) => {
+    const isDev = process.env.NODE_ENV === 'development' || process.env.DEV_ROUTES === 'true';
+    if (!isDev) {
+      return reply.code(403).send({ success: false, errorCode: 'DEV_ONLY_ROUTE', error: 'This endpoint is available in development only' });
+    }
     await app.prisma.user.deleteMany({});
     return reply.send({ message: 'All users deleted successfully' });
   });
   
   // Comando per eliminare un utente specifico sul database
-  app.delete('/users/:username', async (req, reply) => {
+  app.delete('/users/:username', async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -144,9 +201,18 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
   
   // Comando per modificare l'alias di un utente
-  app.patch('/users/:username/alias', async (req, reply) => {
+  app.patch('/users/:username/alias', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const { alias } = req.body as { alias?: string };
+
+    console.log('[PATCH] /users/:username/alias called for', username, 'body:', { alias });
+    console.log('Auth user (from token):', (req as any).user);
+
+    // Ensure authenticated user matches target username
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== username) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
     
     if (!alias || alias.trim() === '') {
       return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Alias is required' });
@@ -181,13 +247,17 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // PATCH per cambiare solo la skin (colore) del player
-  app.patch('/users/:username/skin', async (req, reply) => {
+  app.patch('/users/:username/skin', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
       return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
     }
     const { skinColor } = req.body as { skinColor?: string };
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== username) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
     // 5 colori predefiniti
     const allowedColors = [
       '#FF0000', // rosso
@@ -213,13 +283,17 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Rotta per accettare GDPR
-  app.patch('/users/:username/gdpr', async (req, reply) => {
+  app.patch('/users/:username/gdpr', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
       return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
     }
     const { password } = req.body as { password?: string };
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== username) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
     if (!password)
       return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'Password is required' });
 
@@ -237,7 +311,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Rotta per abilitare 2FA (ora protetta da JWT)
-  app.post('/users/:username/2fa/enable', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.post('/users/:username/2fa/enable', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -288,7 +362,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Rotta per disabilitare 2FA (ora protetta da JWT)
-  app.post('/users/:username/2fa/disable', { preHandler: authenticateJWT }, async (req, reply) => {
+  app.post('/users/:username/2fa/disable', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -318,7 +392,9 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Rotta per verificare il codice TOTP di un utente (e abilitare 2FA se setup)
-  app.post('/users/:username/2fa/verify', async (req, reply) => {
+  app.post('/users/:username/2fa/verify', {
+    config: { rateLimit: { max: 6, timeWindow: '1 minute' } }
+  }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
@@ -352,8 +428,13 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   
   // Comando per modificare username, email o password
   // dopo aver controllato che la password passata sia corretta per l'utente
-  app.patch('/users/:username', async (req, reply) => {
+  app.patch('/users/:username', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
+        const authUser = (req as any).user;
+        if (!authUser || authUser.username !== username) {
+          return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+        }
+    // Validate and sanitize username early
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) {
       return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
@@ -426,7 +507,19 @@ const usersRoute: FastifyPluginAsync = async (app) => {
         data,
         select: { id: true, username: true, email: true, createdAt: true },
       });
-      return reply.send({ success: true, user: updated });
+
+      // Issue a new JWT token reflecting potential username change so the client
+      // can continue making authenticated requests with the updated identity.
+      try {
+        const jwtSecret = process.env.JWT_SECRET || 'your-very-secret-key';
+        const token = generateJWT({ userId: updated.id, username: updated.username }, jwtSecret, 86400);
+        return reply.send({ success: true, user: updated, token });
+      } catch (tokenErr) {
+        // If token generation fails for any reason, still return updated user.
+        // Log a stringified error to satisfy logger typings and avoid TS overload issues.
+        app.log.warn('Failed to generate JWT after username update: ' + String(tokenErr));
+        return reply.send({ success: true, user: updated });
+      }
     } catch (err: any) {
       if (err?.code === 'P2002') {
         // Messaggio di errore nel caso username o email siano già utilizzati
@@ -438,10 +531,19 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // comando per cambiare immagine profilo
-  app.patch('/users/:username/avatar', async (req, reply) => {
+  app.patch('/users/:username/avatar', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
+    // Ensure authenticated user matches target username
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== username) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
+
+    // Validate and sanitize username
     const cleanUsername = sanitizeUsername(username);
-    if (!cleanUsername) return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    if (!cleanUsername) {
+      return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
+    }
 
     try {
       const data = await req.file();
@@ -495,11 +597,15 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // comando per resettare immagine profilo a default
-  app.patch('/users/:username/avatar/reset', async (req, reply) => {
+  app.patch('/users/:username/avatar/reset', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const cleanUsername = sanitizeUsername(username);
     if (!cleanUsername) return reply.code(400).send({ errorCode: 'INVALID_USERNAME', error: 'Invalid username' });
     const { currentPassword } = req.body as { currentPassword?: string };
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== username) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
 
     if (!currentPassword) {
       return reply.code(400).send({ errorCode: 'MISSING_FIELDS', error: 'currentPassword is required' });
@@ -525,9 +631,15 @@ const usersRoute: FastifyPluginAsync = async (app) => {
     return reply.send({ success: true, avatarUrl: '/static/default_avatar.png' });
   });
 
-  app.patch('/users/:username/bio', async (req, reply) => {
+  app.patch('/users/:username/bio', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const { bio } = req.body as { bio?: string };
+    const authUser = (req as any).user;
+    console.log('[PATCH] /users/:username/bio called for', username, 'body:', { bio });
+    console.log('Auth user (from token):', authUser);
+    if (!authUser || authUser.username !== username) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
     
     if (typeof bio !== 'string') {
       return reply.code(400).send({ errorCode: 'INVALID_BIO_TYPE', error: 'Bio must be a string' });
@@ -557,9 +669,13 @@ const usersRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Update email visibility
-  app.patch('/users/:username/email-visibility', async (req, reply) => {
+  app.patch('/users/:username/email-visibility', { preHandler: authenticateJWT }, async (req: FastifyRequest, reply: FastifyReply) => {
     const { username } = req.params as { username: string };
     const { emailVisible } = req.body as { emailVisible: boolean };
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== username) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
 
     if (typeof emailVisible !== 'boolean') {
       return reply.code(400).send({ errorCode: 'INVALID_EMAIL_VISIBLE_TYPE', error: 'emailVisible must be a boolean' });

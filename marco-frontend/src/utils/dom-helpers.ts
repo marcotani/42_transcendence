@@ -14,3 +14,14 @@ export function accessibilityTogglesUI() {
     <button id='toggle-textsize' data-i18n-attr='aria-label:toggleLargeText' class='px-2 py-1 bg-black text-white rounded border border-white focus:outline-none focus:ring-2 focus:ring-white' tabindex='0'>A+</button>
   </div>`;
 }
+
+// Minimal HTML escape for dynamic text placed into innerHTML
+export function escapeHtml(input: string): string {
+  if (typeof input !== 'string') return '';
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}

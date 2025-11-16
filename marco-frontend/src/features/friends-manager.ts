@@ -1,6 +1,7 @@
 // Friends Manager - Handles friends-related functionality
 // Starting with incremental extraction approach
 import { API_BASE } from '../config/constants.js';
+import { escapeHtml } from '../utils/dom-helpers.js';
 import { ApiClient } from '../services/api-client.js';
 import { StorageService } from '../services/storage.js';
 import { showStatus } from '../utils/dom-helpers.js';
@@ -152,17 +153,15 @@ export class FriendsManager {
     if (!loggedInUser) return;
 
     try {
-      // Get pending requests count
-      const requestsResponse = await fetch(`${API_BASE}/friends/requests?for=${loggedInUser}`);
-      const requestsData = await requestsResponse.json();
-      
-      // Get friends list with online status
-      const friendsResponse = await fetch(`${API_BASE}/friends/${loggedInUser}`);
-      const friendsData = await friendsResponse.json();
-      
-      if (requestsResponse.ok && friendsResponse.ok) {
-        const pendingCount = requestsData.incoming.length;
-        const friends = friendsData.friends || [];
+      // Get pending requests count (protected endpoint now requires auth)
+      const requestsResponse = await ApiClient.get(`/friends/requests?for=${loggedInUser}`);
+      const friendsResponse = await ApiClient.get(`/friends/${loggedInUser}`);
+
+      if (requestsResponse.success && friendsResponse.success) {
+        const pendingRaw = requestsResponse.data as any;
+        const friendsRaw = friendsResponse.data as any;
+        const pendingCount = pendingRaw?.incoming?.length || 0;
+        const friends = friendsRaw?.friends || [];
         
         // Count online friends (those with recent heartbeat)
         const onlineFriendsCount = friends.filter((friend: any) => {
@@ -268,11 +267,9 @@ export class FriendsManager {
     if (!container) return;
 
     try {
-      const response = await fetch(`${API_BASE}/friends/requests?for=${loggedInUser}`);
-      const data = await response.json();
-
-      if (response.ok) {
-        const { incoming, outgoing } = data;
+      const response = await ApiClient.get(`/friends/requests?for=${loggedInUser}`);
+      if (response.success) {
+        const { incoming, outgoing } = response.data as any;
         let html = '';
         const t = getT(LanguageManager.getLang());
 
@@ -311,6 +308,9 @@ export class FriendsManager {
         }
 
         container.innerHTML = html;
+      } else {
+        const t = getT(LanguageManager.getLang());
+        container.innerHTML = `<p class="text-red-400 text-center">${response.error || t.errorLoadingRequests}</p>`;
       }
     } catch (error) {
       console.error('Error loading pending requests:', error);
@@ -331,11 +331,9 @@ export class FriendsManager {
   const t = getT(LanguageManager.getLang());
 
     try {
-      const response = await fetch(`${API_BASE}/friends/${loggedInUser}`);
-      const data = await response.json();
-
-      if (response.ok) {
-        const { friends } = data;
+      const response = await ApiClient.get(`/friends/${loggedInUser}`);
+      if (response.success) {
+        const { friends } = response.data as any;
         let html = '';
 
         if (friends.length === 0) {
@@ -376,8 +374,8 @@ export class FriendsManager {
                 <div class="flex items-center space-x-3">
                   <img src="${avatarUrl}" alt="Avatar" class="w-8 h-8 rounded-full object-cover bg-gray-600" />
                   <div>
-                    <button class="text-blue-400 hover:text-blue-300 font-medium" onclick="viewProfile('${friend.username}')">${friend.username}</button>
-                    ${friend.alias ? `<p class="text-gray-400 text-sm">${friend.alias}</p>` : ''}
+                    <button class="text-blue-400 hover:text-blue-300 font-medium" onclick="viewProfile('${friend.username}')">${escapeHtml(String(friend.username))}</button>
+                    ${friend.alias ? `<p class="text-gray-400 text-sm">${escapeHtml(String(friend.alias))}</p>` : ''}
                   </div>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -393,6 +391,8 @@ export class FriendsManager {
         }
 
         container.innerHTML = html;
+      } else {
+        container.innerHTML = `<p class="text-red-400 text-center">${escapeHtml(String(response.error || ''))}</p>`;
       }
     } catch (error) {
       console.error('Error loading friends list:', error);

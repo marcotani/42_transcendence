@@ -184,6 +184,8 @@ export const translations: Record<'en'|'it'|'fr', {
   loadingLeaderboards: string;
   loadingProfile: string;
   failedToLoadProfile: string;
+  twoFactorRequired?: string;
+  rateLimited?: string;
     // Authentication messages
     loggedInWith2FA: string;
     twoFactorError: string;
@@ -304,6 +306,8 @@ export const translations: Record<'en'|'it'|'fr', {
     loadingFriends: "Loading friends...",
   loadingProfile: "Loading profile...",
   failedToLoadProfile: "Failed to load profile",
+  twoFactorRequired: "This account requires 2FA. Complete verification in the Login page.",
+  rateLimited: "Too many requests. Please try again shortly.",
     sendFriendRequestTitle: "Send Friend Request",
     enterUsernamePlaceholder: "Enter username",
     sendRequestButton: "Send Request",
@@ -563,6 +567,8 @@ export const translations: Record<'en'|'it'|'fr', {
     loadingFriends: "Caricamento amici...",
   loadingProfile: "Caricamento profilo...",
   failedToLoadProfile: "Impossibile caricare il profilo",
+  twoFactorRequired: "Questo account richiede la 2FA: completa la verifica nella pagina Login.",
+  rateLimited: "Troppe richieste. Riprova tra poco.",
     sendFriendRequestTitle: "Invia richiesta di amicizia",
     enterUsernamePlaceholder: "Inserisci username",
     sendRequestButton: "Invia richiesta",
@@ -819,6 +825,8 @@ export const translations: Record<'en'|'it'|'fr', {
     loadingFriends: "Chargement des amis...",
   loadingProfile: "Chargement du profil...",
   failedToLoadProfile: "Échec du chargement du profil",
+  twoFactorRequired: "Ce compte nécessite la 2FA. Terminez la vérification dans la page de connexion.",
+  rateLimited: "Trop de requêtes. Veuillez réessayer bientôt.",
     sendFriendRequestTitle: "Envoyer une demande d'ami",
     enterUsernamePlaceholder: "Entrez le nom d'utilisateur",
     sendRequestButton: "Envoyer la demande",

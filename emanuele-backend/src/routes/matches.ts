@@ -1,16 +1,19 @@
 import { FastifyPluginAsync } from 'fastify';
-import { PrismaClient } from '@prisma/client';
 import { MatchService, MatchData } from '../services/matchService';
+import { authenticateJWT } from './auth';
 
-const prisma = new PrismaClient();
+import { setPrisma } from '../services/matchService';
 
 const matchesRoute: FastifyPluginAsync = async (app) => {
+  // Inietta il PrismaClient condiviso nel MatchService una sola volta
+  setPrisma(app.prisma);
+
   // Recupera la cronologia delle partite di un utente
   app.get('/matches/history/:username', async (req, reply) => {
     const { username } = req.params as { username: string };
     
     try {
-      const user = await prisma.user.findUnique({
+      const user = await app.prisma.user.findUnique({
         where: { username },
         select: { id: true }
       });
@@ -28,10 +31,9 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
   });
 
   // Crea una nuova partita e aggiorna le statistiche utente
-  app.post('/matches', async (req, reply) => {
+  app.post('/matches', { preHandler: authenticateJWT, config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req, reply) => {
     console.log('=== POST /matches endpoint called ===');
     console.log('Request body:', req.body);
-    
     const body = req.body as {
       player1Id: number;
       player2Id?: number;
@@ -41,6 +43,11 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
       winnerId?: number;
       matchType: string;
     };
+
+    const authUser = (req as any).user;
+    if (!authUser || authUser.userId !== body.player1Id) {
+      return reply.code(403).send({ errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
 
     if (!body || !body.player1Id || body.player1Score === undefined || body.player2Score === undefined || !body.matchType) {
       console.log('Missing required fields in request body');
@@ -88,7 +95,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
     const { username } = req.params as { username: string };
     
     try {
-      const user = await prisma.user.findUnique({
+      const user = await app.prisma.user.findUnique({
         where: { username }
       });
 
@@ -96,7 +103,7 @@ const matchesRoute: FastifyPluginAsync = async (app) => {
         return reply.code(404).send({ errorCode: 'USER_NOT_FOUND', error: 'User not found' });
       }
 
-      const matches = await prisma.match.findMany({
+      const matches = await app.prisma.match.findMany({
         where: {
           OR: [
             { player1Id: user.id },

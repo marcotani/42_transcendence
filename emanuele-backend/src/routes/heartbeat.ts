@@ -1,11 +1,17 @@
 import { FastifyInstance } from 'fastify';
+import { authenticateJWT } from './auth';
 
 export default async function heartbeatRoutes(app: FastifyInstance) {
   // POST /api/heartbeat
-  app.post('/api/heartbeat', async (request, reply) => {
+  app.post('/api/heartbeat', { preHandler: authenticateJWT }, async (request, reply) => {
     const { userId } = request.body as {
       userId: number;
     };
+    // Identity check: token user must match provided userId
+    const authUser = (request as any).user;
+    if (!authUser || authUser.userId !== userId) {
+      return reply.code(403).send({ success: false, errorCode: 'UNAUTHORIZED', error: 'Access denied' });
+    }
 
     // Controllo di base
     if (!userId) {

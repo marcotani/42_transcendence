@@ -29,7 +29,9 @@ export const authenticateJWT = async (request: any, reply: any) => {
 
 export default async function authRoutes(app: FastifyInstance) {
   // POST /api/register
-  app.post('/api/register', async (request, reply) => {
+  app.post('/api/register', {
+    config: { rateLimit: { max: 20, timeWindow: '1 hour' } }
+  }, async (request, reply) => {
     const { username, password, email } = request.body as {
       username: string;
       password: string;
@@ -127,7 +129,9 @@ export default async function authRoutes(app: FastifyInstance) {
   });
 
   // POST /api/login
-  app.post('/api/login', async (request, reply) => {
+  app.post('/api/login', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } }
+  }, async (request, reply) => {
     const { username, password } = request.body as {
       username: string;
       password: string;
@@ -204,16 +208,79 @@ export default async function authRoutes(app: FastifyInstance) {
         requiresTwoFactor: false
       });
     }
-  });  // GET /api/users 
-  app.get('/api/users', async () => {
+  });  // GET /api/users (DEV ONLY)
+  app.get('/api/users', async (req, reply) => {
+    const isDev = process.env.NODE_ENV === 'development' || process.env.DEV_ROUTES === 'true';
+    if (!isDev) {
+      return reply.code(403).send({ success: false, errorCode: 'DEV_ONLY_ROUTE', error: 'This endpoint is available in development only' });
+    }
     return app.prisma.user.findMany({
       select: { id: true, username: true, email: true, createdAt: true },
       orderBy: { id: 'asc' },
     });
   });
 
-  // DELETE /api/users
-  app.delete('/api/users', async (req, reply) => {
+  // POST /api/verify-credentials (no token, no online flag)
+  app.post('/api/verify-credentials', {
+    config: { rateLimit: { max: 60, timeWindow: '1 minute' } }
+  }, async (request, reply) => {
+    const { username, password } = request.body as {
+      username: string;
+      password: string;
+    };
+
+    if (!username || !password) {
+      return reply.code(400).send({
+        success: false,
+        errorCode: 'MISSING_FIELDS',
+        error: 'Username and password are required'
+      });
+    }
+
+    const cleanUsername = sanitizeUsername(username);
+    if (!cleanUsername) {
+      return reply.code(400).send({
+        success: false,
+        errorCode: 'INVALID_USERNAME',
+        error: 'Invalid username'
+      });
+    }
+
+    const user = await app.prisma.user.findUnique({
+      where: { username: cleanUsername },
+      select: {
+        id: true,
+        username: true,
+        password_hash: true,
+        password_salt: true,
+        twoFactorEnabled: true
+      }
+    });
+
+    const cleanPassword = sanitizePassword(password);
+    if (!cleanPassword || !user || !verifyPassword(cleanPassword, user.password_salt, user.password_hash)) {
+      return reply.code(401).send({
+        success: false,
+        errorCode: 'INVALID_CREDENTIALS',
+        error: 'Invalid credentials'
+      });
+    }
+
+    // Do not update any state or return sensitive info
+    return reply.send({
+      success: true,
+      username: user.username,
+      requiresTwoFactor: user.twoFactorEnabled
+    });
+  });
+
+  // DELETE /api/users (protected - bulk delete)
+  app.delete('/api/users', { preHandler: authenticateJWT }, async (req, reply) => {
+    // Optional: restrict bulk delete to a specific admin username via env
+    const adminUser = process.env.ADMIN_USER;
+    if (!adminUser || (req as any).user.username !== adminUser) {
+      return reply.code(403).send({ success: false, errorCode: 'UNAUTHORIZED', error: 'Bulk delete not allowed' });
+    }
     try {
       await app.prisma.user.deleteMany({});
       return reply.send({
@@ -230,10 +297,16 @@ export default async function authRoutes(app: FastifyInstance) {
     }
   });
 
-  // DELETE /api/users/:username
-  app.delete('/api/users/:username', async (req, reply) => {
+  // DELETE /api/users/:username (protected - self deletion)
+  app.delete('/api/users/:username', { preHandler: authenticateJWT }, async (req, reply) => {
     const { username } = req.params as { username: string };
     const { password } = req.body as { password: string };
+
+    // Ensure authenticated user matches target username
+    const authUser = (req as any).user;
+    if (!authUser || authUser.username !== username) {
+      return reply.code(403).send({ success: false, errorCode: 'UNAUTHORIZED', error: 'Cannot delete other users' });
+    }
 
     if (!password) {
       return reply.code(400).send({
