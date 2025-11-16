@@ -82,6 +82,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
         id: true,
         username: true,
         email: true,
+        twoFactorEnabled: true,
         createdAt: true,
         profile: {
           select: {
@@ -125,6 +126,7 @@ const usersRoute: FastifyPluginAsync = async (app) => {
         id: true,
         username: true,
         email: true,
+        twoFactorEnabled: true,
         createdAt: true,
         profile: {
           select: {
