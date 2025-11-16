@@ -63,6 +63,50 @@ function render(route: string) {
     return;
   }
 
+  // Friendship-based guard for viewing other users' profiles (Solution E)
+  if (route.startsWith('profile/') && TokenManager.isAuthenticated()) {
+    const targetUsername = route.split('/')[1];
+    const currentUser = UserSession.getCurrentUser();
+    if (targetUsername && currentUser && targetUsername !== currentUser) {
+      const cachedFriends: string[] | undefined = (window as any).currentFriendsList;
+      const proceedWithProfile = (friendsList: string[]) => {
+        if (friendsList.indexOf(targetUsername) === -1) {
+          // Not a friend: redirect to friends page (or home) and show a brief alert
+          try {
+            alert('You can view only your friends\' profiles.');
+          } catch (_) { /* ignore */ }
+          window.location.hash = '#friends';
+          return false;
+        }
+        return true;
+      };
+
+      if (Array.isArray(cachedFriends)) {
+        if (!proceedWithProfile(cachedFriends)) return; // blocked
+      } else {
+        // Fetch friends list once if not cached yet, then re-attempt render
+        fetch(`${API_BASE}/friends/${encodeURIComponent(currentUser)}`)
+          .then(r => r.json())
+          .then(data => {
+            try {
+              const friendsArr = Array.isArray(data?.friends) ? data.friends : [];
+              (window as any).currentFriendsList = friendsArr.map((f: any) => f.username).filter((u: any) => typeof u === 'string');
+              if (proceedWithProfile((window as any).currentFriendsList)) {
+                // Re-render now that list is available and allowed
+                render(route);
+              }
+            } catch (e) { /* ignore */ }
+          })
+          .catch(() => {
+            // On error retrieving friends, block access for safety
+            try { alert('Could not verify friendship.'); } catch (_) { /* ignore */ }
+            window.location.hash = '#friends';
+          });
+        return; // Defer rendering until fetch completes
+      }
+    }
+  }
+
   // Get fresh values from UserSession
   const currentUser = UserSession.getCurrentUser();
   const currentAvatar = UserSession.getCurrentUserAvatar();

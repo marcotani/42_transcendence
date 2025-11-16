@@ -154,14 +154,21 @@ export class FriendsManager {
 
     try {
       // Get pending requests count (protected endpoint now requires auth)
-      const requestsResponse = await ApiClient.get(`/friends/requests?for=${loggedInUser}`);
-      const friendsResponse = await ApiClient.get(`/friends/${loggedInUser}`);
+  const requestsResponse = await ApiClient.get(`/friends/requests?for=${loggedInUser}`);
+  const friendsResponse = await ApiClient.get(`/friends/${loggedInUser}`);
 
       if (requestsResponse.success && friendsResponse.success) {
         const pendingRaw = requestsResponse.data as any;
         const friendsRaw = friendsResponse.data as any;
         const pendingCount = pendingRaw?.incoming?.length || 0;
         const friends = friendsRaw?.friends || [];
+
+        // Cache friend usernames globally for quick access by route guards
+        try {
+          (window as any).currentFriendsList = Array.isArray(friends)
+            ? friends.map((f: any) => f.username).filter((u: any) => typeof u === 'string')
+            : [];
+        } catch (e) { /* ignore */ }
         
         // Count online friends (those with recent heartbeat)
         const onlineFriendsCount = friends.filter((friend: any) => {
